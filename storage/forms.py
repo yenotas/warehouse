@@ -48,10 +48,10 @@ class StorageCellsForm(forms.ModelForm):
         exclude = ['record_date']
 
 
-class PivotTableForm(forms.ModelForm):
-    class Meta:
-        model = PivotTable
-        fields = '__all__'
+# class PivotTableForm(forms.ModelForm):
+#     class Meta:
+#         model = PivotTable
+#         fields = '__all__'
 
 
 class CategoriesForm(forms.ModelForm):

@@ -1,67 +1,21 @@
-from django.http import HttpResponseRedirect
-from django.urls import path
-from django.urls import reverse
+# from django.http import HttpResponseRedirect
+from django.urls import path, include
+# from django.urls import reverse
 from django.contrib import admin
 
+# from warehouse.urls import router
 from .forms import *
-from .views import complex_table_view
+from .views import PivotTableViewSet
+
+# from .views import complex_table_view
 
 
-class MyAdminSite(admin.AdminSite):
-    site_header = "ЗАКУПКИ | СКЛАД"
-    site_title = "Панель управления товарной номенклатурой"
-    index_title = "Управление складом и закупками."
 
-    def get_app_list(self, request):
-        app_list = super().get_app_list(request)
-        user_groups = request.user.groups.values_list('name', flat=True)
+admin.site.site_header = "ЗАКУПКИ | СКЛАД"
+admin.site.site_title = "Панель управления товарной номенклатурой"
+admin.site.index_title = "Управление складом и закупками."
 
-        if 'admin' in user_groups:
-            self.site_header = "Архитекция: Панель управления [АДМИН]"
-            return app_list
-
-        filtered_app_list = []
-        for app in app_list:
-            filtered_models = []
-            for model in app['models']:
-                if model['perms']['view'] or model['perms']['add']:  # Права на просмотр или добавление
-                    filtered_models.append(model)
-            if filtered_models:
-                app['models'] = filtered_models
-                filtered_app_list.append(app)
-
-        print(user_groups)
-        print(filtered_app_list)
-
-        if 'manager' in user_groups:
-            return [app for app in filtered_app_list if app['name'] == 'Orders' or app['name'] == 'Products']
-
-        if 'purchase' in user_groups:
-            return [app for app in filtered_app_list if app['name'] == 'ProductRequest' or app['name'] == 'Suppliers']
-
-        if 'storage' in user_groups:
-            return [app for app in filtered_app_list if app['name'] == 'Warehouse' or app['name'] == 'StorageCells']
-
-        if 'planner' in user_groups:
-            return [app for app in filtered_app_list if app['name'] == 'Projects' or app['name'] == 'Products']
-
-        return []
-
-    def has_permission(self, request):
-        user_groups = request.user.groups.values_list('name', flat=True)
-        allowed_groups = ['admin', 'manager', 'purchase', 'storage', 'planner']
-        return bool(set(user_groups).intersection(allowed_groups)) or request.user.is_superuser
-
-
-# admin_site = MyAdminSite(name='myadmin')
-
-admin_site = admin.site
-admin_site.site_header = "ЗАКУПКИ | СКЛАД"
-admin_site.site_title = "Панель управления товарной номенклатурой"
-admin_site.index_title = "Управление складом и закупками."
-
-admin_site.register(AccessLevels)
-# admin_site.register(PivotTable)
+admin.site.register(AccessLevels)
 
 
 class ProductAdmin(admin.ModelAdmin):
@@ -173,37 +127,31 @@ class StorageCellsAdmin(admin.ModelAdmin):
     search_fields = ['process_entry', 'cell_address', 'old_cell_address']
 
 
-admin_site.register(Products, ProductAdmin)
-admin_site.register(Categories, CategoriesAdmin)
-admin_site.register(Employees, EmployeesAdmin)
-admin_site.register(Suppliers, SuppliersAdmin)
-admin_site.register(Projects, ProjectsAdmin)
-admin_site.register(ProductRequest, ProductRequestAdmin)
-admin_site.register(Orders, OrdersAdmin)
-admin_site.register(ProductMovies, ProductMoviesAdmin)
-admin_site.register(StorageCells, StorageCellsAdmin)
+admin.site.register(Products, ProductAdmin)
+admin.site.register(Categories, CategoriesAdmin)
+admin.site.register(Employees, EmployeesAdmin)
+admin.site.register(Suppliers, SuppliersAdmin)
+admin.site.register(Projects, ProjectsAdmin)
+admin.site.register(ProductRequest, ProductRequestAdmin)
+admin.site.register(Orders, OrdersAdmin)
+admin.site.register(ProductMovies, ProductMoviesAdmin)
+admin.site.register(StorageCells, StorageCellsAdmin)
 
 
 class PivotTableAdmin(admin.ModelAdmin):
-    change_list_template = "admin/storage/complex_table.html"
+    change_list_template = "complex_table.html"
 
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
-            path('admin/storage/', self.admin_site.admin_view(complex_table_view), name='complex_table'),
-            path('pivottable-test/', self.admin_site.admin_view(complex_table_view), name='complex_table'),
+            path('complex-table/',  PivotTableViewSet.as_view({'get': 'list'}), name='complex_table'),
         ]
         return custom_urls + urls
+    # PivotTableViewSet.as_view({'get': 'list'}), name='complex_table'),
 
-    def changelist_view(self, request, extra_context=None):
-        if request.GET.get("next") == "complex_table":
-            return HttpResponseRedirect(reverse('admin:complex_table'))
-        return super().changelist_view(request, extra_context)
-
-    def get_actions(self, request):
-        return []
-    search_fields = ['product']
-
+    # def get_actions(self, request):
+    #     return []
+    # search_fields = ['name']
 
 admin.site.register(PivotTable, PivotTableAdmin)
 

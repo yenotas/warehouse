@@ -1,4 +1,4 @@
-{% extends "admin/change_list.html" %}
+{% extends "admin/base_site.html" %}
 
 {% load static %}
 
@@ -72,25 +72,32 @@
         </form>
     </div>
     <link rel="stylesheet" type="text/css" href="{% static 'admin/css/custom_admin.css' %}">
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script type="text/javascript" src="{% static 'admin/js/custom_admin.js' %}"></script>
     <script type="text/javascript">
         function loadMoreData(page) {
-            var xhr = new XMLHttpRequest();
-            xhr.open('GET', '?page=' + page, true);
-            xhr.onload = function () {
-                if (xhr.status === 200) {
-                    var tableBody = document.getElementById('table-body');
-                    tableBody.innerHTML += xhr.responseText;
+            $.ajax({
+                url: '?page=' + page,
+                type: 'get',
+                success: function(data) {
+                    console.log('Data loaded:', data);
+                    $('#table-body').append(data);
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error loading data:', status, error);
                 }
-            };
-            xhr.send();
+            });
         }
-        window.onscroll = function() {
-            if ((window.innerHeight + window.scrollY) >= document.body.scrollHeight) {
-                var nextPage = parseInt(document.getElementById('next-page').value, 10);
-                loadMoreData(nextPage);
-                document.getElementById('next-page').value = nextPage + 1;
-            }
-        };
+
+        $(document).ready(function() {
+            $(window).scroll(function() {
+                if ($(window).scrollTop() + $(window).height() == $(document).height()) {
+                    var nextPage = $('#next-page').val();
+                    loadMoreData(nextPage);
+                    $('#next-page').val(parseInt(nextPage) + 1);
+                }
+            });
+        });
+
     </script>
 {% endblock %}
