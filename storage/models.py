@@ -31,7 +31,7 @@ class CustomUser(AbstractUser):
         verbose_name_plural = "Пользователи"
 
     def __str__(self):
-        return self.username
+        return f"{self.first_name} {self.last_name}"
 
 
 class Categories(models.Model):
@@ -111,7 +111,7 @@ class ProductRequest(models.Model):
     product = models.ForeignKey(Products, on_delete=models.PROTECT, verbose_name="Наименование",
                                 default=1)
     request_about = models.CharField(blank=True, null=True, verbose_name="Комментарий")
-    request_quantity = models.PositiveIntegerField(blank=True, null=True, verbose_name="Количество")
+    request_quantity = models.PositiveIntegerField(blank=True, null=True, verbose_name="Количество", default=1)
     responsible_employee = models.ForeignKey(CustomUser, on_delete=models.PROTECT, blank=True, null=True,
                                              verbose_name="Ответственный")
     delivery_location = models.CharField(max_length=30, verbose_name="Куда везем?", choices=[
@@ -172,7 +172,7 @@ class ProductMovies(models.Model):
     new_cell = models.ForeignKey('StorageCells', on_delete=models.PROTECT, blank=True, null=True,
                                  verbose_name="Адрес ячейки")
     product = models.ForeignKey(Products, on_delete=models.PROTECT, null=True, verbose_name="Товар")
-    movie_quantity = models.PositiveIntegerField(blank=True, null=True, verbose_name="Количество")
+    movie_quantity = models.PositiveIntegerField(blank=True, null=True, verbose_name="Количество", default=1)
     reason = models.CharField(max_length=200, blank=True, null=True, verbose_name="Источник перемещения")
 
     class Meta:
@@ -207,11 +207,11 @@ class PivotTable(models.Model):
     not_delivered_pcs = models.PositiveIntegerField(verbose_name="Не доставлено, кол-во")
     document_flow = models.CharField(max_length=255, verbose_name="Документооборот")
     supply_date = models.DateField(verbose_name="Дата фактического поступления")
-    supply_quantity = models.PositiveIntegerField(verbose_name="Факт поставки, кол-во")
-    given_quantity = models.PositiveIntegerField(verbose_name="Выдано, кол-во")
+    supply_quantity = models.PositiveIntegerField(verbose_name="Факт поставки, кол-во", default=1)
+    given_quantity = models.PositiveIntegerField(verbose_name="Выдано, кол-во", default=1)
     given_employee = models.CharField(max_length=255, verbose_name="Выдано кому")
     given_date = models.DateField(verbose_name="Дата выдачи")
-    refund_quantity = models.PositiveIntegerField(verbose_name="Возврат поставщику, кол-во")
+    refund_quantity = models.PositiveIntegerField(verbose_name="Возврат поставщику, кол-во", default=1)
     refund_reason = models.CharField(max_length=255, verbose_name="Причина возврата")
 
     @property
@@ -225,6 +225,7 @@ class PivotTable(models.Model):
     @property
     def request_about(self):
         return self.product_request.request_about
+
 
     @property
     def packaging_unit(self):

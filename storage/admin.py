@@ -47,7 +47,7 @@ class CustomUserAdmin(UserAdmin):
 
     # Метод для отображения отдела
     def department_display(self, obj):
-        return obj.department.department if obj.department else ""
+        return obj.department.department if obj.department else "—"
     department_display.short_description = 'Отдел/Цех'
 
     def get_actions(self, request):
@@ -103,7 +103,7 @@ class ProductAdmin(admin.ModelAdmin):
 class ProjectsAdmin(admin.ModelAdmin):
     form = ProjectsForm
     list_display = (
-    'id', 'creation_date', 'name', 'detail_full_name', 'get_manager_full_name', 'get_engineer_full_name', 'project_code', 'detail_name', 'detail_code')
+    'id', 'creation_date', 'name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name', 'detail_code')
     fields = (
     'name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name', 'detail_code')
     search_fields = ['name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name', 'detail_code']
@@ -123,14 +123,6 @@ class ProjectsAdmin(admin.ModelAdmin):
                 form.base_fields[field].widget.attrs['style'] = 'background-color: #f0f0f0;'
         return form
 
-    def get_manager_full_name(self, obj):
-        return f"{obj.manager.first_name} {obj.manager.last_name}" if obj.manager else None
-    get_manager_full_name.short_description = "Менеджер"
-
-    def get_engineer_full_name(self, obj):
-        return f"{obj.engineer.first_name} {obj.engineer.last_name}" if obj.engineer else None
-    get_engineer_full_name.short_description = "Инженер"
-
     def get_actions(self, request):
         return []
 
@@ -138,18 +130,14 @@ class ProjectsAdmin(admin.ModelAdmin):
 class ProductRequestAdmin(admin.ModelAdmin):
     form = ProductRequestForm
     list_display = (
-    'id', 'request_date', 'product', 'request_about', 'request_quantity', 'project', 'get_manager_full_name', 'delivery_location',
+    'id', 'request_date', 'product', 'request_about', 'request_quantity', 'project', 'responsible_employee', 'delivery_location',
     'delivery_address', 'deadline_delivery_date')
     fields = (
-    'product', 'request_about', 'request_quantity', 'project', 'get_manager_full_name', 'delivery_location',
+    'product', 'request_about', 'request_quantity', 'project', 'responsible_employee', 'delivery_location',
     'delivery_address', 'deadline_delivery_date')
     search_fields = ['product', 'project']
     ordering = ('id', 'request_date', 'product', 'project')
     list_filter = ('request_date', 'product', 'project')
-
-    def get_manager_full_name(self, obj):
-        return f"{obj.responsible_employee.first_name} {obj.responsible_employee.last_name}" if obj.responsible_employee else None
-    get_manager_full_name.short_description = "Ответственный"
 
     def get_actions(self, request):
         return []
@@ -160,17 +148,13 @@ class ProductRequestAdmin(admin.ModelAdmin):
 
 class OrdersAdmin(admin.ModelAdmin):
     form = OrdersForm
-    list_display = ('id', 'order_date', 'product_request', 'get_manager_full_name', 'accounted_in_1c', 'invoice_number', 'delivery_status',
+    list_display = ('id', 'order_date', 'product_request', 'manager', 'accounted_in_1c', 'invoice_number', 'delivery_status',
                     'documents', 'waiting_date')
-    fields = ('product_request', 'get_manager_full_name', 'accounted_in_1c', 'invoice_number', 'delivery_status', 'documents',
-              'waiting_date')
-    search_fields = ['delivery_status', 'product_request', 'get_manager_full_name', 'invoice_number']
+    fields = ('product_request', 'manager', 'accounted_in_1c', 'invoice_number', 'delivery_status', 'documents',
+                     'waiting_date')
+    search_fields = ['delivery_status', 'product_request', 'manager', 'invoice_number']
     ordering = ('id', 'delivery_status', 'order_date', 'product_request', 'waiting_date')
-    list_filter = ('order_date', 'product_request', 'delivery_status')
-
-    def get_manager_full_name(self, obj):
-        return f"{obj.manager.first_name} {obj.manager.last_name}" if obj.manager else None
-    get_manager_full_name.short_description = "Менеджер"
+    list_filter = ('order_date', 'manager', 'product_request', 'delivery_status')
 
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
@@ -180,8 +164,7 @@ class OrdersAdmin(admin.ModelAdmin):
             role = user.groups.first().name
         if role not in ['Администратор', 'Менеджер', 'Закупка']:
             fields_to_disable = ['product_request', 'manager', 'accounted_in_1c', 'invoice_number', 'delivery_status',
-            'documents', 'waiting_date']
-
+                    'documents', 'waiting_date']
             for field in fields_to_disable:
                 if field != 'creation_date1':
                     form.base_fields[field].disabled = True
