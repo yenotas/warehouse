@@ -38,7 +38,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     # 'debug_toolbar',
-    'storage.apps.StorageConfig',
+    'storage',
+    'dal',
+    'dal_select2',
 ]
 
 MIDDLEWARE = [
@@ -150,3 +152,6 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8000",
     # другие разрешенные адреса
 ]
+
+AUTH_USER_MODEL = 'storage.CustomUser'
+

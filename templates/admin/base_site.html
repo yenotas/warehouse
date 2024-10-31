@@ -4,7 +4,8 @@
 
 {% block extrastyle %}
 <link rel="stylesheet" type="text/css" href="{% static 'admin/css/custom_admin.css' %}">
-<script type="text/javascript" src="{% static 'admin/js/custom_admin.js' %}"></script>
+<script type="text/javascript" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script type="text/javascript" src="{% static 'admin/js/admin/ToggleFields.js' %}"></script>
 {% endblock %}
 
 {% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Учет закупок и склада') }}{% endblock %}

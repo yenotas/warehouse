@@ -5,7 +5,7 @@ from .models import Products, ProductRequest, Orders, Projects, ProductMovies, S
 class PivotTableSerializer(serializers.Serializer):
     product_name = serializers.CharField(source='name')
     product_link = serializers.URLField(source='product_link')
-    order_about = serializers.CharField(source='productrequest_set__order_about')
+    request_about = serializers.CharField(source='productrequest_set__request_about')
     packaging_unit = serializers.CharField(source='packaging_unit')
     project_code = serializers.CharField(source='projects__project_code')
     detail_code = serializers.CharField(source='projects__detail_code')
@@ -19,7 +19,7 @@ class PivotTableSerializer(serializers.Serializer):
     invoice_number = serializers.CharField(source='orders__invoice_number')
     delivery_status = serializers.CharField(source='orders__delivery_status')
     documents = serializers.CharField(source='orders__documents')
-    order_quantity = serializers.IntegerField(source='productrequest_set__order_quantity')
+    request_quantity = serializers.IntegerField(source='productrequest_set__request_quantity')
     record_date = serializers.DateField(source='productmovies_set__record_date')
     movie_quantity = serializers.IntegerField(source='productmovies_set__movie_quantity')
     employee = serializers.CharField(source='productmovies_set__employee')

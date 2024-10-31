@@ -1,24 +1,30 @@
 from django.conf.urls.static import static
-
 from django.contrib import admin
 
-from storage.views import complex_table_view, delete_near_product
-from warehouse import settings
+from storage.admin import admin_site
+# from storage.views import get_product_data, get_reason_choices, test_view  # , delete_near_product
+
 from django.urls import path, include
 
+from storage.views import get_reason_choices, get_product_data, DepartmentsAutocomplete, \
+    CategoriesAutocomplete
+from warehouse import settings
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    # path('storage/', include('storage.urls')),
-    path('admin/storage/delete-near-product/', delete_near_product, name='delete_near_product'),
-    path('pivottable-test/', complex_table_view, name='pivottable_test'),
-    path('admin/storage/pivottable', complex_table_view, name='complex-table')
+    path('admin/', admin_site.urls),
+    path('get-reason-choices/', get_reason_choices, name='get_reason_choices'),
+    path('get-product-data/<int:product_id>/', get_product_data, name='get_product_data'),
+    path('departments-autocomplete/', DepartmentsAutocomplete.as_view(), name='departments-autocomplete'),
+    path('categories-autocomplete/', CategoriesAutocomplete.as_view(), name='categories-autocomplete'),
+    # path('add-department/', add_department, name='add-department'),
 ]
 
 # urlpatterns = [
 #     path('admin/', admin.site.urls),
 #     path('admin/storage/', complex_table_view, name='pivottable'),
 #     path('pivottable-test/', complex_table_view, name='pivottable_test')
+# path('storage/', include('storage.urls')),
+# path('delete-near-product/<int:product_id>/', delete_near_product, name='delete_near_product'),
 # ]
 
 # if settings.DEBUG:

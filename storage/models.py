@@ -1,47 +1,45 @@
 from django.db import models
+from django.contrib.auth.models import AbstractUser, Group
+
+access_type = [('Администратор', 'Администратор'), ('Менеджер', 'Менеджер'), ('Склад', 'Склад'), ('Закупка', 'Закупка'),
+               ('ИТР/Планировщик', 'ИТР/Планировщик')]
+deps_list = [('Склад', 'Склад'), ('Офис', 'Офис'), ('Монтаж', 'Монтаж'), ('Инженерный', 'Инженерный'),
+             ('3D', '3D'), ('Снабжение', 'Снабжение'), ('AXO', 'AXO'), ('ПДО', 'ПДО'), ('ЧПУ', 'ЧПУ'),
+             ('Столярный', 'Столярный'), ('Макетный', 'Макетный'), ('Малярный', 'Малярный'),
+             ('Художественный', 'Художественный'), ('Сборочный', 'Сборочный')]
 
 
-class AccessLevels(models.Model):
-    role = models.CharField(max_length=50, choices=[
-        ('Администратор', 'Администратор'), ('Менеджер', 'Менеджер'),
-        ('Склад', 'Склад'), ('Закупка', 'Закупка'), ('ИТР/Планировщик', 'ИТР/Планировщик')
-    ], blank=True, null=True,  verbose_name="Уровень доступа")
-
-    class Meta:
-        verbose_name = "доступ"
-        verbose_name_plural = "доступы"
-
-    def __str__(self):
-        return self.role
-
-
-class Employees(models.Model):
-    name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Имя Фамилия")
-    email = models.CharField(max_length=255, blank=True, null=True, verbose_name="Email")
-    tg = models.CharField(max_length=50, blank=True, null=True, verbose_name="Телеграм")
-    department = models.CharField(max_length=50, verbose_name="Отдел/Цех", choices=[
-        ('Склад', 'Склад'), ('Офис', 'Офис'), ('Монтаж', 'Монтаж'), ('Инженерный', 'Инженерный'),
-        ('3D', '3D'), ('Снабжение', 'Снабжение'), ('AXO', 'AXO'), ('ПДО', 'ПДО'), ('ЧПУ', 'ЧПУ'),
-        ('Столярный', 'Столярный'), ('Макетный', 'Макетный'), ('Малярный', 'Малярный'), ('Художественный', 'Художественный'),
-        ('Сборочный', 'Сборочный')
-    ])
-    position_name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Должность")
-    access_type = models.ForeignKey(AccessLevels, on_delete=models.PROTECT, null=True, verbose_name="Уровень доступа")
+class Departments(models.Model):
+    department = models.CharField(max_length=50, verbose_name="Отдел/Цех", default='Офис')
 
     class Meta:
-        verbose_name = "сотрудник"
-        verbose_name_plural = "сотрудники"
+        verbose_name = "Отдел/Цех"
+        verbose_name_plural = "Подразделения компании"
 
     def __str__(self):
-        return self.name
+        return self.department
+
+
+class CustomUser(AbstractUser):
+    tg = models.CharField(max_length=255, verbose_name="Телеграм", blank=True, null=True)
+    department = models.ForeignKey(Departments, verbose_name="Отдел/Цех", on_delete=models.SET_NULL, null=True)
+    position_name = models.CharField(max_length=255, verbose_name="Должность", blank=True, null=True)
+    groups = models.ManyToManyField(Group, verbose_name="Группы", related_name="custom_users")
+
+    class Meta:
+        verbose_name = "Пользователь"
+        verbose_name_plural = "Пользователи"
+
+    def __str__(self):
+        return self.username
 
 
 class Categories(models.Model):
     name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Категория товара", db_index=True)
 
     class Meta:
-        verbose_name = "категория"
-        verbose_name_plural = "категории"
+        verbose_name = "категорию"
+        verbose_name_plural = "Категории"
 
     def __str__(self):
         return self.name
@@ -59,33 +57,13 @@ class Suppliers(models.Model):
     tg = models.CharField(max_length=50, blank=True, null=True, verbose_name="Телеграм")
 
     class Meta:
-        verbose_name = "поставщик"
-        verbose_name_plural = "поставщики"
+        verbose_name = "поставщика"
+        verbose_name_plural = "Поставщики"
 
     def __str__(self):
         return self.name
 
 
-#+
-class Projects(models.Model):
-    creation_date = models.DateField(auto_now_add=True, verbose_name="Дата записи")
-    name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Проект")
-    detail_full_name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Полное название изделия")
-    manager = models.ForeignKey(Employees, on_delete=models.PROTECT, blank=True, null=True, verbose_name="Менеджер")
-    engineer = models.ForeignKey(Employees, on_delete=models.PROTECT, related_name='projects_engineer_set', blank=True, null=True, verbose_name="Инженер")
-    project_code = models.CharField(max_length=100, blank=True, null=True, verbose_name="Шифр проекта")
-    detail_name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Изделие")
-    detail_code = models.CharField(max_length=100, blank=True, null=True, verbose_name="Шифр изделия")
-
-    class Meta:
-        verbose_name = "проект"
-        verbose_name_plural = "проекты"
-
-    def __str__(self):
-        return self.name
-
-
-#+
 class Products(models.Model):
     name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Наименование")
     product_link = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ссылка")
@@ -96,49 +74,67 @@ class Products(models.Model):
         ('уп.', 'уп.'), ('шт.', 'шт.'), ('кв.м', 'кв.м'),
         ('п.м.', 'п.м.'), ('кг', 'кг'), ('л', 'л'), ('мл', 'мл')
     ])
-    quantity_in_package = models.IntegerField(blank=True, null=True, verbose_name="Количество в упаковке")
-    product_image = models.ImageField(upload_to="images/%Y/%m/%d/", editable=True, null=True, verbose_name="Фото/скриншот")
+    quantity_in_package = models.PositiveIntegerField(blank=True, null=True, verbose_name="Кол-во в упаковке", default=1)
+    product_image = models.ImageField(upload_to="images/%Y/%m/%d/", editable=True, null=True, blank=True, verbose_name="Фото/скриншот")
     near_products = models.ManyToManyField('self', blank=True, verbose_name="Похожие товары")
 
     class Meta:
-        verbose_name = "товарное наименование"
-        verbose_name_plural = "товарные наименования"
+        verbose_name = "наименование"
+        verbose_name_plural = "Товарные наименования"
 
     def __str__(self):
         return self.name
 
 
-#+
+class Projects(models.Model):
+    creation_date = models.DateField(auto_now_add=True, verbose_name="Дата записи")
+    name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Полное название проекта")
+    detail_full_name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Полное название изделия")
+    manager = models.ForeignKey(CustomUser, on_delete=models.PROTECT, blank=True, null=True, verbose_name="Менеджер")
+    engineer = models.ForeignKey(CustomUser, on_delete=models.PROTECT, related_name='projects_engineer_set', blank=True, null=True, verbose_name="Инженер")
+    project_code = models.CharField(max_length=100, blank=True, null=True, verbose_name="Шифр проекта")
+    detail_name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Изделие")
+    detail_code = models.CharField(max_length=100, blank=True, null=True, verbose_name="Шифр изделия")
+
+    class Meta:
+        verbose_name = "проект"
+        verbose_name_plural = "Проекты"
+
+    def __str__(self):
+        return self.name
+
+
 class ProductRequest(models.Model):
     request_date = models.DateField(auto_now_add=True, verbose_name="Дата запроса")
-    product = models.ForeignKey(Products, on_delete=models.PROTECT, blank=True, null=True, verbose_name="Наименование")
-    project = models.ForeignKey(Projects, on_delete=models.PROTECT, blank=True, null=True, verbose_name="Проект")
-    order_about = models.CharField(blank=True, null=True, verbose_name="Комментарий")
-    order_quantity = models.IntegerField(blank=True, null=True, verbose_name="Количество")
-    responsible_employee = models.ForeignKey(Employees, on_delete=models.PROTECT, blank=True, null=True, verbose_name="Ответственный")
+    project = models.ForeignKey(Projects, on_delete=models.PROTECT, verbose_name="Проект",
+                                default=1)
+    product = models.ForeignKey(Products, on_delete=models.PROTECT, verbose_name="Наименование",
+                                default=1)
+    request_about = models.CharField(blank=True, null=True, verbose_name="Комментарий")
+    request_quantity = models.PositiveIntegerField(blank=True, null=True, verbose_name="Количество")
+    responsible_employee = models.ForeignKey(CustomUser, on_delete=models.PROTECT, blank=True, null=True,
+                                             verbose_name="Ответственный")
     delivery_location = models.CharField(max_length=30, verbose_name="Куда везем?", choices=[
         ('Склад', 'Склад'), ('Офис', 'Офис'), ('Цех', 'Цех'), ('Монтаж', 'Монтаж'),
-        ('Подрядчик', 'Подрядчик'), ('Заказчик', 'Заказчик'),
-        ('Инженерный', 'Инженерный'), ('3D', '3D'), ('Снабжение', 'Снабжение'),
-        ('AXO', 'AXO'), ('ПДО', 'ПДО'), ('ЧПУ', 'ЧПУ'), ('Столярный', 'Столярный'),
-        ('Макетный', 'Макетный'), ('Малярный', 'Малярный'),
-        ('Художественный', 'Художественный'), ('Сборочный', 'Сборочный')
-    ])
+        ('Подрядчик', 'Подрядчик'), ('Заказчик', 'Заказчик')
+    ], default=('Склад', 'Склад'))
     delivery_address = models.CharField(blank=True, null=True, verbose_name="Адрес")
     deadline_delivery_date = models.DateField(blank=True, null=True, verbose_name="Требуемая дата поставки")
 
     class Meta:
         verbose_name = "запрос на закуп"
-        verbose_name_plural = "запросы на закуп"
+        verbose_name_plural = "Запросы на закуп"
 
     def __str__(self):
-        return self.product.name
+        return f"Заявка на {self.product.name}"
 
 
 class Orders(models.Model):
     order_date = models.DateField(auto_now_add=True, verbose_name="Дата заказа")
-    purchase = models.ForeignKey(ProductRequest, on_delete=models.PROTECT, blank=True, null=True, verbose_name="Наименование")
-    manager = models.ForeignKey(Employees, on_delete=models.PROTECT, blank=True, null=True, verbose_name="Ответственный")
+    product_request = models.ForeignKey('ProductRequest', on_delete=models.PROTECT, blank=True, null=True,
+                                 verbose_name="Заявка на закуп")
+    manager = models.ForeignKey(CustomUser, on_delete=models.PROTECT, blank=True, null=True,
+                                verbose_name="Ответственный")
     accounted_in_1c = models.BooleanField(blank=True, null=True, verbose_name="Учтено в 1С")
     invoice_number = models.CharField(max_length=100, blank=True, null=True, verbose_name="Номер счета")
     delivery_status = models.CharField(max_length=50, verbose_name="Статус заказа", choices=[
@@ -147,62 +143,156 @@ class Orders(models.Model):
     ])
     documents = models.CharField(max_length=50, verbose_name="Документы", choices=[
         ('Нет', 'Нет'), ('УПД/СФ', 'УПД/СФ'), ('TTH/TH/AKT', 'TTH/TH/AKT'), ('ИП', 'ИП')
-    ])
+    ], default=('Нет', 'Нет'))
+    document_flow = models.CharField(max_length=50, verbose_name="Документооборот", choices=[
+        ('Нет', 'Нет'), ('ИП', 'ИП'), ('ЭДО', 'ЭДО'), ('Бумага', 'Бумага')
+    ], default=('Нет', 'Нет'))
     waiting_date = models.DateField(blank=True, null=True, verbose_name="Ожидаемая дата поставки")
 
     class Meta:
         verbose_name = "заказ в закупку"
-        verbose_name_plural = "заказы в закупку"
+        verbose_name_plural = "Заказы в закупку"
 
     def __str__(self):
-        return self.purchase.product.name
+        return f"Заявка на закуп №{self.ProductRequest.id}"
 
 
 class ProductMovies(models.Model):
     record_date = models.DateField(auto_now_add=True, verbose_name="Дата записи")
-    product = models.ForeignKey(Products, on_delete=models.PROTECT, blank=True, null=True, verbose_name="Наименование")
     process_type = models.CharField(max_length=50, choices=[
-        ('Прием на склад', 'Прием на склад'), ('Выдача со склада', 'Выдача со склада'),
-        ('Возврат на склад', 'Возврат на склад'), ('Возврат поставщику', 'Возврат поставщику'),
-        ('Бронирование', 'Бронирование'), ('Перемещение в ячейку', 'Перемещение в ячейку')
-    ], verbose_name="Тип перемещения")
+        ('warehouse', 'Прием на склад'), ('distribute', 'Выдача со склада'),
+        ('return', 'Возврат на склад'), ('sup_return', 'Возврат поставщику'),
+        ('move', 'Перемещение из ячейки'), ('none', 'Выбрать')
+    ], verbose_name="Тип перемещения", default=('none', 'Выбрать'))
     return_to_supplier_reason = models.CharField(max_length=50, choices=[
-        ('Дефекты материалов', 'Дефекты материалов'), ('Дефекты изделий', 'Дефекты изделий'),
-        ('Излишек', 'Излишек'), ('Несоответствие заказу', 'Несоответствие заказу'),
+        ('Несоответствие заказу', 'Несоответствие заказу'), ('Дефекты материалов', 'Дефекты материалов'),
+        ('Дефекты изделий', 'Дефекты изделий'), ('Излишек', 'Излишек'),
         ('Нарушение сроков поставки', 'Нарушение сроков поставки')
-    ], blank=True, null=True, verbose_name="Причина возврата")
-    document_flow = models.CharField(max_length=50, verbose_name="Документооборот", choices=[
-        ('Нет', 'Нет'), ('ИП', 'ИП'), ('ЭДО', 'ЭДО'), ('Бумага', 'Бумага')
-    ])
-    employee = models.ForeignKey(Employees, on_delete=models.PROTECT, blank=True, null=True, verbose_name="Для/от сотрудника")
-    project = models.ForeignKey(Projects, on_delete=models.PROTECT, blank=True, null=True, verbose_name="Для/из проекта")
-    movie_quantity = models.IntegerField(blank=True, null=True, verbose_name="Количество")
-    from_cell = models.ForeignKey('StorageCells', on_delete=models.PROTECT, blank=True, null=True, verbose_name="Адрес ячейки")
+    ], blank=True, null=True, verbose_name="Причина возврата поставщику", default=('Дефекты изделий', 'Дефекты изделий'))
+    new_cell = models.ForeignKey('StorageCells', on_delete=models.PROTECT, blank=True, null=True,
+                                 verbose_name="Адрес ячейки")
+    product = models.ForeignKey(Products, on_delete=models.PROTECT, null=True, verbose_name="Товар")
+    movie_quantity = models.PositiveIntegerField(blank=True, null=True, verbose_name="Количество")
+    reason = models.CharField(max_length=200, blank=True, null=True, verbose_name="Источник перемещения")
 
     class Meta:
         verbose_name = "запись о перемещении товара"
-        verbose_name_plural = "записи перемещении товаров"
+        verbose_name_plural = "Перемещения по складу"
 
     def __str__(self):
-        return self.product
+        return str(self.id)
 
 
 class StorageCells(models.Model):
-    record_date = models.DateField(auto_now_add=True, verbose_name="Дата размещения")
-    process_entry = models.ForeignKey(ProductMovies, on_delete=models.PROTECT, blank=True, null=True, verbose_name="Источник поступления")
-    stock_quantity = models.IntegerField(blank=True, null=True, verbose_name="Количество")
     cell_address = models.CharField(max_length=255, blank=True, null=True, verbose_name="Адрес ячейки")
-    old_cell_address = models.CharField(max_length=255, blank=True, null=True, verbose_name="Предыдущий адрес")
+    info = models.CharField(max_length=255, blank=True, null=True, verbose_name="Информация о ячейке")
 
     class Meta:
         verbose_name = "адресную ячейку"
-        verbose_name_plural = "адресные ячейки"
+        verbose_name_plural = "Адресные ячейки"
 
     def __str__(self):
         return self.cell_address
 
 
 class PivotTable(models.Model):
+    product = models.ForeignKey(Products, on_delete=models.PROTECT, verbose_name="Товар")
+    product_request = models.ForeignKey(ProductRequest, on_delete=models.PROTECT, verbose_name="Заявка")
+    project = models.ForeignKey(Projects, on_delete=models.PROTECT, verbose_name="Проект")
+    order = models.ForeignKey(Orders, on_delete=models.PROTECT, verbose_name="Заказ")
+    supplier = models.ForeignKey(Suppliers, on_delete=models.PROTECT, verbose_name="Поставщик")
+    has_on_storage = models.PositiveIntegerField(verbose_name="Наличие на складе, кол-во", default=0)
+    storage_cell = models.ForeignKey(StorageCells, on_delete=models.PROTECT, verbose_name="Ячейка хранения")
+    order_complete = models.BooleanField(verbose_name="Заказ оформлен")
+    not_delivered_pcs = models.PositiveIntegerField(verbose_name="Не доставлено, кол-во")
+    document_flow = models.CharField(max_length=255, verbose_name="Документооборот")
+    supply_date = models.DateField(verbose_name="Дата фактического поступления")
+    supply_quantity = models.PositiveIntegerField(verbose_name="Факт поставки, кол-во")
+    given_quantity = models.PositiveIntegerField(verbose_name="Выдано, кол-во")
+    given_employee = models.CharField(max_length=255, verbose_name="Выдано кому")
+    given_date = models.DateField(verbose_name="Дата выдачи")
+    refund_quantity = models.PositiveIntegerField(verbose_name="Возврат поставщику, кол-во")
+    refund_reason = models.CharField(max_length=255, verbose_name="Причина возврата")
+
+    @property
+    def product_name(self):
+        return self.product.name
+
+    @property
+    def product_link(self):
+        return self.product.product_link
+
+    @property
+    def request_about(self):
+        return self.product_request.request_about
+
+    @property
+    def packaging_unit(self):
+        return self.product.packaging_unit
+
+    @property
+    def request_quantity(self):
+        return self.product_request.request_quantity
+
+    @property
+    def project_code(self):
+        return self.project.project_code
+
+    @property
+    def detail_name(self):
+        return self.project.detail_name
+
+    @property
+    def detail_code(self):
+        return self.project.detail_code
+
+    @property
+    def product_image(self):
+        return self.product.product_image
+
+    @property
+    def request_date(self):
+        return self.product_request.request_date
+
+    @property
+    def responsible_employee(self):
+        return self.product_request.responsible_employee
+
+    @property
+    def delivery_location(self):
+        return self.product_request.delivery_location
+
+    @property
+    def deadline_delivery_date(self):
+        return self.product_request.deadline_delivery_date
+
+    @property
+    def waiting_date(self):
+        return self.order.waiting_date
+
+    @property
+    def supplier_name(self):
+        return self.supplier.name
+
+    @property
+    def invoice_number(self):
+        return self.order.invoice_number
+
+    @property
+    def delivery_status(self):
+        return self.order.delivery_status
+
+    @property
+    def documents(self):
+        return self.order.documents
+
+    @property
+    def cell_address(self):
+        return self.storage_cell.cell_address
+
+    def __str__(self):
+        return str(self.id)
+
     class Meta:
         verbose_name = "позицию"
-        verbose_name_plural = "Сводная таблица"
+        verbose_name_plural = "Все закупки"

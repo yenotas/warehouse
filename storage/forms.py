@@ -1,17 +1,30 @@
-from django import forms
 from .models import *
+from dal import autocomplete
+from django import forms
 
 
-class ProductForm(forms.ModelForm):
+class CustomUserForm(forms.ModelForm):
+    department = forms.ModelChoiceField(
+        queryset=Departments.objects.all(),
+        widget=autocomplete.ModelSelect2(url='departments-autocomplete'),
+        label="Отдел/Цех"
+    )
+
     class Meta:
-        model = Products
+        model = CustomUser
         fields = '__all__'
 
 
-class EmployeesForm(forms.ModelForm):
+class ProductForm(forms.ModelForm):
+    category = forms.ModelChoiceField(
+        queryset=Categories.objects.all(),
+        widget=autocomplete.ModelSelect2(url='categories-autocomplete'),
+        label="Категория"
+    )
+
     class Meta:
-        model = Employees
-        fields = ['name', 'email', 'tg', 'department', 'position_name']
+        model = Products
+        fields = '__all__'
 
 
 class SuppliersForm(forms.ModelForm):
@@ -39,19 +52,25 @@ class ProductMoviesForm(forms.ModelForm):
         model = ProductMovies
         fields = '__all__'
         exclude = ['record_date']
+        widgets = {
+            'reason': forms.Select(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['reason'].required = False
 
 
 class StorageCellsForm(forms.ModelForm):
     class Meta:
         model = StorageCells
         fields = '__all__'
-        exclude = ['record_date']
 
 
-# class PivotTableForm(forms.ModelForm):
-#     class Meta:
-#         model = PivotTable
-#         fields = '__all__'
+class PivotTableForm(forms.ModelForm):
+    class Meta:
+        model = PivotTable
+        fields = '__all__'
 
 
 class CategoriesForm(forms.ModelForm):
@@ -67,10 +86,6 @@ class ProductRequestForm(forms.ModelForm):
         exclude = ['request_date']
 
 
-class CustomForm(forms.ModelForm):
-    product = forms.ModelChoiceField(queryset=Products.objects.all())
-    supplier = forms.ModelChoiceField(queryset=Suppliers.objects.all())
-    responsible_employee = forms.ModelChoiceField(queryset=Employees.objects.all())
-    custom_field = forms.CharField(max_length=255)
+
 
 
