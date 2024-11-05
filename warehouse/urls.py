@@ -1,22 +1,21 @@
 from django.conf.urls.static import static
-from django.contrib import admin
-
 from storage.admin import admin_site
 # from storage.views import get_product_data, get_reason_choices, test_view  # , delete_near_product
 
 from django.urls import path, include
 
 from storage.views import get_reason_choices, get_product_data, DepartmentsAutocomplete, \
-    CategoriesAutocomplete
+    CategoriesAutocomplete, get_model_fields, get_saved_fields
 from warehouse import settings
 
 urlpatterns = [
     path('admin/', admin_site.urls),
+    path('get-model-fields/', get_model_fields, name='get_model_fields'),
     path('get-reason-choices/', get_reason_choices, name='get_reason_choices'),
     path('get-product-data/<int:product_id>/', get_product_data, name='get_product_data'),
     path('departments-autocomplete/', DepartmentsAutocomplete.as_view(), name='departments-autocomplete'),
     path('categories-autocomplete/', CategoriesAutocomplete.as_view(), name='categories-autocomplete'),
-    # path('add-department/', add_department, name='add-department'),
+    path('get-saved-fields/', get_saved_fields, name='get_saved_fields'),
 ]
 
 # urlpatterns = [

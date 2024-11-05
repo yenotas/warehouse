@@ -1,0 +1,28 @@
+:root {
+    --primary: #999;
+    --secondary: #333;
+    --breadcrumbs-bg: #666;
+    --hairline-color: #e8e8e8;
+}
+
+#id_near_products, #id_reason {
+    width: 100%;
+    max-width: 274px;
+}
+
+thead th, tfoot td {
+    border: 1px solid var(--hairline-color);
+    text-transform: none;
+}
+
+header, nav {
+    position: stick;
+    z-index: 1000;
+}
+
+
+/* Управление горизонтальным скроллингом */
+#main {
+    overflow-x: auto;
+    padding-right: 40px;
+}

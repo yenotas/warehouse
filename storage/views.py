@@ -1,27 +1,51 @@
 # from django.contrib.auth.decorators import login_required
+import json
+
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseNotFound
+from django.contrib.contenttypes.models import ContentType
+# from django.http import HttpResponseNotFound
 
 # from django.views.decorators.http import require_POST, require_GET
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect
 from django.views.decorators.csrf import csrf_exempt
 
+from .forms import ModelAccessControlForm
 # import pandas as pd
 # from django.shortcuts import render
 
-from .models import Products, ProductRequest, Orders, Projects, ProductMovies, StorageCells, Suppliers, Categories
+from .models import Products, Orders, Projects, ProductMovies, StorageCells, Suppliers, Categories, ModelAccessControl
 from dal import autocomplete
 from .models import Departments
 
 
-@csrf_exempt
-def add_department(request):
-    if request.method == 'POST':
-        department_name = request.POST.get('department', None)
-        if department_name:
-            department, created = Departments.objects.get_or_create(department=department_name)
-            return JsonResponse({'id': department.id, 'name': department.department})
-    return JsonResponse({'error': 'Invalid request'}, status=400)
+def get_saved_fields(request):
+    rule_id = request.GET.get('rule_id')
+    if rule_id:
+        try:
+            rule = ModelAccessControl.objects.get(id=rule_id)
+            saved_fields = rule.fields_to_disable
+            return JsonResponse({'fields_to_disable': saved_fields})
+        except ModelAccessControl.DoesNotExist:
+            return JsonResponse({'fields_to_disable': []})
+    return JsonResponse({'fields_to_disable': []})
+
+
+def get_model_fields(request):
+    model_id = request.GET.get('model_id')
+    if model_id:
+        model_class = ContentType.objects.get(id=model_id).model_class()
+        fields = [{'name': field.name, 'verbose_name': field.verbose_name} for field in model_class._meta.fields]
+        return JsonResponse({'fields': fields})
+    return JsonResponse({'fields': []})
+
+
+# def add_department(request):
+#     department_name = request.GET.get('department', None)
+#     if department_name:
+#         department, created = Departments.objects.get_or_create(department=department_name)
+#         return JsonResponse({'id': department.id, 'name': department.department})
+#     return JsonResponse({'error': 'Invalid request'}, status=400)
 
 
 class CategoriesAutocomplete(autocomplete.Select2QuerySetView):

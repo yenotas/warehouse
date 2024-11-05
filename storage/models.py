@@ -1,3 +1,5 @@
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.contrib.auth.models import AbstractUser, Group
 
@@ -38,7 +40,7 @@ class Categories(models.Model):
     name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Категория товара", db_index=True)
 
     class Meta:
-        verbose_name = "категорию"
+        verbose_name = "Категорию"
         verbose_name_plural = "Категории"
 
     def __str__(self):
@@ -192,7 +194,7 @@ class StorageCells(models.Model):
         verbose_name_plural = "Адресные ячейки"
 
     def __str__(self):
-        return self.cell_address
+        return str(self.cell_address)
 
 
 class PivotTable(models.Model):
@@ -297,3 +299,22 @@ class PivotTable(models.Model):
     class Meta:
         verbose_name = "позицию"
         verbose_name_plural = "Все закупки"
+
+
+class ModelAccessControl(models.Model):
+    model_name = models.ForeignKey(ContentType, on_delete=models.CASCADE, verbose_name="Правило для формы")
+    groups = models.ManyToManyField(Group, verbose_name="Группы редакторов")
+    fields_to_disable = models.JSONField(verbose_name="Отключаемые поля", blank=True, null=True, default=list)
+
+    class Meta:
+        verbose_name = "Правило блокировки полей формы"
+        verbose_name_plural = "Управление доступом"
+
+    def __str__(self):
+        return f"{self.model_name} - {', '.join(group.name for group in self.groups.all())}"
+
+    def display_groups(self):
+        return ", ".join(group.name for group in self.groups.all())
+    display_groups.short_description = "Группы редакторов"
+
+

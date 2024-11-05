@@ -1,9 +1,62 @@
+import json
+
 from django.urls import path
 from django.contrib import admin
+from django.utils.safestring import mark_safe
+
 from .forms import *
 from .models import *
 from django.contrib.auth.models import Group
 from django.contrib.auth.admin import UserAdmin, GroupAdmin
+from .mixins import AccessControlMixin
+
+
+class ModelAccessControlAdmin(admin.ModelAdmin):
+    form = ModelAccessControlForm
+    list_display = ['get_verbose_model_name', 'display_groups', 'get_disabled_fields_list']
+
+    def get_verbose_model_name(self, obj):
+        # Получаем объект ContentType и извлекаем verbose_name_plural модели
+        content_type = ContentType.objects.get_for_id(obj.model_name_id)
+        return content_type.model_class()._meta.verbose_name_plural
+
+    get_verbose_model_name.short_description = "Правило для формы"
+
+    def get_disabled_fields_list(self, obj):
+        # Десериализуем JSON, если он сохранен как строка
+        fields = json.loads(obj.fields_to_disable) if isinstance(obj.fields_to_disable, str) else obj.fields_to_disable
+        verbose_names = []
+
+        # Получаем verbose_name для каждого поля
+        content_type = ContentType.objects.get_for_id(obj.model_name_id)
+        model_class = content_type.model_class()
+        for field_name in fields:
+            field = model_class._meta.get_field(field_name)
+            verbose_names.append((str(field.verbose_name).title()))
+
+        return ", ".join(verbose_names)
+
+    get_disabled_fields_list.short_description = "Отключаемые поля для остальных"
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        instance = self.get_object(request, object_id)
+        extra_context = extra_context or {}
+        if instance:
+            saved_fields = instance.fields_to_disable
+            if isinstance(saved_fields, str):
+                try:
+                    saved_fields = json.loads(saved_fields)
+                except json.JSONDecodeError:
+                    saved_fields = []  # Сбрасываем в пустой список при ошибке
+            extra_context['model_id'] = instance.model_name.id
+            extra_context['fields_to_disable'] = mark_safe(json.dumps(saved_fields))
+        return super().change_view(request, object_id, form_url, extra_context)
+
+    def get_actions(self, request):
+        return []
+
+    class Media:
+        js = ('admin/js/admin/getModelFields2.js',)
 
 
 class MyAdminSite(admin.AdminSite):
@@ -28,7 +81,12 @@ class MyAdminSite(admin.AdminSite):
 # Создаем экземпляр
 admin_site = MyAdminSite(name='myadmin')
 
+admin_site.register(ModelAccessControl, ModelAccessControlAdmin)
 admin_site.register(Departments)
+
+
+class CustomGroupAdmin(GroupAdmin):
+    form = GroupForm
 
 
 class CustomUserAdmin(UserAdmin):
@@ -61,17 +119,7 @@ admin_site.register(CustomUser, CustomUserAdmin)
 admin_site.register(Group, GroupAdmin)
 
 
-# class SuppliersInline(admin.TabularInline):
-#     model = Suppliers
-#     extra = 1
-#     form = SuppliersForm
-#     fields = ('name', 'inn', 'ogrn', 'address', 'contact_person', 'website', 'email', 'phone', 'tg')
-#
-#     def get_actions(self, request):
-#         return []
-
-
-class SuppliersAdmin(admin.ModelAdmin):
+class SuppliersAdmin(AccessControlMixin, admin.ModelAdmin):
     form = SuppliersForm
     list_display = ('name', 'inn', 'ogrn', 'address', 'contact_person', 'website', 'email', 'phone', 'tg')
     fields = ('name', 'inn', 'ogrn', 'address', 'contact_person', 'website', 'email', 'phone', 'tg')
@@ -83,7 +131,7 @@ class SuppliersAdmin(admin.ModelAdmin):
         return []
 
 
-class ProductAdmin(admin.ModelAdmin):
+class ProductAdmin(AccessControlMixin, admin.ModelAdmin):
     form = ProductForm
 
     list_display = ('name', 'product_sku', 'product_link', 'product_image', 'category', 'supplier')
@@ -100,7 +148,7 @@ class ProductAdmin(admin.ModelAdmin):
         return []
 
 
-class ProjectsAdmin(admin.ModelAdmin):
+class ProjectsAdmin(AccessControlMixin, admin.ModelAdmin):
     form = ProjectsForm
     list_display = (
     'id', 'creation_date', 'name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name', 'detail_code')
@@ -110,24 +158,11 @@ class ProjectsAdmin(admin.ModelAdmin):
     ordering = ('name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name', 'detail_code')
     list_filter = ('name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name', 'detail_code')
 
-    def get_form(self, request, obj=None, **kwargs):
-        form = super().get_form(request, obj, **kwargs)
-        user = CustomUser.objects.filter(username=request.user.username).first()
-        role = None
-        if user and user.groups.exists():
-            role = user.groups.first().name
-        if role == 'Склад':
-            fields_to_disable = ['creation_date', 'name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name', 'detail_code']
-            for field in fields_to_disable:
-                form.base_fields[field].disabled = True
-                form.base_fields[field].widget.attrs['style'] = 'background-color: #f0f0f0;'
-        return form
-
     def get_actions(self, request):
         return []
 
 
-class ProductRequestAdmin(admin.ModelAdmin):
+class ProductRequestAdmin(AccessControlMixin, admin.ModelAdmin):
     form = ProductRequestForm
     list_display = (
     'id', 'request_date', 'product', 'request_about', 'request_quantity', 'project', 'responsible_employee', 'delivery_location',
@@ -146,7 +181,7 @@ class ProductRequestAdmin(admin.ModelAdmin):
         js = ('admin/js/admin/ChangeProductRequest.js',)
 
 
-class OrdersAdmin(admin.ModelAdmin):
+class OrdersAdmin(AccessControlMixin, admin.ModelAdmin):
     form = OrdersForm
     list_display = ('id', 'order_date', 'product_request', 'manager', 'accounted_in_1c', 'invoice_number', 'delivery_status',
                     'documents', 'waiting_date')
@@ -156,26 +191,11 @@ class OrdersAdmin(admin.ModelAdmin):
     ordering = ('id', 'delivery_status', 'order_date', 'product_request', 'waiting_date')
     list_filter = ('order_date', 'manager', 'product_request', 'delivery_status')
 
-    def get_form(self, request, obj=None, **kwargs):
-        form = super().get_form(request, obj, **kwargs)
-        user = CustomUser.objects.filter(username=request.user.username).first()
-        role = None
-        if user and user.groups.exists():
-            role = user.groups.first().name
-        if role not in ['Администратор', 'Менеджер', 'Закупка']:
-            fields_to_disable = ['product_request', 'manager', 'accounted_in_1c', 'invoice_number', 'delivery_status',
-                    'documents', 'waiting_date']
-            for field in fields_to_disable:
-                if field != 'creation_date1':
-                    form.base_fields[field].disabled = True
-                    form.base_fields[field].widget.attrs['style'] = 'background-color: #f0f0f0;'
-        return form
-
     def get_actions(self, request):
         return []
 
 
-class StorageCellsAdmin(admin.ModelAdmin):
+class StorageCellsAdmin(AccessControlMixin, admin.ModelAdmin):
     form = StorageCellsForm
     list_display = ('cell_address', 'info')
     fields = ('cell_address', 'info')
@@ -183,27 +203,11 @@ class StorageCellsAdmin(admin.ModelAdmin):
     ordering = ('cell_address',)
     list_filter = ('cell_address',)
 
-    def get_form(self, request, obj=None, **kwargs):
-        form = super().get_form(request, obj, **kwargs)
-        user = CustomUser.objects.filter(username=request.user.username).first()
-        role = None
-        if user and user.groups.exists():
-            role = user.groups.first().name
-        if role not in ['Администратор', 'Склад']:
-            print('NOT ADMIN!!!!')
-            fields_to_disable = ['cell_address', 'info']
-            for field in fields_to_disable:
-                form.base_fields[field].disabled = True
-                form.base_fields[field].widget.attrs['style'] = 'background-color: #f0f0f0;'
-        else:
-            print('IS ADMIN!!!!')
-        return form
-
     def get_actions(self, request):
         return []
 
 
-class ProductMoviesAdmin(admin.ModelAdmin):
+class ProductMoviesAdmin(AccessControlMixin, admin.ModelAdmin):
     form = ProductMoviesForm
     list_display = ('record_date', 'product', 'process_type', 'return_to_supplier_reason', 'movie_quantity', 'new_cell',
                     'reason')
@@ -219,7 +223,7 @@ class ProductMoviesAdmin(admin.ModelAdmin):
         js = ('admin/js/admin/ChangeProductMovieType.js',)
 
 
-class PivotTableAdmin(admin.ModelAdmin):
+class PivotTableAdmin(AccessControlMixin, admin.ModelAdmin):
     change_list_template = "admin/storage/complex_table.html"
 
     def get_urls(self):
