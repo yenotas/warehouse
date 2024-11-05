@@ -18,6 +18,7 @@ urlpatterns = [
     path('get-saved-fields/', get_saved_fields, name='get_saved_fields'),
 ]
 
+
 # urlpatterns = [
 #     path('admin/', admin.site.urls),
 #     path('admin/storage/', complex_table_view, name='pivottable'),

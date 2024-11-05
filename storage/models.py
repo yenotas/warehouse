@@ -317,4 +317,3 @@ class ModelAccessControl(models.Model):
         return ", ".join(group.name for group in self.groups.all())
     display_groups.short_description = "Группы редакторов"
 
-

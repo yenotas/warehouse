@@ -1,9 +1,6 @@
-import json
-
 from django.urls import path
 from django.contrib import admin
 from django.utils.safestring import mark_safe
-
 from .forms import *
 from .models import *
 from django.contrib.auth.models import Group

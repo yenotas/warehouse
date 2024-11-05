@@ -1,19 +1,6 @@
-# from django.contrib.auth.decorators import login_required
-import json
-
-from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models import ContentType
-# from django.http import HttpResponseNotFound
-
-# from django.views.decorators.http import require_POST, require_GET
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, redirect
 from django.views.decorators.csrf import csrf_exempt
-
-from .forms import ModelAccessControlForm
-# import pandas as pd
-# from django.shortcuts import render
-
 from .models import Products, Orders, Projects, ProductMovies, StorageCells, Suppliers, Categories, ModelAccessControl
 from dal import autocomplete
 from .models import Departments

@@ -7,7 +7,7 @@ $(document).ready(function() {
 
     // Если форма открыта в режиме изменения
     if (ruleId && modelId) {
-        console.log('ruleId', ruleId);
+        // console.log('ruleId', ruleId);
 
         // Получаем сохраненные поля
         fetch(`/get-saved-fields/?rule_id=${encodeURIComponent(ruleId)}`)
@@ -15,7 +15,7 @@ $(document).ready(function() {
             .then(data => {
                 const savedFields = data['fields_to_disable'] || [];
                 fetchFieldsForModel(modelId, savedFields);
-                console.log('get-saved-fields', savedFields);
+                // console.log('get-saved-fields', savedFields);
             })
             .catch(error => console.error('Ошибка при загрузке полей:', error));
 
@@ -57,10 +57,8 @@ $(document).ready(function() {
                         });
 
                         // Отмечаем сохраненные поля как выбранные
-                        console.log('savedFields', savedFields);
-                        //savedFields.forEach(savedField => {
-                        //    fieldsToDisableContainer.find(`input[value="${savedField}"]`).prop('checked', true);
-                        //});
+                        // console.log('savedFields', savedFields);
+
                         if (typeof savedFields === 'string') {
                             try {
                                 savedFields = JSON.parse(savedFields); // Десериализация, если savedFields строка JSON

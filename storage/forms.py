@@ -1,5 +1,4 @@
 import json
-
 from .models import *
 from dal import autocomplete
 from django import forms
