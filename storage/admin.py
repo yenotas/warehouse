@@ -8,7 +8,6 @@ from .forms import *
 from .models import *
 from django.contrib.auth.models import Group
 from django.contrib.auth.admin import UserAdmin, GroupAdmin
-from .mixins import AccessControlMixin
 
 
 class ModelAccessControlAdmin(admin.ModelAdmin):

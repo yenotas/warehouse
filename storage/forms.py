@@ -1,10 +1,8 @@
 import json
 
-from .admin import AccessControlMixin
 from .models import *
 from dal import autocomplete
 from django import forms
-from django.contrib.admin.widgets import FilteredSelectMultiple
 from django.contrib.contenttypes.models import ContentType
 from .mixins import AccessControlMixin
 
