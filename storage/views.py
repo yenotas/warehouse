@@ -1,9 +1,56 @@
+from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models import ContentType
 from django.http import JsonResponse
+from django.shortcuts import render, redirect
 from django.views.decorators.csrf import csrf_exempt
-from .models import Products, Orders, Projects, ProductMovies, StorageCells, Suppliers, Categories, ModelAccessControl
+
+# from .forms import PivotTableFormSet
+from .models import Products, Orders, Projects, StorageCells, Suppliers, Categories, ModelAccessControl, CustomUser, \
+    PivotTable
 from dal import autocomplete
 from .models import Departments
+
+
+class UserAutocomplete(autocomplete.Select2QuerySetView):
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return CustomUser.objects.none()
+        qs = CustomUser.objects.all()
+        if self.q:
+            qs = qs.filter(first_name__icontains=self.q) | qs.filter(last_name__icontains=self.q)
+        return qs
+
+
+# @login_required
+# def pivot_table_view(request):
+#     if request.method == 'POST':
+#         formset = PivotTableFormSet(request.POST)
+#         if formset.is_valid():
+#             formset.save()
+#             return redirect('pivot_table')
+#     else:
+#         formset = PivotTableFormSet(queryset=PivotTable.objects.all())
+#     return render(request, 'pivot_table.html', {'formset': formset})
+
+
+@csrf_exempt
+def pivot_table_update(request):
+    if request.method == 'POST':
+        item_id = request.POST.get('id')
+        field = request.POST.get('field')
+        value = request.POST.get('value')
+
+        try:
+            item = PivotTable.objects.get(id=item_id)
+            setattr(item, field, value)
+            item.save()
+            return JsonResponse({'status': 'success'})
+        except PivotTable.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Запись не найдена'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+    else:
+        return JsonResponse({'status': 'error', 'message': 'Неверный метод запроса'})
 
 
 def get_saved_fields(request):
@@ -27,14 +74,6 @@ def get_model_fields(request):
     return JsonResponse({'fields': []})
 
 
-# def add_department(request):
-#     department_name = request.GET.get('department', None)
-#     if department_name:
-#         department, created = Departments.objects.get_or_create(department=department_name)
-#         return JsonResponse({'id': department.id, 'name': department.department})
-#     return JsonResponse({'error': 'Invalid request'}, status=400)
-
-
 class CategoriesAutocomplete(autocomplete.Select2QuerySetView):
     def get_queryset(self):
         if not self.request.user.is_authenticated:
@@ -56,6 +95,16 @@ class CategoriesAutocomplete(autocomplete.Select2QuerySetView):
 
     def get_selected_result_label(self, item):
         return item.name
+
+
+class ProductsAutocomplete(autocomplete.Select2QuerySetView):
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return Products.objects.none()
+        qs = Products.objects.all()
+        if self.q:
+            qs = qs.filter(name__icontains=self.q)
+        return qs
 
 
 class DepartmentsAutocomplete(autocomplete.Select2QuerySetView):
@@ -107,12 +156,12 @@ def get_product_data(request, product_id):
     return JsonResponse(data)
 
 
-# если 'Прием на склад', то в reason должны открываться заказы на закупку и подставляться Orders.id
+# если 'Прием на склад', то в reason_id должны открываться заказы на закупку и подставляться Orders.id
 # 'Выдача со склада' - ищем среди сотрудников и подставляем Employees.name
 # 'Возврат на склад' - должны открываться проекты и подставляться Projects.name
 # 'Возврат поставщику' - ищем среди поставщиков и подставляем Suppliers.name
 # 'Перемещение из ячейки' подставляем текущее значение new_cell, а если его нет - делаем опцию неактивной
-# В случаях 'Перемещение из ячейки', 'Прием на склад' и 'Выдача со склада' поле reason не может быть пустым
+# В случаях 'Перемещение из ячейки', 'Прием на склад' и 'Выдача со склада' поле reason_id не может быть пустым
 
 
 @csrf_exempt
@@ -125,7 +174,7 @@ def get_reason_choices(request):
     if process_type == 'warehouse':
         choices = [{"id": str(order.id), "name": str(order.product_request)} for order in Orders.objects.all()]
     elif process_type == 'distribute':
-        choices = [{"id": str(emp.id), "name": str(emp.name)} for emp in Employees.objects.all()]
+        choices = [{"id": str(emp.id), "name": str(emp.name)} for emp in CustomUser.objects.all()]
     elif process_type == 'return':
         choices = [{"id": str(proj.id), "name": str(proj.name)} for proj in Projects.objects.all()]
     elif process_type == 'sup_return':

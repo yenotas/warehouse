@@ -1,16 +1,21 @@
 import json
+
+from django.contrib.admin.widgets import AdminDateWidget
+from django.contrib.auth.forms import UserCreationForm, UserChangeForm
+from django.forms import modelformset_factory
+
 from .models import *
 from dal import autocomplete
 from django import forms
 from django.contrib.contenttypes.models import ContentType
-from .mixins import AccessControlMixin
 
 
-class CustomUserForm(AccessControlMixin, forms.ModelForm):
+class CustomUserChangeForm(UserChangeForm):
     department = forms.ModelChoiceField(
         queryset=Departments.objects.all(),
         widget=autocomplete.ModelSelect2(url='departments-autocomplete'),
-        label="Отдел/Цех"
+        label="Отдел/Цех",
+        required=False
     )
 
     class Meta:
@@ -18,10 +23,17 @@ class CustomUserForm(AccessControlMixin, forms.ModelForm):
         fields = '__all__'
 
 
-class GroupForm(AccessControlMixin, forms.ModelForm):
+class CustomUserCreationForm(UserCreationForm):
+    department = forms.ModelChoiceField(
+        queryset=Departments.objects.all(),
+        widget=autocomplete.ModelSelect2(url='departments-autocomplete'),
+        label="Отдел/Цех",
+        required=False
+    )
+
     class Meta:
-        model = Group
-        fields = '__all__'
+        model = CustomUser
+        fields = ('username', 'email', 'department', 'position_name', 'tel', 'tg')
 
 
 class ProductForm(forms.ModelForm):
@@ -33,7 +45,7 @@ class ProductForm(forms.ModelForm):
 
     class Meta:
         model = Products
-        fields = '__all__'
+        exclude = ['near_products']
 
 
 class SuppliersForm(forms.ModelForm):
@@ -62,12 +74,12 @@ class ProductMoviesForm(forms.ModelForm):
         fields = '__all__'
         exclude = ['record_date']
         widgets = {
-            'reason': forms.Select(),
+            'reason_id': forms.Select(),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['reason'].required = False
+        self.fields['reason_id'].required = False
 
 
 class StorageCellsForm(forms.ModelForm):
@@ -77,9 +89,92 @@ class StorageCellsForm(forms.ModelForm):
 
 
 class PivotTableForm(forms.ModelForm):
+    product_name = forms.ModelChoiceField(
+        queryset=Products.objects.all(),
+        widget=autocomplete.ModelSelect2(url='products-autocomplete'),
+        label="Наименование",
+        required=True
+    )
+    responsible = forms.ModelChoiceField(
+        queryset=CustomUser.objects.all(),
+        widget=autocomplete.ModelSelect2(url='users-autocomplete'),
+        label="Ответственный",
+        required=False
+    )
+
     class Meta:
         model = PivotTable
-        fields = '__all__'
+        fields = [
+            'product_name',
+            'request_about',
+            'responsible',
+            'invoice_number',
+            'waiting_date',
+            'delivery_status',
+            'document_flow',
+            'documents',
+            'accounted_in_1c',
+        ]
+        widgets = {
+            'waiting_date': AdminDateWidget(),
+            'delivery_status': forms.Select(),
+            'document_flow': forms.Select(),
+            'documents': forms.Select(),
+            'accounted_in_1c': forms.CheckboxInput(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super(PivotTableForm, self).__init__(*args, **kwargs)
+        if self.instance:
+            # Инициализируем поля значениями из связанных моделей
+            if self.instance.product_request and self.instance.product_request.product:
+                self.fields['product_name'].initial = self.instance.product_request.product
+            if self.instance.product_request:
+                self.fields['request_about'].initial = self.request_about or self.instance.product_request.request_about
+                self.fields['responsible'].initial = self.responsible or self.instance.product_request.responsible
+            if self.instance.order:
+                self.fields['invoice_number'].initial = self.invoice_number or self.instance.order.invoice_number
+                self.fields['waiting_date'].initial = self.waiting_date or self.instance.order.waiting_date
+                self.fields['delivery_status'].initial = self.delivery_status or self.instance.order.delivery_status
+                self.fields['document_flow'].initial = self.document_flow or self.instance.order.document_flow
+                self.fields['documents'].initial = self.documents or self.instance.order.documents
+                self.fields['accounted_in_1c'].initial = self.accounted_in_1c if self.accounted_in_1c is not None else self.instance.order.accounted_in_1c
+
+    def save(self, commit=True):
+        instance = super(PivotTableForm, self).save(commit=False)
+        # Обработка создания product_request
+        if not instance.product_request and self.cleaned_data.get('product_name'):
+            product = self.cleaned_data['product_name']
+            responsible = self.cleaned_data.get('responsible')
+            product_request = ProductRequest.objects.create(
+                product=product,
+                responsible=responsible,
+                request_about=self.cleaned_data.get('request_about'),
+                # Заполните другие необходимые поля
+            )
+            instance.product_request = product_request
+
+        # Обработка создания order
+        if not instance.order and instance.waiting_date:
+            order = Orders.objects.create(
+                product_request=instance.product_request,
+                invoice_number=instance.invoice_number,
+                waiting_date=instance.waiting_date,
+                delivery_status=instance.delivery_status,
+                document_flow=instance.document_flow,
+                documents=instance.documents,
+                accounted_in_1c=instance.accounted_in_1c,
+                # Заполните другие необходимые поля
+            )
+            instance.order = order
+
+        # Сохраняем и синхронизируем связанные модели
+        if commit:
+            instance.save()
+        return instance
+
+
+# PivotTableFormSet = modelformset_factory(PivotTable, form=PivotTableForm, extra=0)
 
 
 class CategoriesForm(forms.ModelForm):

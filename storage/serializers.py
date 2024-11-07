@@ -11,7 +11,7 @@ class PivotTableSerializer(serializers.Serializer):
     detail_code = serializers.CharField(source='projects__detail_code')
     product_image = serializers.ImageField(source='product_image')
     request_date = serializers.DateField(source='productrequest_set__request_date')
-    responsible_employee = serializers.CharField(source='productrequest_set__responsible_employee')
+    responsible = serializers.CharField(source='productrequest_set__responsible')
     delivery_location = serializers.CharField(source='productrequest_set__delivery_location')
     deadline_delivery_date = serializers.DateField(source='productrequest_set__deadline_delivery_date')
     waiting_date = serializers.DateField(source='orders__waiting_date')

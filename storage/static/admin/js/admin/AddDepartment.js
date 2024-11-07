@@ -1,20 +1,11 @@
 $(document).ready(function() {
 
     let escPressed = false;
-    let createNew = false;
 
-    // Обработчик для нажатия клавиш
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-            escPressed = true;
-            console.log('Escape');
-        }
-    });
-
-    // Обработка события для добавления нового департамента
     $(document).on('input', '.select2-search__field', function() {
-        var searchTerm = $(this).val(); // Получаем введенный текст
-        console.log('Searching for:', searchTerm); // Логирование для отладки
+        var searchTerm = $(this).val();
+        var $inputField = $(this);
+
         if (searchTerm) {
             $.ajax({
                 url: '/departments-autocomplete/',
@@ -24,50 +15,29 @@ $(document).ready(function() {
                 },
                 success: function(data) {
                     if (data.results.length === 0) {
-                        console.log('data', data);
-
-                        // Если нет совпадений, можем добавить новый вариант только при потере фокуса или нажатии Enter
-                        $('.select2-search__field').off('blur').on('blur', function(e) {
-                            if (escPressed) {
-                                escPressed = false;
-                                return
+                        // Нет совпадений, устанавливаем обработчики для blur и keydown
+                        // Удаляем предыдущие обработчики
+                        $inputField.off('blur keydown');
+                        // Добавляем новые обработчики
+                        $inputField.on('blur', function(e) {
+                            if (!escPressed) {
+                                createNewDepartment($inputField.val());
                             } else {
-                                createNew = true;
+                                escPressed = false;
                             }
                         });
-                        $('.select2-search__field').off('keypress keydown').on('keypress keydown', function(e) {
-                            console.log('e.type', e.type, e.which);
-                            if (['keypress', 'keydown'].includes(e.type) && e.which == 13) {
-                                createNew = true;
-                            } else createNew = false;
 
-                            if (!escPressed && searchTerm.length > 1 && createNew) {
-                                console.log('UPDATE!', searchTerm.length, searchTerm);
-                                createNew = false;
-                                $.ajax({
-                                    url: '/departments-autocomplete/',
-                                    type: 'GET',
-                                    data: {
-                                        'create': '1',
-                                        q: searchTerm,
-                                    },
-                                    success: function(data) {
-                                        // Добавляем новый отдел в список и выбираем его
-                                        var result = data.results[0];
-                                        $('#id_department').empty().append(data.results.map(function(item) {
-                                            return new Option(item.text, item.id, true, true);
-                                        }));
-                                        $('#id_department').val(result.id).trigger('change');  // Устанавливаем как выбранный
-                                    },
-                                    error: function(xhr, status, error) {
-                                        console.error('Ошибка при добавлении нового департамента:', status, error);
-                                    }
-                                });
-                            };
+                        $inputField.on('keydown', function(e) {
+                            if (e.which == 13) { // Клавиша Enter
+                                e.preventDefault(); // Предотвращаем отправку формы
+                                createNewDepartment($inputField.val());
+                            } else if (e.which == 27) { // Клавиша ESC
+                                escPressed = true;
+                            }
                         });
-
                     } else {
-                        // Если есть совпадения, можем обновить список
+                        // Есть совпадения, обновляем список и удаляем обработчики
+                        $inputField.off('blur keydown');
                         $('#id_department').empty().append(data.results.map(function(item) {
                             return new Option(item.text, item.id, false, false);
                         }));
@@ -79,5 +49,35 @@ $(document).ready(function() {
             });
         }
     });
+
+    function createNewDepartment(departmentName) {
+        if (departmentName && departmentName.length > 1) {
+            $.ajax({
+                url: '/departments-autocomplete/',
+                type: 'GET',
+                data: {
+                    'create': '1',
+                    q: departmentName,
+                },
+                success: function(data) {
+                    // Добавляем новый отдел в список и выбираем его
+                    var result = data.results[0];
+                    $('#id_department').empty().append(data.results.map(function(item) {
+                        return new Option(item.text, item.id, true, true);
+                    }));
+                    $('#id_department').val(result.id).trigger('change');  // Устанавливаем как выбранный
+                },
+                error: function(xhr, status, error) {
+                    console.error('Ошибка при добавлении нового департамента:', status, error);
+                }
+            });
+        }
+    }
+
+    // Код для удаления блока помощи и зашифрованного пароля
+    if ($('.field-password').length) {
+        $('.field-password .help').remove();
+        $('.field-password p')[0].remove();
+    }
 
 });

@@ -1,14 +1,7 @@
 from django.contrib.contenttypes.models import ContentType
-from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.contrib.auth.models import AbstractUser, Group
-
-access_type = [('Администратор', 'Администратор'), ('Менеджер', 'Менеджер'), ('Склад', 'Склад'), ('Закупка', 'Закупка'),
-               ('ИТР/Планировщик', 'ИТР/Планировщик')]
-deps_list = [('Склад', 'Склад'), ('Офис', 'Офис'), ('Монтаж', 'Монтаж'), ('Инженерный', 'Инженерный'),
-             ('3D', '3D'), ('Снабжение', 'Снабжение'), ('AXO', 'AXO'), ('ПДО', 'ПДО'), ('ЧПУ', 'ЧПУ'),
-             ('Столярный', 'Столярный'), ('Макетный', 'Макетный'), ('Малярный', 'Малярный'),
-             ('Художественный', 'Художественный'), ('Сборочный', 'Сборочный')]
+from django.utils.functional import cached_property
 
 
 class Departments(models.Model):
@@ -22,8 +15,18 @@ class Departments(models.Model):
         return self.department
 
 
+class ModelColors(models.Model):
+    model_name = models.CharField(max_length=50, verbose_name="Таблица")
+    color = models.CharField(max_length=6, verbose_name="Цвет заголовка #XXXXXX")
+
+    class Meta:
+        verbose_name = "цвет"
+        verbose_name_plural = "Цвета моделей"
+
+
 class CustomUser(AbstractUser):
     tg = models.CharField(max_length=255, verbose_name="Телеграм", blank=True, null=True)
+    tel = models.CharField(max_length=255, verbose_name="Телефон", blank=True, null=True)
     department = models.ForeignKey(Departments, verbose_name="Отдел/Цех", on_delete=models.SET_NULL, null=True)
     position_name = models.CharField(max_length=255, verbose_name="Должность", blank=True, null=True)
     groups = models.ManyToManyField(Group, verbose_name="Группы", related_name="custom_users")
@@ -69,23 +72,23 @@ class Suppliers(models.Model):
 class Products(models.Model):
     name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Наименование")
     product_link = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ссылка")
-    product_sku = models.CharField(max_length=100, blank=True, null=True, verbose_name="Артикул")
+    product_sku = models.CharField(max_length=100, blank=True, null=True, verbose_name="SKU / Артикул")
     category = models.ForeignKey(Categories, on_delete=models.PROTECT, blank=True, null=True, verbose_name="Категория")
     supplier = models.ForeignKey(Suppliers, on_delete=models.PROTECT, blank=True, null=True, verbose_name="Поставщик")
     packaging_unit = models.CharField(max_length=10, verbose_name="Единицы измерения", choices=[
         ('уп.', 'уп.'), ('шт.', 'шт.'), ('кв.м', 'кв.м'),
         ('п.м.', 'п.м.'), ('кг', 'кг'), ('л', 'л'), ('мл', 'мл')
-    ])
+    ], default=('шт.', 'шт.'))
     quantity_in_package = models.PositiveIntegerField(blank=True, null=True, verbose_name="Кол-во в упаковке", default=1)
-    product_image = models.ImageField(upload_to="images/%Y/%m/%d/", editable=True, null=True, blank=True, verbose_name="Фото/скриншот")
-    near_products = models.ManyToManyField('self', blank=True, verbose_name="Похожие товары")
+    product_image = models.ImageField(upload_to="images/%Y/%m/%d/", editable=True, null=True, blank=True, verbose_name="Фото / скриншот")
+    near_products = models.ManyToManyField('self', blank=True, verbose_name="Аналоги")
 
     class Meta:
         verbose_name = "наименование"
         verbose_name_plural = "Товарные наименования"
 
     def __str__(self):
-        return self.name
+        return f"{self.name} | {self.product_sku}"
 
 
 class Projects(models.Model):
@@ -114,8 +117,8 @@ class ProductRequest(models.Model):
                                 default=1)
     request_about = models.CharField(blank=True, null=True, verbose_name="Комментарий")
     request_quantity = models.PositiveIntegerField(blank=True, null=True, verbose_name="Количество", default=1)
-    responsible_employee = models.ForeignKey(CustomUser, on_delete=models.PROTECT, blank=True, null=True,
-                                             verbose_name="Ответственный")
+    responsible = models.ForeignKey(CustomUser, on_delete=models.PROTECT, blank=True, null=True,
+                                    verbose_name="Ответственный")
     delivery_location = models.CharField(max_length=30, verbose_name="Куда везем?", choices=[
         ('Склад', 'Склад'), ('Офис', 'Офис'), ('Цех', 'Цех'), ('Монтаж', 'Монтаж'),
         ('Подрядчик', 'Подрядчик'), ('Заказчик', 'Заказчик')
@@ -124,11 +127,11 @@ class ProductRequest(models.Model):
     deadline_delivery_date = models.DateField(blank=True, null=True, verbose_name="Требуемая дата поставки")
 
     class Meta:
-        verbose_name = "запрос на закуп"
-        verbose_name_plural = "Запросы на закуп"
+        verbose_name = "заявка на закуп"
+        verbose_name_plural = "Заявки на закуп"
 
     def __str__(self):
-        return f"Заявка на {self.product.name}"
+        return f"Заявка {self.id} на {self.product.name}"
 
 
 class Orders(models.Model):
@@ -141,7 +144,7 @@ class Orders(models.Model):
     invoice_number = models.CharField(max_length=100, blank=True, null=True, verbose_name="Номер счета")
     delivery_status = models.CharField(max_length=50, verbose_name="Статус заказа", choices=[
         ('Ожидаем', 'Ожидаем'), ('Доставлено', 'Доставлено'), ('Склад', 'Склад'), ('Неполная', 'Неполная'),
-        ('Частичный возврат', 'Частичный возврат'), ('Полный возврат', 'Полный возврат')
+        ('Частичный возврат', 'Частичный возврат'), ('Полный возврат', 'Полный возврат'), ('Отмена', 'Отмена'),
     ])
     documents = models.CharField(max_length=50, verbose_name="Документы", choices=[
         ('Нет', 'Нет'), ('УПД/СФ', 'УПД/СФ'), ('TTH/TH/AKT', 'TTH/TH/AKT'), ('ИП', 'ИП')
@@ -152,30 +155,38 @@ class Orders(models.Model):
     waiting_date = models.DateField(blank=True, null=True, verbose_name="Ожидаемая дата поставки")
 
     class Meta:
-        verbose_name = "заказ в закупку"
-        verbose_name_plural = "Заказы в закупку"
+        verbose_name = "заказ по заявке"
+        verbose_name_plural = "Заказы по заявкам"
 
     def __str__(self):
-        return f"Заявка на закуп №{self.ProductRequest.id}"
+        return f"Заказ по заявке №{self.product_request.id}"
 
 
 class ProductMovies(models.Model):
     record_date = models.DateField(auto_now_add=True, verbose_name="Дата записи")
+    product = models.ForeignKey(Products, on_delete=models.PROTECT, verbose_name="Наименование",
+                                default=1)
     process_type = models.CharField(max_length=50, choices=[
         ('warehouse', 'Прием на склад'), ('distribute', 'Выдача со склада'),
         ('return', 'Возврат на склад'), ('sup_return', 'Возврат поставщику'),
-        ('move', 'Перемещение из ячейки'), ('none', 'Выбрать')
+        ('move', 'Перемещение из ячейки')
     ], verbose_name="Тип перемещения", default=('none', 'Выбрать'))
     return_to_supplier_reason = models.CharField(max_length=50, choices=[
         ('Несоответствие заказу', 'Несоответствие заказу'), ('Дефекты материалов', 'Дефекты материалов'),
         ('Дефекты изделий', 'Дефекты изделий'), ('Излишек', 'Излишек'),
         ('Нарушение сроков поставки', 'Нарушение сроков поставки')
-    ], blank=True, null=True, verbose_name="Причина возврата поставщику", default=('Дефекты изделий', 'Дефекты изделий'))
+    ], blank=True, null=True, verbose_name="Причина возврата поставщику")
     new_cell = models.ForeignKey('StorageCells', on_delete=models.PROTECT, blank=True, null=True,
                                  verbose_name="Адрес ячейки")
-    product = models.ForeignKey(Products, on_delete=models.PROTECT, null=True, verbose_name="Товар")
     movie_quantity = models.PositiveIntegerField(blank=True, null=True, verbose_name="Количество", default=1)
-    reason = models.CharField(max_length=200, blank=True, null=True, verbose_name="Источник перемещения")
+    reason_id = models.CharField(max_length=200, blank=True, null=True, verbose_name="ID источника перемещения")
+    # reason_id в зависимости от типа перемещения process_type подразумевает id записи моделей:
+    # warehouse => order_id,
+    # distribute => customuser_id,
+    # return => project_id,
+    # sup_return => supplier_id,
+    # move => ProductMovies_id,
+    # поле return_to_supplier_reason заполняется только при process_type == sup_return
 
     class Meta:
         verbose_name = "запись о перемещении товара"
@@ -197,107 +208,154 @@ class StorageCells(models.Model):
         return str(self.cell_address)
 
 
-class PivotTable(models.Model):
-    product = models.ForeignKey(Products, on_delete=models.PROTECT, verbose_name="Товар")
-    product_request = models.ForeignKey(ProductRequest, on_delete=models.PROTECT, verbose_name="Заявка")
-    project = models.ForeignKey(Projects, on_delete=models.PROTECT, verbose_name="Проект")
-    order = models.ForeignKey(Orders, on_delete=models.PROTECT, verbose_name="Заказ")
-    supplier = models.ForeignKey(Suppliers, on_delete=models.PROTECT, verbose_name="Поставщик")
-    has_on_storage = models.PositiveIntegerField(verbose_name="Наличие на складе, кол-во", default=0)
-    storage_cell = models.ForeignKey(StorageCells, on_delete=models.PROTECT, verbose_name="Ячейка хранения")
-    order_complete = models.BooleanField(verbose_name="Заказ оформлен")
-    not_delivered_pcs = models.PositiveIntegerField(verbose_name="Не доставлено, кол-во")
-    document_flow = models.CharField(max_length=255, verbose_name="Документооборот")
-    supply_date = models.DateField(verbose_name="Дата фактического поступления")
-    supply_quantity = models.PositiveIntegerField(verbose_name="Факт поставки, кол-во", default=1)
-    given_quantity = models.PositiveIntegerField(verbose_name="Выдано, кол-во", default=1)
-    given_employee = models.CharField(max_length=255, verbose_name="Выдано кому")
-    given_date = models.DateField(verbose_name="Дата выдачи")
-    refund_quantity = models.PositiveIntegerField(verbose_name="Возврат поставщику, кол-во", default=1)
-    refund_reason = models.CharField(max_length=255, verbose_name="Причина возврата")
+# models.py
 
+class PivotTable(models.Model):
+    # Связи с другими моделями
+    product_request = models.ForeignKey('ProductRequest', on_delete=models.CASCADE, null=True, blank=True, verbose_name='Заявка на закуп')
+    order = models.ForeignKey('Orders', on_delete=models.CASCADE, null=True, blank=True, verbose_name='Заказ')
+    product_movie = models.ForeignKey('ProductMovies', on_delete=models.CASCADE, null=True, blank=True, verbose_name='Перемещение по складу')
+
+    # Поля для редактирования и синхронизации
+    request_about = models.CharField(max_length=255, blank=True, null=True, verbose_name="Комментарий")
+    responsible = models.ForeignKey(CustomUser, on_delete=models.PROTECT, blank=True, null=True, verbose_name="Ответственный")
+    invoice_number = models.CharField(max_length=100, blank=True, null=True, verbose_name="Номер счета")
+    waiting_date = models.DateField(blank=True, null=True, verbose_name="Планируемая дата поставки")
+    delivery_status = models.CharField(max_length=50, blank=True, null=True, verbose_name="Статус доставки", choices=[
+        ('Ожидаем', 'Ожидаем'),
+        ('Доставлено', 'Доставлено'),
+        ('Склад', 'Склад'),
+        ('Неполная', 'Неполная'),
+        ('Частичный возврат', 'Частичный возврат'),
+        ('Полный возврат', 'Полный возврат')
+    ])
+    document_flow = models.CharField(max_length=50, blank=True, null=True, verbose_name="Документооборот", choices=[
+        ('Нет', 'Нет'),
+        ('ИП', 'ИП'),
+        ('ЭДО', 'ЭДО'),
+        ('Бумага', 'Бумага')
+    ])
+    documents = models.CharField(max_length=50, blank=True, null=True, verbose_name="Документы", choices=[
+        ('Нет', 'Нет'),
+        ('УПД/СФ', 'УПД/СФ'),
+        ('TTH/TH/AKT', 'TTH/TH/AKT'),
+        ('ИП', 'ИП')
+    ])
+    accounted_in_1c = models.BooleanField(blank=True, null=True, verbose_name="Учтено в 1С")
+
+    # Свойства для доступа к полям связанных моделей (только для чтения)
     @property
     def product_name(self):
-        return self.product.name
+        return self.product_request.product.name if self.product_request and self.product_request.product else None
 
     @property
-    def product_link(self):
-        return self.product.product_link
+    def product_id(self):
+        return self.product_request.product.id if self.product_request and self.product_request.product else None
 
     @property
-    def request_about(self):
-        return self.product_request.request_about
-
-
-    @property
-    def packaging_unit(self):
-        return self.product.packaging_unit
-
-    @property
-    def request_quantity(self):
-        return self.product_request.request_quantity
-
-    @property
-    def project_code(self):
-        return self.project.project_code
-
-    @property
-    def detail_name(self):
-        return self.project.detail_name
-
-    @property
-    def detail_code(self):
-        return self.project.detail_code
+    def sku(self):
+        return self.product_request.product.product_sku if self.product_request and self.product_request.product else None
 
     @property
     def product_image(self):
-        return self.product.product_image
+        if self.product_request and self.product_request.product and self.product_request.product.product_image:
+            return self.product_request.product.product_image.url
+        return None
 
     @property
-    def request_date(self):
-        return self.product_request.request_date
+    def responsible(self):
+        return self.product_request.responsible if self.product_request else None
 
     @property
-    def responsible_employee(self):
-        return self.product_request.responsible_employee
+    def supplier(self):
+        return self.product_request.product.supplier if self.product_request and self.product_request.product else None
+
+    @property
+    def product_link(self):
+        return self.product_request.product.product_link if self.product_request and self.product_request.product else None
+
+    @property
+    def packaging_unit(self):
+        return self.product_request.product.packaging_unit if self.product_request and self.product_request.product else None
+
+    @property
+    def has_on_storage(self):
+        if self.product_request and self.product_request.product:
+            total_quantity = ProductMovies.objects.filter(product=self.product_request.product).aggregate(models.Sum('movie_quantity'))['movie_quantity__sum'] or 0
+            return total_quantity
+        return None
+
+    @property
+    def has_on_storage_near(self):
+        if self.product_request and self.product_request.product:
+            near_products = self.product_request.product.near_products.all()
+            total_quantity = ProductMovies.objects.filter(product__in=near_products).aggregate(models.Sum('movie_quantity'))['movie_quantity__sum'] or 0
+            return total_quantity
+        return None
+
+    @property
+    def request_quantity(self):
+        return self.product_request.request_quantity if self.product_request else None
+
+    @property
+    def project_code(self):
+        return self.product_request.project.project_code if self.product_request and self.product_request.project else None
+
+    @property
+    def detail_name(self):
+        return self.product_request.project.detail_name if self.product_request and self.product_request.project else None
+
+    @property
+    def detail_code(self):
+        return self.product_request.project.detail_code if self.product_request and self.product_request.project else None
 
     @property
     def delivery_location(self):
-        return self.product_request.delivery_location
+        return self.product_request.delivery_location if self.product_request else None
 
     @property
     def deadline_delivery_date(self):
-        return self.product_request.deadline_delivery_date
+        return self.product_request.deadline_delivery_date if self.product_request else None
 
     @property
-    def waiting_date(self):
-        return self.order.waiting_date
+    def supply_date(self):
+        return self.product_movie.record_date if self.product_movie else None
 
     @property
-    def supplier_name(self):
-        return self.supplier.name
+    def supply_quantity(self):
+        return self.product_movie.movie_quantity if self.product_movie else None
 
     @property
-    def invoice_number(self):
-        return self.order.invoice_number
+    def not_delivered_pcs(self):
+        if self.product_request and self.product_movie:
+            return self.product_request.request_quantity - self.product_movie.movie_quantity
+        return None
 
     @property
-    def delivery_status(self):
-        return self.order.delivery_status
+    def storage_cell(self):
+        return self.product_movie.new_cell if self.product_movie else None
 
-    @property
-    def documents(self):
-        return self.order.documents
+    def save(self, *args, **kwargs):
+        # Синхронизируем поля с моделью ProductRequest
+        if self.product_request:
+            self.product_request.request_about = self.request_about
+            self.product_request.responsible = self.responsible
+            self.product_request.save()
 
-    @property
-    def cell_address(self):
-        return self.storage_cell.cell_address
+        # Синхронизируем поля с моделью Orders
+        if self.order:
+            self.order.invoice_number = self.invoice_number
+            self.order.waiting_date = self.waiting_date
+            self.order.delivery_status = self.delivery_status
+            self.order.document_flow = self.document_flow
+            self.order.documents = self.documents
+            self.order.accounted_in_1c = self.accounted_in_1c
+            self.order.save()
 
-    def __str__(self):
-        return str(self.id)
+        super(PivotTable, self).save(*args, **kwargs)
 
     class Meta:
-        verbose_name = "позицию"
+        verbose_name = "заявку и заказ закупки"
         verbose_name_plural = "Все закупки"
 
 
