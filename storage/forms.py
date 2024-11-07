@@ -91,13 +91,13 @@ class StorageCellsForm(forms.ModelForm):
 class PivotTableForm(forms.ModelForm):
     product_name = forms.ModelChoiceField(
         queryset=Products.objects.all(),
-        widget=autocomplete.ModelSelect2(url='products-autocomplete'),
+        # widget=autocomplete.ModelSelect2(url='products-autocomplete'),
         label="Наименование",
         required=True
     )
     responsible = forms.ModelChoiceField(
         queryset=CustomUser.objects.all(),
-        widget=autocomplete.ModelSelect2(url='users-autocomplete'),
+        # widget=autocomplete.ModelSelect2(url='users-autocomplete'),
         label="Ответственный",
         required=False
     )

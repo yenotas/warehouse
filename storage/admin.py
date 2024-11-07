@@ -316,7 +316,7 @@ class ProductMoviesAdmin(AccessControlMixin, admin.ModelAdmin):
         js = ('admin/js/admin/ChangeProductMovieType.js',)
 
 
-class PivotTableAdmin(admin.ModelAdmin):
+class PivotTableAdmin(AccessControlMixin, admin.ModelAdmin):
     change_list_template = "admin/pivot_table.html"
     form = PivotTableForm
     list_display = (
@@ -372,10 +372,10 @@ class PivotTableAdmin(admin.ModelAdmin):
         qs = super().get_queryset(request)
         qs = qs.select_related(
             'product_request__product',
-            'order',
-            'product_movie',
-            'responsible',
-            'product_request__project'
+            'order'
+            # 'product_movie',
+            # 'responsible',
+            # 'product_request__project'
         )
         return qs
 
@@ -383,11 +383,11 @@ class PivotTableAdmin(admin.ModelAdmin):
         return obj.product_name
     product_name_display.short_description = 'Наименование'
 
-    def get_readonly_fields(self, request, obj=None):
-        readonly_fields = super().get_readonly_fields(request, obj)
+    # def get_readonly_fields(self, request, obj=None):
+    #     readonly_fields = super().get_readonly_fields(request, obj)
         # if obj and obj.order:
         #     readonly_fields += ['product_name', 'request_quantity', 'project_code', 'delivery_location', 'deadline_delivery_date']
-        return readonly_fields
+        # return readonly_fields
 
     def product_link_display(self, obj):
         if obj.product_link:
@@ -395,25 +395,25 @@ class PivotTableAdmin(admin.ModelAdmin):
         return '-'
     product_link_display.short_description = 'Ссылка на сайт'
 
-    def save_model(self, request, obj, form, change):
-        # Логика создания связанных объектов, если они не существуют
-        if not obj.product_request and 'product_name' in form.cleaned_data:
-            product = form.cleaned_data['product_name']
-            product_request = ProductRequest.objects.create(
-                product=product,
-                responsible=request.user,
-                # Другие поля
-            )
-            obj.product_request = product_request
-        if not obj.order and obj.waiting_date:
-            order = Orders.objects.create(
-                product_request=obj.product_request,
-                manager=request.user,
-                waiting_date=obj.waiting_date,
-                # Другие поля
-            )
-            obj.order = order
-        super().save_model(request, obj, form, change)
+    # def save_model(self, request, obj, form, change):
+    #     # Логика создания связанных объектов, если они не существуют
+    #     if not obj.product_request and 'product_name' in form.cleaned_data:
+    #         product = form.cleaned_data['product_name']
+    #         product_request = ProductRequest.objects.create(
+    #             product=product,
+    #             responsible=request.user,
+    #             # Другие поля
+    #         )
+    #         obj.product_request = product_request
+    #     if not obj.order and obj.waiting_date:
+    #         order = Orders.objects.create(
+    #             product_request=obj.product_request,
+    #             manager=request.user,
+    #             waiting_date=obj.waiting_date,
+    #             # Другие поля
+    #         )
+    #         obj.order = order
+    #     super().save_model(request, obj, form, change)
 
 
 # Автоматическая регистрация моделей приложения 'storage' с использованием AccessControlMixin
@@ -428,4 +428,4 @@ print('\n\n')
 for model, model_admin in admin_site._registry.items():
     opts = model._meta
     print('%s:%s_%s_change' % (admin_site.name, opts.app_label, opts.model_name))
-print('\n\n')
+print('\n\n', storage_models)
