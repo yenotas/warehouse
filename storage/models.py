@@ -62,7 +62,7 @@ class Suppliers(models.Model):
     tg = models.CharField(max_length=50, blank=True, null=True, verbose_name="Телеграм")
 
     class Meta:
-        verbose_name = "поставщика"
+        verbose_name = "название контрагента"
         verbose_name_plural = "Поставщики"
 
     def __str__(self):

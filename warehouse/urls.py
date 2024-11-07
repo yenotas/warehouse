@@ -15,7 +15,7 @@ urlpatterns = [
     path('get-product-data/<int:product_id>/', get_product_data, name='get_product_data'),
     path('departments-autocomplete/', DepartmentsAutocomplete.as_view(), name='departments-autocomplete'),
     path('categories-autocomplete/', CategoriesAutocomplete.as_view(), name='categories-autocomplete'),
-    path('get-saved-fields/', get_saved_fields, name='get_saved_fields'),
+    path('get-saved-fields/', get_saved_fields, name='get-saved-fields'),
     path('products-autocomplete/', ProductsAutocomplete.as_view(), name='products-autocomplete'),
     # path('pivot_table/', pivot_table_view, name='pivot_table'),
 ]

@@ -97,7 +97,7 @@ class ModelAccessControlAdmin(admin.ModelAdmin):
         return []
 
     class Media:
-        js = ('admin/js/admin/getModelFields2.js',)
+        js = ('admin/js/admin/getModelFields.js',)
 
 
 # Кастомный класс AdminSite
@@ -142,7 +142,7 @@ class CustomUserAdmin(AccessControlMixin, DefaultUserAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('username', 'password1', 'password2', 'email', 'tel', 'tg', 'department', 'position_name'),
+            'fields': ('username', 'password1', 'password2', 'first_name', 'last_name', 'email', 'tel', 'tg', 'department', 'position_name'),
         }),
     )
 
@@ -317,7 +317,15 @@ class ProductMoviesAdmin(AccessControlMixin, admin.ModelAdmin):
 
 
 class PivotTableAdmin(AccessControlMixin, admin.ModelAdmin):
-    change_list_template = "admin/pivot_table.html"
+    change_list_template = "admin/storage/pivot_table.html"
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('pivot-table/', self.admin_site.admin_view(self.changelist_view), name='pivot_table'),
+        ]
+        return custom_urls + urls
+
     form = PivotTableForm
     list_display = (
         'id',
@@ -373,9 +381,9 @@ class PivotTableAdmin(AccessControlMixin, admin.ModelAdmin):
         qs = qs.select_related(
             'product_request__product',
             'order'
-            # 'product_movie',
-            # 'responsible',
-            # 'product_request__project'
+            'product_movie',
+            'responsible',
+            'product_request__project'
         )
         return qs
 
@@ -383,11 +391,11 @@ class PivotTableAdmin(AccessControlMixin, admin.ModelAdmin):
         return obj.product_name
     product_name_display.short_description = 'Наименование'
 
-    # def get_readonly_fields(self, request, obj=None):
-    #     readonly_fields = super().get_readonly_fields(request, obj)
-        # if obj and obj.order:
-        #     readonly_fields += ['product_name', 'request_quantity', 'project_code', 'delivery_location', 'deadline_delivery_date']
-        # return readonly_fields
+    def get_readonly_fields(self, request, obj=None):
+        readonly_fields = super().get_readonly_fields(request, obj)
+        if obj and obj.order:
+            readonly_fields += ['product_name', 'request_quantity', 'project_code', 'delivery_location', 'deadline_delivery_date']
+        return readonly_fields
 
     def product_link_display(self, obj):
         if obj.product_link:
@@ -395,25 +403,28 @@ class PivotTableAdmin(AccessControlMixin, admin.ModelAdmin):
         return '-'
     product_link_display.short_description = 'Ссылка на сайт'
 
-    # def save_model(self, request, obj, form, change):
-    #     # Логика создания связанных объектов, если они не существуют
-    #     if not obj.product_request and 'product_name' in form.cleaned_data:
-    #         product = form.cleaned_data['product_name']
-    #         product_request = ProductRequest.objects.create(
-    #             product=product,
-    #             responsible=request.user,
-    #             # Другие поля
-    #         )
-    #         obj.product_request = product_request
-    #     if not obj.order and obj.waiting_date:
-    #         order = Orders.objects.create(
-    #             product_request=obj.product_request,
-    #             manager=request.user,
-    #             waiting_date=obj.waiting_date,
-    #             # Другие поля
-    #         )
-    #         obj.order = order
-    #     super().save_model(request, obj, form, change)
+    def save_model(self, request, obj, form, change):
+        # Логика создания связанных объектов, если они не существуют
+        if not obj.product_request and 'product_name' in form.cleaned_data:
+            product = form.cleaned_data['product_name']
+            product_request = ProductRequest.objects.create(
+                product=product,
+                responsible=request.user,
+                # Другие поля
+            )
+            obj.product_request = product_request
+        if not obj.order and obj.waiting_date:
+            order = Orders.objects.create(
+                product_request=obj.product_request,
+                manager=request.user,
+                waiting_date=obj.waiting_date,
+                # Другие поля
+            )
+            obj.order = order
+        super().save_model(request, obj, form, change)
+
+    class Media:
+        js = ('admin/js/admin/AddPivotPosition.js',)
 
 
 # Автоматическая регистрация моделей приложения 'storage' с использованием AccessControlMixin
