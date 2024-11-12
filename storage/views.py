@@ -6,9 +6,32 @@ from django.views.decorators.csrf import csrf_exempt
 
 # from .forms import PivotTableFormSet
 from .models import Products, Orders, Projects, StorageCells, Suppliers, Categories, ModelAccessControl, CustomUser, \
-    PivotTable
+    PivotTable, ProductMovies
 from dal import autocomplete
 from .models import Departments
+
+
+def get_reason_choices(request):
+    process_type = request.GET.get('process_type')
+    choices = []
+
+    if process_type == 'warehouse':
+        objects = Orders.objects.all()
+    elif process_type == 'distribute':
+        objects = CustomUser.objects.all()
+    elif process_type == 'return':
+        objects = Projects.objects.all()
+    elif process_type == 'sup_return':
+        objects = Suppliers.objects.all()
+    elif process_type == 'move':
+        objects = ProductMovies.objects.all()
+    else:
+        objects = []
+
+    for obj in objects:
+        choices.append({'id': obj.id, 'text': str(obj)})
+
+    return JsonResponse({'choices': choices})
 
 
 class UserAutocomplete(autocomplete.Select2QuerySetView):
@@ -156,16 +179,8 @@ def get_product_data(request, product_id):
     return JsonResponse(data)
 
 
-# если 'Прием на склад', то в reason_id должны открываться заказы на закупку и подставляться Orders.id
-# 'Выдача со склада' - ищем среди сотрудников и подставляем Employees.name
-# 'Возврат на склад' - должны открываться проекты и подставляться Projects.name
-# 'Возврат поставщику' - ищем среди поставщиков и подставляем Suppliers.name
-# 'Перемещение из ячейки' подставляем текущее значение new_cell, а если его нет - делаем опцию неактивной
-# В случаях 'Перемещение из ячейки', 'Прием на склад' и 'Выдача со склада' поле reason_id не может быть пустым
-
-
 @csrf_exempt
-def get_reason_choices(request):
+def get_reason_choices_s(request):
 
     process_type = request.GET.get('process_type', None)
     print('process_type', process_type)

@@ -1,5 +1,17 @@
 $(document).ready(function() {
 
+    const $resultTable = $('#result_list');
+    if ($resultTable.length) {
+        const $headers = $resultTable.find('th');
+        $headers.each(function() { const $th = $(this);
+            const $link = $th.find('a');
+            if ($link.length) { $th.css('cursor', 'pointer'); // Устанавливаем курсор как указатель
+                $th.addClass('full-cell-link');
+                $th.on('click', function() { window.location.href = $link.attr('href'); });
+            }
+        });
+    }
+
     // выключатель поля адрес доставки, если локация известна productRequesst
     var deliveryLocationField = $('#id_delivery_location');
     var deliveryAddressField = $('#id_delivery_address');
@@ -20,8 +32,9 @@ $(document).ready(function() {
     var id_return_to_supplier_reason = $('#id_return_to_supplier_reason');
 
     function toggleSupplierReason() {
+        console.log('Возврат поставщику');
         var selectedValue = id_process_type.val();
-        if (selectedValue == 'Возврат поставщику') {
+        if (selectedValue == 'sup_return') {
             id_return_to_supplier_reason.parents().eq(2).show();
         } else {
             id_return_to_supplier_reason.parents().eq(2).hide();

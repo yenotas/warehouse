@@ -10,6 +10,11 @@
     max-width: 274px;
 }
 
+#id_department, #id_name {
+    padding: 9px 6px;
+    margin-top: 1px;
+}
+
 thead th, tfoot td {
     border: 1px solid var(--hairline-color);
     text-transform: none;
@@ -20,6 +25,12 @@ header, nav {
     z-index: 1000;
 }
 
+.full-cell-link {
+    cursor: pointer;
+}
+.full-cell-link:hover {
+    background-color: #eee; /* Опционально: эффект при наведении */
+}
 
 /* Управление горизонтальным скроллингом */
 #main {

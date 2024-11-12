@@ -11,16 +11,18 @@ $(document).ready(function() {
             },
             type: 'get',
              success: function(data) {
-                const reasonField = $('#id_reason');
-                reasonField.empty();  // Очищаем поле
-                $.each(data, function(index, choice) {
-                    reasonField.append(new Option(choice.name, choice.id));
+                console.log(data);
+
+                $('#id_reason_id').empty();  // Очищаем поле
+                $.each(data.choices, function(index, choice) {
+                    console.log(choice.text, choice.id);
+                    $('#id_reason_id').append(new Option(choice.text, choice.id));
                 });
                 // Делаем поле обязательным в зависимости от типа перемещения
                 if (['move', 'warehouse', 'distribute'].includes(processType)) {
-                    reasonField.prop('required', true);
+                    $('#id_reason_id').prop('required', true);
                 } else {
-                    reasonField.prop('required', false);
+                    $('#id_reason_id').prop('required', false);
                 }
             },
             error: function(xhr, status, error) {

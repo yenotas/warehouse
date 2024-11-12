@@ -1,5 +1,4 @@
 from django.core.exceptions import PermissionDenied
-from django.db.models import Q
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.contrib import admin
@@ -36,9 +35,6 @@ class RestrictedGroupAdmin(DefaultGroupAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return request.user.is_superuser
-
-    def get_actions(self, request):
-        return []
 
 
 class RestrictedPermissionAdmin(admin.ModelAdmin):
@@ -128,9 +124,6 @@ class CustomAdminSite(admin.AdminSite):
 
 # Создаем экземпляр кастомного AdminSite
 admin_site = CustomAdminSite(name='myadmin')
-admin_site.register(Group, RestrictedGroupAdmin)
-admin_site.register(Permission, RestrictedPermissionAdmin)
-admin_site.register(ModelAccessControl, ModelAccessControlAdmin)
 
 
 # Кастомная модель UserAdmin
@@ -200,19 +193,14 @@ class CustomUserAdmin(AccessControlMixin, DefaultUserAdmin):
         return request.user.is_superuser or request.user.groups.filter(name__in=['Администраторы', 'ОК']).exists()
 
     def get_actions(self, request):
-        return []
-    # def get_actions(self, request):
-    #     actions = super().get_actions(request)
-    #     if not request.user.is_superuser and not request.user.groups.filter(name__in=['Администраторы', 'ОК']).exists():
-    #         if 'delete_selected' in actions:
-    #             del actions['delete_selected']
-    #     return actions
+        actions = super().get_actions(request)
+        if not request.user.is_superuser and not request.user.groups.filter(name__in=['Администраторы', 'ОК']).exists():
+            if 'delete_selected' in actions:
+                del actions['delete_selected']
+        return actions
 
     class Media:
         js = ('admin/js/admin/AddDepartment.js',)
-
-
-admin_site.register(CustomUser, CustomUserAdmin)
 
 
 class SuppliersAdmin(AccessControlMixin, admin.ModelAdmin):
@@ -227,67 +215,21 @@ class SuppliersAdmin(AccessControlMixin, admin.ModelAdmin):
         return []
 
 
-admin_site.register(Suppliers, SuppliersAdmin)
+class ProductAdmin(AccessControlMixin, admin.ModelAdmin):
+    form = ProductsForm
 
+    list_display = ('name', 'product_sku', 'product_link', 'product_image', 'category', 'supplier')
+    fields = ('name', 'product_sku', 'product_link', 'product_image', 'category', 'supplier', 'packaging_unit',
+              'quantity_in_package',)
+    search_fields = ['category__name', 'name', 'supplier__name', 'product_sku']
+    ordering = ('category__name', 'name', 'supplier__name')
+    list_filter = ('category__name', 'name', 'supplier__name')
 
-class CategoriesAdmin(AccessControlMixin, admin.ModelAdmin):
-    form = CategoriesForm
-    fields = ('name',)
-    list_display = ('name',)
-    ordering = ('name',)
-    change_list_template = 'admin/categories_changelist.html'
-
-    def get_actions(self, request):
-        return []
-
-    def changelist_view(self, request, extra_context=None):
-        extra_context = extra_context or {}
-        form = self.form(request.POST or None)
-        if request.method == 'POST':
-            if form.is_valid():
-                form.save()
-                self.message_user(request, "Категория товаров добавлена.")
-                return redirect(request.path)
-        extra_context['form'] = form
-        return super().changelist_view(request, extra_context=extra_context)
-
-    def has_add_permission(self, request, obj=None):
-        if request.path.endswith('/categories/'):
-            return False  # Убираем кнопку на странице списка
-        return request.user.is_superuser or request.user.groups.filter(name__in=['Администраторы', 'ОК']).exists()
-
-
-admin_site.register(Categories, CategoriesAdmin)
-
-
-class DepartmentsAdmin(AccessControlMixin, admin.ModelAdmin):
-    form = DepartmentsForm
-    fields = ('department',)
-    list_display = ('department',)
-    ordering = ('department',)
-    change_list_template = 'admin/departments_changelist.html'
+    class Media:
+        js = ('admin/js/admin/AddCategory.js',)
 
     def get_actions(self, request):
         return []
-
-    def changelist_view(self, request, extra_context=None):
-        extra_context = extra_context or {}
-        form = self.form(request.POST or None)
-        if request.method == 'POST':
-            if form.is_valid():
-                form.save()
-                self.message_user(request, "Департамент успешно добавлен.")
-                return redirect(request.path)
-        extra_context['form'] = form
-        return super().changelist_view(request, extra_context=extra_context)
-
-    def has_add_permission(self, request, obj=None):
-        if request.path.endswith('/departments/'):
-            return False  # Убираем кнопку на странице списка
-        return request.user.is_superuser or request.user.groups.filter(name__in=['Администраторы', 'ОК']).exists()
-
-
-admin_site.register(Departments, DepartmentsAdmin)
 
 
 class ProjectsAdmin(AccessControlMixin, admin.ModelAdmin):
@@ -300,62 +242,27 @@ class ProjectsAdmin(AccessControlMixin, admin.ModelAdmin):
     ordering = ('name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name', 'detail_code')
     list_filter = ('name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name', 'detail_code')
 
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == 'manager':
-            kwargs['queryset'] = CustomUser.objects.filter(groups__name='Менеджеры')
-        elif db_field.name == 'engineer':
-            kwargs['queryset'] = CustomUser.objects.filter(groups__name='Инженеры')
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
-
-    def save_model(self, request, obj, form, change):
-        if not change:
-            obj.manager = request.user
-        super().save_model(request, obj, form, change)
-
-    def get_form(self, request, obj=None, **kwargs):
-        form = super().get_form(request, obj, **kwargs)
-        if not obj:
-            form.base_fields['manager'].initial = request.user
-        return form
-
     def get_actions(self, request):
         return []
-
-
-admin_site.register(Projects, ProjectsAdmin)
 
 
 class ProductRequestAdmin(AccessControlMixin, admin.ModelAdmin):
     form = ProductRequestForm
     list_display = (
-    'id', 'request_date', 'product', 'request_about', 'request_quantity', 'project', 'responsible', 'delivery_location',
+    'id', 'request_date', 'product_name', 'request_about', 'request_quantity', 'project', 'responsible', 'delivery_location',
     'delivery_address', 'deadline_delivery_date')
     fields = (
-    'product', 'request_about', 'request_quantity', 'project', 'responsible', 'delivery_location',
+    'product_name', 'request_about', 'request_quantity', 'project', 'responsible', 'delivery_location',
     'delivery_address', 'deadline_delivery_date')
-    search_fields = ['product__name', 'project__project_code']
+    search_fields = ['product_name']
     ordering = ('id', 'request_date', 'product', 'project')
     list_filter = ('request_date', 'product', 'project')
 
     def get_actions(self, request):
         return []
 
-    def save_model(self, request, obj, form, change):
-        if not change:
-            obj.responsible = request.user
-        super().save_model(request, obj, form, change)
-
-    def get_form(self, request, obj=None, **kwargs):
-        form = super().get_form(request, obj, **kwargs)
-        if not obj:
-            form.base_fields['responsible'].initial = request.user
-        return form
-
     class Media:
         js = ('admin/js/admin/ChangeProductRequest.js',)
-
-
-admin_site.register(ProductRequest, ProductRequestAdmin)
 
 
 class OrdersAdmin(AccessControlMixin, admin.ModelAdmin):
@@ -368,27 +275,8 @@ class OrdersAdmin(AccessControlMixin, admin.ModelAdmin):
     ordering = ('id', 'delivery_status', 'order_date', 'product_request', 'waiting_date')
     list_filter = ('order_date', 'manager', 'product_request', 'delivery_status')
 
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == 'manager':
-            kwargs['queryset'] = CustomUser.objects.exclude(groups__name__in=['Инженеры']).distinct()
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
-
-    def save_model(self, request, obj, form, change):
-        if not change:  # Только при создании нового объекта
-            obj.manager = request.user
-        super().save_model(request, obj, form, change)
-
-    def get_form(self, request, obj=None, **kwargs):
-        form = super().get_form(request, obj, **kwargs)
-        if not obj:  # Только при создании нового объекта
-            form.base_fields['manager'].initial = request.user
-        return form
-
     def get_actions(self, request):
         return []
-
-
-admin_site.register(Orders, OrdersAdmin)
 
 
 class StorageCellsAdmin(AccessControlMixin, admin.ModelAdmin):
@@ -403,9 +291,6 @@ class StorageCellsAdmin(AccessControlMixin, admin.ModelAdmin):
         return []
 
 
-admin_site.register(StorageCells, StorageCellsAdmin)
-
-
 class ProductMoviesAdmin(AccessControlMixin, admin.ModelAdmin):
     form = ProductMoviesForm
     list_display = ('record_date', 'product', 'process_type', 'return_to_supplier_reason', 'movie_quantity', 'new_cell',
@@ -418,44 +303,15 @@ class ProductMoviesAdmin(AccessControlMixin, admin.ModelAdmin):
 
     def get_actions(self, request):
         return []
-
     class Media:
         js = ('admin/js/admin/ChangeProductMovies.js',)
 
 
-admin_site.register(ProductMovies, ProductMoviesAdmin)
-
-
-class ProductsAdmin(AccessControlMixin, admin.ModelAdmin):
-    form = ProductsForm
-
-    list_display = ('name', 'product_sku', 'product_link', 'product_image_tag', 'category', 'supplier')
-    fields = ('name', 'product_sku', 'product_link', 'product_image', 'category', 'supplier', 'packaging_unit',
-              'quantity_in_package',)
-    search_fields = ['category__name', 'name', 'supplier__name', 'product_sku']
-    ordering = ('category__name', 'name', 'supplier__name')
-    list_filter = ('category__name', 'name', 'supplier__name')
-    # autocomplete_fields = ['name']
-
-    class Media:
-        js = ('admin/js/admin/AddCategory.js',)
-
-    def get_actions(self, request):
-        return []
-
-
-admin_site.register(Products, ProductsAdmin)
-
-
 class PivotTableAdmin(AccessControlMixin, admin.ModelAdmin):
+    change_list_template = "admin/storage/pivot_table.html"
     form = PivotTableForm
-    fields = ('product_name', 'product_link', 'request_about', 'packaging_unit', 'request_quantity',
-        'project_code', 'detail_name', 'detail_code', 'request_date',
-        'responsible', 'delivery_location', 'deadline_delivery_date', 'waiting_date', 'has_on_storage',
-        'supplier', 'invoice_number', 'delivery_status', 'not_delivered_pcs',
-        'document_flow', 'documents', 'accounted_in_1c', 'supply_date', 'supply_quantity', 'storage_cell',)
     list_display = (
-        'product_name', 'product_link', 'request_about', 'packaging_unit', 'request_quantity',
+        'id', 'product_name', 'product_link', 'request_about', 'packaging_unit', 'request_quantity',
         'project_code', 'detail_name', 'detail_code', 'product_image_tag', 'request_date',
         'responsible', 'delivery_location', 'deadline_delivery_date', 'waiting_date', 'has_on_storage',
         'order_complete', 'supplier', 'invoice_number', 'delivery_status', 'not_delivered_pcs',
@@ -463,49 +319,85 @@ class PivotTableAdmin(AccessControlMixin, admin.ModelAdmin):
     )
     list_editable = (
         'request_about', 'invoice_number', 'waiting_date', 'delivery_status', 'document_flow',
-        'documents', 'accounted_in_1c'
+        'documents', 'accounted_in_1c',
     )
-    autocomplete_fields = ['product_name']
-    search_fields = ['product_name__name']
+    # search_fields = ['product_request__product__name']  # Добавлено для autocomplete_fields
+    # autocomplete_fields = ['product_request']
     list_filter = ('order__delivery_status', 'product_request__project__project_code')
-    ordering = ('id',)
 
-    def order_complete(self, obj):
-        return obj.order_complete
-    order_complete.short_description = 'Заказ оформлен'
-    order_complete.boolean = True
+    def product_image_tag(self, obj):
+        if obj.product_image:
+            return format_html('<img src="{}" width="50" height="50" />'.format(obj.product_image.url))
+        return '-'
+    product_image_tag.short_description = 'Изображение'
 
-    # Фильтрация по дате заявки
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        start_date = request.GET.get('start_date')
-        end_date = request.GET.get('end_date')
-
-        if start_date and end_date:
-            qs = qs.filter(
-                Q(product_request__request_date__gte=start_date) &
-                Q(product_request__request_date__lte=end_date)
-            )
+        qs = qs.select_related(
+            'product_request',
+            'order',
+            'product_movie',
+            'product_request__project'
+        )
         return qs
+
+    def product_name_display(self, obj):
+        return obj.product_name
+    product_name_display.short_description = 'Наименование'
 
     def get_readonly_fields(self, request, obj=None):
         readonly_fields = super().get_readonly_fields(request, obj)
         if obj and obj.order:
-            # Блокируем поля, если уже существует заказ
-            readonly_fields += ['product_name', 'request_quantity', 'project_code', 'delivery_location',
-                                'deadline_delivery_date']
+            readonly_fields += ['product_name', 'request_quantity', 'project_code', 'delivery_location', 'deadline_delivery_date']
         return readonly_fields
 
-    class Media:
-        js = ('admin/js/admin/AddPivotPosition.js',)  # Подключаем дополнительные скрипты для автозаполнения
+    def product_link_display(self, obj):
+        if obj.product_link:
+            return format_html('<a href="{}" target="_blank">{}</a>', obj.product_link, obj.product_link)
+        return '-'
+    product_link_display.short_description = 'Ссылка на сайт'
 
+    def save_model(self, request, obj, form, change):
+        # Логика создания связанных объектов, если они не существуют
+        if not obj.product_request and 'product_name' in form.cleaned_data:
+            product = form.cleaned_data['product_name']
+            product_request = ProductRequest.objects.create(
+                product=product,
+                responsible=request.user,
+                # Другие поля
+            )
+            obj.product_request = product_request
+        if not obj.order and obj.waiting_date:
+            order = Orders.objects.create(
+                product_request=obj.product_request,
+                manager=request.user,
+                waiting_date=obj.waiting_date,
+                # Другие поля
+            )
+            obj.order = order
+        super().save_model(request, obj, form, change)
+
+    class Media:
+        js = ('admin/js/admin/AddPivotPosition.js',)
+
+
+# Автоматическая регистрация моделей приложения 'storage' с использованием AccessControlMixin
+storage_models = apps.get_app_config('storage').get_models()
+
+for model in storage_models:
+    if model not in [PivotTable, CustomUser, Group, Permission, ModelAccessControl, Departments]:
+        admin_class = type(f'{model.__name__}Admin', (AccessControlMixin, ModelAdmin), {})
+        admin_site.register(model, admin_class)
 
 admin_site.register(PivotTable, PivotTableAdmin)
+admin_site.register(CustomUser, CustomUserAdmin)
+admin_site.register(Group, RestrictedGroupAdmin)
+admin_site.register(Permission, RestrictedPermissionAdmin)
+admin_site.register(ModelAccessControl, ModelAccessControlAdmin)
+admin_site.register(Departments)
 
-storage_models = apps.get_app_config('storage').get_models()
-print('\n\n', storage_models)
-print('\n\n')
+print('LINKS\n\n')
 for model, model_admin in admin_site._registry.items():
     opts = model._meta
     print('%s:%s_%s_change' % (admin_site.name, opts.app_label, opts.model_name))
-
+print('\n\n', storage_models)
