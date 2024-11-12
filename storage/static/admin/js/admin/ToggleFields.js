@@ -32,7 +32,6 @@ $(document).ready(function() {
     var id_return_to_supplier_reason = $('#id_return_to_supplier_reason');
 
     function toggleSupplierReason() {
-        console.log('Возврат поставщику');
         var selectedValue = id_process_type.val();
         if (selectedValue == 'sup_return') {
             id_return_to_supplier_reason.parents().eq(2).show();
@@ -41,6 +40,6 @@ $(document).ready(function() {
         }
     }
     id_process_type.change(toggleSupplierReason);
-    toggleSupplierReason();
+    if (id_process_type.val()) { toggleSupplierReason() }
 
 });

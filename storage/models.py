@@ -7,18 +7,18 @@ from django.utils.html import format_html
 
 
 class Departments(models.Model):
-    department = models.CharField(max_length=50, verbose_name="Отдел/Цех")
+    name = models.CharField(max_length=50, verbose_name="Отдел/Цех")
 
     class Meta:
         verbose_name = "отдел/цех"
         verbose_name_plural = "Подразделения компании"
 
     def __str__(self):
-        return self.department
+        return self.name
 
 
 class ModelColors(models.Model):
-    model_name = models.CharField(max_length=50, verbose_name="Таблица")
+    name = models.CharField(max_length=50, verbose_name="Таблица")
     color = models.CharField(max_length=6, verbose_name="Цвет заголовка #XXXXXX")
 
     class Meta:
@@ -41,17 +41,6 @@ class CustomUser(AbstractUser):
         return f"{self.first_name} {self.last_name}"
 
 
-class Categories(models.Model):
-    name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Категория товара", db_index=True)
-
-    class Meta:
-        verbose_name = "категорию"
-        verbose_name_plural = "Категории"
-
-    def __str__(self):
-        return self.name
-
-
 class Suppliers(models.Model):
     name = models.CharField(blank=True, null=True, verbose_name="Поставщик")
     inn = models.CharField(max_length=50, blank=True, null=True, verbose_name="ИНН")
@@ -71,11 +60,22 @@ class Suppliers(models.Model):
         return self.name
 
 
+class Categories(models.Model):
+    name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Категория/признак", db_index=True)
+
+    class Meta:
+        verbose_name = "категорию / признак"
+        verbose_name_plural = "Категории, признаки, свойства"
+
+    def __str__(self):
+        return self.name
+
+
 class Products(models.Model):
     name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Наименование")
     product_link = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ссылка")
     product_sku = models.CharField(max_length=100, blank=True, null=True, verbose_name="SKU / Артикул")
-    category = models.ForeignKey(Categories, on_delete=models.PROTECT, blank=True, null=True, verbose_name="Категория")
+    categories = models.ManyToManyField(Categories, blank=True, verbose_name="Категория / признак")
     supplier = models.ForeignKey(Suppliers, on_delete=models.PROTECT, blank=True, null=True, verbose_name="Поставщик")
     packaging_unit = models.CharField(max_length=10, verbose_name="Единицы измерения", choices=[
         ('уп.', 'уп.'), ('шт.', 'шт.'), ('кв.м', 'кв.м'),
@@ -101,7 +101,7 @@ class Products(models.Model):
     product_image_tag.short_description = 'Фото товара'
 
     def __str__(self):
-        return f"{self.name} | {self.product_sku}"
+        return f"{self.name}"
 
 
 class Projects(models.Model):

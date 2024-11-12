@@ -13,7 +13,7 @@ from django.contrib.contenttypes.models import ContentType
 class CustomUserChangeForm(UserChangeForm):
     department = forms.ModelChoiceField(
         queryset=Departments.objects.all(),
-        widget=autocomplete.ModelSelect2(url='departments-autocomplete'),
+        widget=autocomplete.ModelSelect2(url='names-autocomplete'),
         label="Отдел/Цех",
         required=False
     )
@@ -26,7 +26,7 @@ class CustomUserChangeForm(UserChangeForm):
 class CustomUserCreationForm(UserCreationForm):
     department = forms.ModelChoiceField(
         queryset=Departments.objects.all(),
-        widget=autocomplete.ModelSelect2(url='departments-autocomplete'),
+        widget=autocomplete.ModelSelect2(url='names-autocomplete'),
         label="Отдел/Цех",
         required=False
     )
@@ -37,14 +37,18 @@ class CustomUserCreationForm(UserCreationForm):
 
 
 class ProductsForm(forms.ModelForm):
-    category = forms.ModelChoiceField(
-        queryset=Categories.objects.all(),
-        widget=autocomplete.ModelSelect2(url='categories-autocomplete'),
-        label="Категория"
-    )
     name = forms.CharField(
         label='Наименование',
-        widget=autocomplete.ListSelect2(url='products-autocomplete')
+        widget=autocomplete.ListSelect2(
+            url='names-autocomplete')
+    )
+
+    categories = forms.ModelMultipleChoiceField(
+        queryset=Categories.objects.all(),
+        widget=autocomplete.ModelSelect2Multiple(
+            url='names-autocomplete'),
+        required=False,
+        label="Категории / признаки"
     )
 
     class Meta:
@@ -96,8 +100,17 @@ class DepartmentsForm(forms.ModelForm):
         model = Departments
         fields = '__all__'
 
+    name = forms.CharField(
+        label='Отдел / цех',
+        widget=autocomplete.ListSelect2()
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['name'].widget.url = reverse('names-autocomplete', kwargs={'model_name': 'departments'})
+
     def clean_department(self):
-        department = self.cleaned_data['department']
+        department = self.cleaned_data['name']
         if Departments.objects.filter(department__iexact=department).exists():
             raise forms.ValidationError("Такое название уже существует.")
         return department
@@ -108,17 +121,26 @@ class CategoriesForm(forms.ModelForm):
         model = Categories
         fields = '__all__'
 
+    name = forms.CharField(
+        label='Тег (категория, свойство, признак)',
+        widget=autocomplete.ListSelect2(url='/names-autocomplete/')
+    )
+
+    # def __init__(self, *args, **kwargs):
+    #     super().__init__(*args, **kwargs)
+    #     self.fields['name'].widget.url = reverse('names-autocomplete', kwargs={'model_name': 'categories'})
+
     def clean_name(self):
         name = self.cleaned_data['name']
         if Categories.objects.filter(name__iexact=name).exists():
-            raise forms.ValidationError("Такая категория уже существует.")
+            raise forms.ValidationError("Такой тег уже существует.")
         return name
 
 
 class PivotTableForm(forms.ModelForm):
     product_name = forms.ModelChoiceField(
         queryset=Products.objects.all(),
-        widget=autocomplete.ModelSelect2(url='products-autocomplete'),
+        widget=autocomplete.ModelSelect2(url='names-autocomplete'),
         label="Наименование",
         required=True
     )

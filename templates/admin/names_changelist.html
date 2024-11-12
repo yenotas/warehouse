@@ -1,11 +1,12 @@
 {% extends "admin/change_list.html" %}
 {% load static %}
+
 {% block content %}
     <div class="module">
         <form method="post" action="" style="display: flex; align-items: center;">
             {% csrf_token %}
             <div style="display: flex; align-items: center;">
-                <label for="{{ form.name.id_for_label }}" style="margin-right: 10px;">Новая категория товаров:</label>
+                <label for="{{ form.name.id_for_label }}" style="margin-right: 10px;">{{ form.name.label }}</label>
                 {{ form.name }}
                 <input type="submit" value="Добавить" class="default" style="margin-left: 10px;" />
             </div>
