@@ -57,6 +57,8 @@ $(document).ready(function() {
                                             return new Option(item.text, item.id, true, true);
                                         }));
                                         $('#id_name').val(result.id).trigger('change');
+
+
                                     },
                                     error: function(xhr, status, error) {
                                         console.error('Ошибка при добавлении нового:', status, error);

@@ -1,10 +1,11 @@
-
+from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models import ContentType
 from django.http import JsonResponse, Http404
+from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 
 from .models import Products, Orders, Projects, StorageCells, Suppliers, Categories, ModelAccessControl, CustomUser, \
-    PivotTable, ProductMovies
+    PivotTable, ProductMovies, Departments
 from dal import autocomplete
 
 
@@ -34,8 +35,8 @@ def get_reason_choices(request):
 class UserAutocomplete(autocomplete.Select2QuerySetView):
     def get_queryset(self):
         if not self.request.user.is_authenticated:
-            return CustomUser.objects.none()
-        qs = CustomUser.objects.all()
+            return ''
+        qs = Departments.objects.all()
         if self.q:
             qs = qs.filter(first_name__icontains=self.q) | qs.filter(last_name__icontains=self.q)
         return qs
@@ -94,44 +95,24 @@ def get_model_fields(request):
     return JsonResponse({'fields': []})
 
 
-class NamesAutocomplete(autocomplete.Select2QuerySetView):
-    def get_queryset(self):
-
-        if not self.request.user.is_authenticated:
-            return None
-
-        model_name = self.kwargs.get('model_name')
+@login_required
+def autocomplete(request):
+    if 'term' in request.GET:
+        model_name = request.GET.get('model_name')
+        field_name = request.GET.get('field_name')
+        search_term = request.GET.get('term')
         try:
             model_class = ContentType.objects.get(model=model_name).model_class()
-            print('\n\n')
-            print('model_name', model_name)
-            print('\n\n')
+            filter_kwargs = {f"{field_name}__icontains": search_term}
+            qs = model_class.objects.filter(**filter_kwargs)
+            results = [{"id": item.id, "text": getattr(item, field_name)} for item in qs]
+            print(model_name, field_name, results)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
 
-        except Exception:
-            raise Http404("Model not found")
+        return JsonResponse(results, safe=False)
 
-        qs = model_class.objects.all()
-
-        if self.q:
-            qs = qs.filter(name__icontains=self.q)
-
-        if not qs.exists() and self.request.GET.get('create') == '1':
-            new_item = Categories.objects.create(name=self.q)
-            return Categories.objects.filter(id=new_item.name)
-
-        return qs
-
-    def get_result_label(self, item):
-        return item.name
-
-    def get_selected_result_label(self, item):
-        return item.name
-
-    def get_result(self, obj):
-        return {
-            "id": obj.id,
-            "text": obj.name,
-        }
+    return JsonResponse([], safe=False)
 
 
 @csrf_exempt

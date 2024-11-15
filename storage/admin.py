@@ -20,8 +20,48 @@ from django.contrib.admin import ModelAdmin
 import json
 
 
-# Класс для ограничения доступа к редактированию групп и разрешений
+class AutoCompleteAdmins(AccessControlMixin, admin.ModelAdmin):
+
+    change_list_template = "admin/change_list.html"  # стандартный шаблон по умолчанию
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if getattr(self, 'one_line_add', False):
+            self.change_list_template = "admin/one_line_add.html"
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        form = self.form(request.POST or None)
+        if request.method == 'POST':
+            if form.is_valid():
+                form.save()
+                self.message_user(request, "Добавлено успешно")
+                return redirect(request.path)
+
+        extra_context['form'] = form
+        return super().changelist_view(request, extra_context=extra_context)
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if not request.user.is_superuser and not request.user.groups.filter(name__in=['Администраторы']).exists():
+            if 'delete_selected' in actions:
+                del actions['delete_selected']
+        return actions
+
+    class Media:
+        js = ('admin/js/admin/AutoFields.js',)
+
+    def has_add_permission(self, request, obj=None):
+        if getattr(self, 'one_line_add', False) and request.path.endswith(f'/{self.model._meta.model_name}/'):
+            return False
+        return super().has_add_permission(request)
+        # return request.user.is_superuser or request.user.groups.filter(name__in=['Администраторы']).exists()
+
+
 class RestrictedGroupAdmin(DefaultGroupAdmin):
+    """
+    Класс для ограничения доступа к редактированию групп и разрешений
+    """
     def has_module_permission(self, request):
         return request.user.is_superuser
 
@@ -113,7 +153,7 @@ class CustomAdminSite(admin.AdminSite):
     def get_app_list(self, request, app_label=None):
         app_list = super().get_app_list(request, app_label=app_label)
 
-        model_order = ['PivotTable', 'Products', 'ProductRequest', 'Orders', 'ProductMovies', 'Projects', 'StorageCells', 'Departments', 'Suppliers']
+        model_order = ['PivotTable', 'Products', 'Suppliers', 'Categories', 'ProductRequest', 'Orders', 'ProductMovies', 'Projects', 'StorageCells', 'Users', 'Groups' 'Departments',]
         if not request.user.is_superuser:
             for app in app_list:
                 app['models'] = [
@@ -134,7 +174,7 @@ admin_site.register(ModelAccessControl, ModelAccessControlAdmin)
 
 
 # Кастомная модель UserAdmin
-class CustomUserAdmin(AccessControlMixin, DefaultUserAdmin):
+class CustomUserAdmin(AutoCompleteAdmins):
     form = CustomUserChangeForm
     add_form = CustomUserCreationForm
     list_display = ('username', 'full_name', 'department_display', 'email')
@@ -152,6 +192,7 @@ class CustomUserAdmin(AccessControlMixin, DefaultUserAdmin):
             'fields': ('username', 'password1', 'password2', 'first_name', 'last_name', 'email', 'tel', 'tg', 'department', 'position_name'),
         }),
     )
+    list_filter = ('department', 'groups')
 
     def get_fieldsets(self, request, obj=None):
         if not request.user.is_superuser and not request.user.groups.filter(name__in=['Администраторы', 'ОК']).exists():
@@ -175,7 +216,7 @@ class CustomUserAdmin(AccessControlMixin, DefaultUserAdmin):
     full_name.short_description = 'Имя и Фамилия'
 
     def department_display(self, obj):
-        return obj.department.department if obj.department else "—"
+        return obj.department if obj.department else "—"
     department_display.short_description = 'Отдел/Цех'
 
     # Методы разрешений остаются без изменений
@@ -200,16 +241,17 @@ class CustomUserAdmin(AccessControlMixin, DefaultUserAdmin):
         return request.user.is_superuser or request.user.groups.filter(name__in=['Администраторы', 'ОК']).exists()
 
     def get_actions(self, request):
-        return []
-
-    class Media:
-        js = ('admin/js/admin/AddNames.js',)
+        actions = super().get_actions(request)
+        if not request.user.is_superuser and not request.user.groups.filter(name__in=['Администраторы']).exists():
+            if 'delete_selected' in actions:
+                del actions['delete_selected']
+        return actions
 
 
 admin_site.register(CustomUser, CustomUserAdmin)
 
 
-class SuppliersAdmin(AccessControlMixin, admin.ModelAdmin):
+class SuppliersAdmin(AutoCompleteAdmins):
     form = SuppliersForm
     list_display = ('name', 'inn', 'ogrn', 'address', 'contact_person', 'website', 'email', 'phone', 'tg')
     fields = ('name', 'inn', 'ogrn', 'address', 'contact_person', 'website', 'email', 'phone', 'tg')
@@ -217,52 +259,11 @@ class SuppliersAdmin(AccessControlMixin, admin.ModelAdmin):
     ordering = ('name',)
     list_filter = ('name',)
 
-    def get_actions(self, request):
-        return []
-
 
 admin_site.register(Suppliers, SuppliersAdmin)
 
 
-class CategoriesAdmin(AccessControlMixin, admin.ModelAdmin):
-    form = CategoriesForm
-    fields = ('name',)
-    search_fields = ['name']
-    list_display = ('name',)
-    ordering = ('name',)
-    change_list_template = 'admin/names_changelist.html'
-
-    def get_actions(self, request):
-        actions = super().get_actions(request)
-        if not request.user.is_superuser and not request.user.groups.filter(name__in=['Администраторы']).exists():
-            if 'delete_selected' in actions:
-                del actions['delete_selected']
-        return actions
-
-    def changelist_view(self, request, extra_context=None):
-        extra_context = extra_context or {}
-        form = self.form(request.POST or None)
-        if request.method == 'POST':
-            if form.is_valid():
-                form.save()
-                self.message_user(request, "Тег товара добавлен.")
-                return redirect(request.path)
-        extra_context['form'] = form
-        return super().changelist_view(request, extra_context=extra_context)
-
-    def has_add_permission(self, request, obj=None):
-        if request.path.endswith('/categories/'):
-            return False
-        return request.user.is_superuser or request.user.groups.filter(name__in=['Администраторы']).exists()
-
-    class Media:
-        js = ('admin/js/admin/AddNames.js',)
-
-
-admin_site.register(Categories, CategoriesAdmin)
-
-
-class ProductsAdmin(AccessControlMixin, admin.ModelAdmin):
+class ProductsAdmin(AutoCompleteAdmins):
     form = ProductsForm
 
     list_display = ('name', 'product_sku', 'product_link', 'product_image_tag', 'display_categories', 'supplier')
@@ -273,12 +274,6 @@ class ProductsAdmin(AccessControlMixin, admin.ModelAdmin):
     # list_filter = ('category__name', 'name', 'supplier__name')
     # autocomplete_fields = ['name']
 
-    class Media:
-        js = ('admin/js/admin/AddNames.js',)
-
-    def get_actions(self, request):
-        return []
-
     def display_categories(self, obj): return ", ".join([category.name for category in obj.categories.all()])
 
     display_categories.short_description = "Категории / признаки"
@@ -287,40 +282,41 @@ class ProductsAdmin(AccessControlMixin, admin.ModelAdmin):
 admin_site.register(Products, ProductsAdmin)
 
 
-class DepartmentsAdmin(AccessControlMixin, admin.ModelAdmin):
+class CategoriesAdmin(AutoCompleteAdmins):
+    one_line_add = True
+    form = CategoriesForm
+    fields = ('name',)
+    list_display = ('name',)
+    ordering = ['name']
+
+
+admin_site.register(Categories, CategoriesAdmin)
+
+
+class DepartmentsAdmin(AutoCompleteAdmins):
+    one_line_add = True
     form = DepartmentsForm
     fields = ('name',)
     list_display = ('name',)
-    ordering = ('name',)
-    change_list_template = 'admin/names_changelist.html'
-
-    def get_actions(self, request):
-        return []
-
-    def changelist_view(self, request, extra_context=None):
-        extra_context = extra_context or {}
-        form = self.form(request.POST or None)
-        if request.method == 'POST':
-            if form.is_valid():
-                form.save()
-                self.message_user(request, "Департамент успешно добавлен.")
-                return redirect(request.path)
-        extra_context['form'] = form
-        return super().changelist_view(request, extra_context=extra_context)
-
-    def has_add_permission(self, request, obj=None):
-        if request.path.endswith('/departments/'):
-            return False  # Убираем кнопку на странице списка
-        return request.user.is_superuser or request.user.groups.filter(name__in=['Администраторы', 'ОК']).exists()
-
-    class Media:
-        js = ('admin/js/admin/AddNames.js',)
+    ordering = ['name']
 
 
 admin_site.register(Departments, DepartmentsAdmin)
 
 
-class ProjectsAdmin(AccessControlMixin, admin.ModelAdmin):
+class StorageCellsAdmin(AutoCompleteAdmins):
+    one_line_add = True
+    form = StorageCellsForm
+    list_display = ('name', 'info')
+    fields = ('name', 'info')
+    ordering = ('name',)
+    list_filter = ('name',)
+
+
+admin_site.register(StorageCells, StorageCellsAdmin)
+
+
+class ProjectsAdmin(AutoCompleteAdmins):
     form = ProjectsForm
     list_display = (
     'id', 'creation_date', 'name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name', 'detail_code')
@@ -355,7 +351,7 @@ class ProjectsAdmin(AccessControlMixin, admin.ModelAdmin):
 admin_site.register(Projects, ProjectsAdmin)
 
 
-class ProductRequestAdmin(AccessControlMixin, admin.ModelAdmin):
+class ProductRequestAdmin(AutoCompleteAdmins):
     form = ProductRequestForm
     list_display = (
     'id', 'request_date', 'product', 'request_about', 'request_quantity', 'project', 'responsible', 'delivery_location',
@@ -381,14 +377,11 @@ class ProductRequestAdmin(AccessControlMixin, admin.ModelAdmin):
             form.base_fields['responsible'].initial = request.user
         return form
 
-    class Media:
-        js = ('admin/js/admin/AddNames.js',)
-
 
 admin_site.register(ProductRequest, ProductRequestAdmin)
 
 
-class OrdersAdmin(AccessControlMixin, admin.ModelAdmin):
+class OrdersAdmin(AutoCompleteAdmins):
     form = OrdersForm
     list_display = ('id', 'order_date', 'product_request', 'manager', 'accounted_in_1c', 'invoice_number', 'delivery_status',
                     'documents', 'waiting_date')
@@ -418,25 +411,10 @@ class OrdersAdmin(AccessControlMixin, admin.ModelAdmin):
         return []
 
 
-admin_site.register(Orders, OrdersAdmin)
+admin.register(Orders, OrdersAdmin)
 
 
-class StorageCellsAdmin(AccessControlMixin, admin.ModelAdmin):
-    form = StorageCellsForm
-    list_display = ('cell_address', 'info')
-    fields = ('cell_address', 'info')
-    search_fields = ['cell_address', 'info']
-    ordering = ('cell_address',)
-    list_filter = ('cell_address',)
-
-    def get_actions(self, request):
-        return []
-
-
-admin_site.register(StorageCells, StorageCellsAdmin)
-
-
-class ProductMoviesAdmin(AccessControlMixin, admin.ModelAdmin):
+class ProductMoviesAdmin(AutoCompleteAdmins):
     form = ProductMoviesForm
     list_display = ('record_date', 'product', 'process_type', 'return_to_supplier_reason', 'movie_quantity', 'new_cell',
                     'reason_id')
@@ -456,7 +434,7 @@ class ProductMoviesAdmin(AccessControlMixin, admin.ModelAdmin):
 admin_site.register(ProductMovies, ProductMoviesAdmin)
 
 
-class PivotTableAdmin(AccessControlMixin, admin.ModelAdmin):
+class PivotTableAdmin(AutoCompleteAdmins):
     form = PivotTableForm
     fields = ('product_name', 'product_link', 'request_about', 'packaging_unit', 'request_quantity',
         'project_code', 'detail_name', 'detail_code', 'request_date',
@@ -510,6 +488,7 @@ class PivotTableAdmin(AccessControlMixin, admin.ModelAdmin):
 
 
 admin_site.register(PivotTable, PivotTableAdmin)
+
 
 storage_models = apps.get_app_config('storage').get_models()
 print('\n\n', storage_models)

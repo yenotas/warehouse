@@ -10,72 +10,228 @@ from django import forms
 from django.contrib.contenttypes.models import ContentType
 
 
-class CustomUserChangeForm(UserChangeForm):
-    department = forms.ModelChoiceField(
-        queryset=Departments.objects.all(),
-        widget=autocomplete.ModelSelect2(url='names-autocomplete'),
-        label="Отдел/Цех",
-        required=False
-    )
+# class AutoCompleteForms(forms.ModelForm):
+#     class Meta:
+#         abstract = True
+#
+#     def __init__(self, *args, **kwargs):
+#         self.unique_fields = kwargs.pop('unique_fields', [])
+#         self.auto_fields = kwargs.pop('auto_fields', [])
+#         super().__init__(*args, **kwargs)
+#         self.model_name = self._meta.model._meta.model_name
+#
+#         for field_name in self.auto_fields:
+#             field = self.fields.get(field_name)
+#             if field:
+#                 # Добавляем атрибуты к виджету поля
+#                 field.widget.attrs['field_name'] = field_name
+#                 field.widget.attrs['model_name'] = self.model_name
+#
+#                 # Обновляем класс виджета, добавляя 'single_line_add'
+#                 existing_classes = field.widget.attrs.get('class', '')
+#                 classes = existing_classes.split()
+#                 if 'single_line_add' not in classes:
+#                     classes.append('single_line_add')
+#                 field.widget.attrs['class'] = ' '.join(classes)
+#
+#     def clean(self):
+#         cleaned_data = super().clean()
+#         if self.unique_fields and not self.instance.pk:
+#             model_class = self._meta.model
+#             filter_args = {field: cleaned_data.get(field) for field in self.unique_fields}
+#             if model_class.objects.filter(**filter_args).exists(): raise forms.ValidationError(
+#                 "Такая запись уже существует!")
+#         return cleaned_data
+#
+#     def save(self, commit=True):
+#         instance = super().save(commit=False)
+#         for field in self.fields:
+#             setattr(instance, field, self.cleaned_data.get(field))
+#         if commit:
+#             instance.save()
+#         return instance
+class AutoCompleteForms(forms.ModelForm):
+    class Meta:
+        abstract = True
+
+    def __init__(self, *args, **kwargs):
+        self.unique_fields = kwargs.pop('unique_fields', [])
+        self.auto_fields = kwargs.pop('auto_fields', [])
+        related_model_names = self.related_model_mapping = kwargs.pop('related_model_mapping', [])
+        self.model_name = self._meta.model._meta.model_name
+
+        super().__init__(*args, **kwargs)
+
+        for field_name in self.auto_fields:
+            field = self.fields.get(field_name)
+            if field:
+
+                if field_name in related_model_names:
+                    field.widget.attrs['model_name'] = related_model_names[field_name][0].lower()
+                    field.widget.attrs['field_name'] = related_model_names[field_name][1].lower()
+                    print(field.widget.attrs)
+                else:
+                    field.widget.attrs['field_name'] = field_name.lower()
+                    field.widget.attrs['model_name'] = self.model_name.lower()
+
+                # Добавляем CSS-класс для поля автозаполнения
+                field.widget.attrs['class'] = 'single_line_add'
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if self.unique_fields and not self.instance.pk:
+            model_class = self._meta.model
+            filter_args = {field: cleaned_data.get(field) for field in self.unique_fields}
+            if model_class.objects.filter(**filter_args).exists():
+                raise forms.ValidationError("Такая запись уже существует!")
+        return cleaned_data
+
+    # def save(self, commit=True):
+    #     instance = super().save(commit=False)
+    #     for field in self.fields:
+    #         setattr(instance, field, self.cleaned_data.get(field))
+    #     if commit:
+    #         instance.save()
+    #     return instance
+
+
+class DepartmentsForm(AutoCompleteForms):
+    class Meta:
+        model = Departments
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args,
+                          unique_fields=['name'],
+                          auto_fields=['name'],
+                          **kwargs)
+
+
+class CategoriesForm(AutoCompleteForms):
+    class Meta:
+        model = Categories
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args,
+                          unique_fields=['name'],
+                          auto_fields=['name'],
+                          **kwargs)
+
+
+class CustomUserChangeForm(UserChangeForm, AutoCompleteForms):
 
     class Meta:
         model = CustomUser
         fields = '__all__'
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args,
+                          unique_fields=['username'],
+                          auto_fields=['username', 'first_name', 'last_name', 'position_name'],
+                          **kwargs)
 
-class CustomUserCreationForm(UserCreationForm):
-    department = forms.ModelChoiceField(
-        queryset=Departments.objects.all(),
-        widget=autocomplete.ModelSelect2(url='names-autocomplete'),
-        label="Отдел/Цех",
-        required=False
-    )
+
+class CustomUserCreationForm(UserCreationForm, AutoCompleteForms):
 
     class Meta:
         model = CustomUser
         fields = ('username', 'first_name', 'last_name', 'email', 'department', 'position_name', 'tel', 'tg')
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args,
+                          unique_fields=['username'],
+                          auto_fields=['username', 'first_name', 'last_name', 'position_name'],
+                          **kwargs)
 
-class ProductsForm(forms.ModelForm):
-    name = forms.CharField(
-        label='Наименование',
-        widget=autocomplete.ListSelect2(
-            url='names-autocomplete')
-    )
 
-    categories = forms.ModelMultipleChoiceField(
-        queryset=Categories.objects.all(),
-        widget=autocomplete.ModelSelect2Multiple(
-            url='names-autocomplete'),
-        required=False,
-        label="Категории / признаки"
-    )
-
+class ProductsForm(AutoCompleteForms):
     class Meta:
         model = Products
         exclude = ['near_products']
 
+    supplier = forms.ModelChoiceField(
+        queryset=Suppliers.objects.all(),
+        label='Поставщик',
+        widget=forms.TextInput(attrs={'class': 'single_line_add'})
+    )
 
-class SuppliersForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            *args,
+            unique_fields=['name', 'supplier'],
+            auto_fields=['name', 'supplier'],
+            related_model_mapping={'supplier': ['Suppliers', 'name']},
+            **kwargs
+        )
+
+    # def save(self, commit=True):
+    #     instance = super().save(commit=False)
+    #
+    #     # Преобразование значения supplier в объект Suppliers
+    #     supplier_id = self.cleaned_data.get('supplier')
+    #     if supplier_id:
+    #         try:
+    #             supplier_instance = Suppliers.objects.get(id=supplier_id)
+    #             instance.supplier = supplier_instance
+    #         except Suppliers.DoesNotExist:
+    #             raise forms.ValidationError(f"Поставщик с id {supplier_id} не найден.")
+    #
+    #     if commit:
+    #         instance.save()
+    #     return instance
+
+
+class SuppliersForm(AutoCompleteForms):
     class Meta:
         model = Suppliers
         fields = '__all__'
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args,
+                          unique_fields=['name'],
+                          auto_fields=['name'],
+                          **kwargs)
 
-class ProjectsForm(forms.ModelForm):
+
+class StorageCellsForm(AutoCompleteForms):
+    class Meta:
+        model = StorageCells
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args,
+                          unique_fields=['name'],
+                          auto_fields=['name', 'info'],
+                          **kwargs)
+
+
+class ProjectsForm(AutoCompleteForms):
     class Meta:
         model = Projects
         exclude = ['creation_date']
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args,
+                          unique_fields=['name'],
+                          auto_fields=['name'],
+                          **kwargs)
 
-class OrdersForm(forms.ModelForm):
+
+class OrdersForm(AutoCompleteForms):
     class Meta:
         model = Orders
         fields = '__all__'
         # exclude = ['order_date']
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args,
+                          unique_fields=['name'],
+                          auto_fields=['name'],
+                          **kwargs)
 
-class ProductMoviesForm(forms.ModelForm):
+
+class ProductMoviesForm(AutoCompleteForms):
     class Meta:
         model = ProductMovies
         fields = '__all__'
@@ -85,59 +241,14 @@ class ProductMoviesForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args,
+                          unique_fields=['name'],
+                          auto_fields=['name'],
+                          **kwargs)
         self.fields['reason_id'].required = False
 
 
-class StorageCellsForm(forms.ModelForm):
-    class Meta:
-        model = StorageCells
-        fields = '__all__'
-
-
-class DepartmentsForm(forms.ModelForm):
-    class Meta:
-        model = Departments
-        fields = '__all__'
-
-    name = forms.CharField(
-        label='Отдел / цех',
-        widget=autocomplete.ListSelect2()
-    )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['name'].widget.url = reverse('names-autocomplete', kwargs={'model_name': 'departments'})
-
-    def clean_department(self):
-        department = self.cleaned_data['name']
-        if Departments.objects.filter(department__iexact=department).exists():
-            raise forms.ValidationError("Такое название уже существует.")
-        return department
-
-
-class CategoriesForm(forms.ModelForm):
-    class Meta:
-        model = Categories
-        fields = '__all__'
-
-    name = forms.CharField(
-        label='Тег (категория, свойство, признак)',
-        widget=autocomplete.ListSelect2(url='/names-autocomplete/')
-    )
-
-    # def __init__(self, *args, **kwargs):
-    #     super().__init__(*args, **kwargs)
-    #     self.fields['name'].widget.url = reverse('names-autocomplete', kwargs={'model_name': 'categories'})
-
-    def clean_name(self):
-        name = self.cleaned_data['name']
-        if Categories.objects.filter(name__iexact=name).exists():
-            raise forms.ValidationError("Такой тег уже существует.")
-        return name
-
-
-class PivotTableForm(forms.ModelForm):
+class PivotTableForm(AutoCompleteForms):
     product_name = forms.ModelChoiceField(
         queryset=Products.objects.all(),
         widget=autocomplete.ModelSelect2(url='names-autocomplete'),

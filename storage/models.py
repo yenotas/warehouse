@@ -6,6 +6,18 @@ from django.utils.functional import cached_property
 from django.utils.html import format_html
 
 
+class ModelColors(models.Model):
+    name = models.CharField(max_length=50, verbose_name="Таблица")
+    color = models.CharField(max_length=6, verbose_name="Цвет заголовка #XXXXXX")
+
+    class Meta:
+        verbose_name = "цвет заголовка"
+        verbose_name_plural = "Цвета моделей"
+
+    def __str__(self):
+        return self.name
+
+
 class Departments(models.Model):
     name = models.CharField(max_length=50, verbose_name="Отдел/Цех")
 
@@ -15,15 +27,6 @@ class Departments(models.Model):
 
     def __str__(self):
         return self.name
-
-
-class ModelColors(models.Model):
-    name = models.CharField(max_length=50, verbose_name="Таблица")
-    color = models.CharField(max_length=6, verbose_name="Цвет заголовка #XXXXXX")
-
-    class Meta:
-        verbose_name = "цвет заголовка"
-        verbose_name_plural = "Цвета моделей"
 
 
 class CustomUser(AbstractUser):
@@ -203,7 +206,7 @@ class ProductMovies(models.Model):
 
 
 class StorageCells(models.Model):
-    cell_address = models.CharField(max_length=255, blank=True, null=True, verbose_name="Адрес ячейки")
+    name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Адрес ячейки")
     info = models.CharField(max_length=255, blank=True, null=True, verbose_name="Информация о ячейке")
 
     class Meta:
@@ -211,7 +214,7 @@ class StorageCells(models.Model):
         verbose_name_plural = "Адресные ячейки"
 
     def __str__(self):
-        return str(self.cell_address)
+        return self.name
 
 
 # models.py

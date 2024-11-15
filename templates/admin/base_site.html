@@ -4,8 +4,9 @@
 
 {% block extrastyle %}
 <link rel="stylesheet" type="text/css" href="{% static 'admin/css/custom_admin.css' %}">
-<script type="text/javascript" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="{% static 'admin/js/vendor/jquery/jquery.js' %}"></script>
 <script type="text/javascript" src="{% static 'admin/js/admin/ToggleFields.js' %}"></script>
+<script src="https://code.jquery.com/ui/1.14.1/jquery-ui.js"></script>
 {% endblock %}
 
 {% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Учет закупок и склада') }}{% endblock %}
@@ -13,7 +14,7 @@
 {% block branding %}
 <div id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Учет закупок и склада') }}</a></div>
 {% endblock %}
-
+<!--<input type="hidden" id="custom_url" value='{% url "autocomplete" %}'>-->
 {% block usertools %}
 {% if has_permission %}
 <div id="user-tools">
