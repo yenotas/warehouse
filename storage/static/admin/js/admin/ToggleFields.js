@@ -1,5 +1,13 @@
 $(document).ready(function() {
 
+    const $password_sha = $('#id_password');
+    if ($password_sha.length) {
+        const $firstP = $password_sha.find('p').first();
+        if ($firstP.length) {
+            $firstP.css('display', 'none');
+        }
+    }
+
     const $resultTable = $('#result_list');
     if ($resultTable.length) {
         const $headers = $resultTable.find('th');
@@ -43,3 +51,4 @@ $(document).ready(function() {
     if (id_process_type.val()) { toggleSupplierReason() }
 
 });
+

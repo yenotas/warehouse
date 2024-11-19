@@ -11,8 +11,19 @@
     --hairline-color: #e8e8e8;
 }
 
-body, input, textarea, select, .form-row p, form .button {
-    font-size: 1rem;
+#site-name {
+    height: 40px;
+    max-width: 100%;
+    vertical-align: middle;
+    margin-bottom: -8px !important;
+}
+
+body, input, textarea, select, .form-row p, label, form .button {
+    font-size: 1rem !important;
+}
+
+input[type="file"] {
+    font-size: 1em !important;
 }
 
 select {
@@ -43,8 +54,11 @@ ul li {
     min-height: 28px;
     padding: 5px 6px;
     margin-top: 2px;
-    margin-right: 20px;
-    min-width: 260px;
+    min-width: 320px;
+}
+
+.single_line a{
+    margin-top: 8px;
 }
 
 thead th, tfoot td {
@@ -52,15 +66,20 @@ thead th, tfoot td {
     text-transform: none;
 }
 
+input.default {
+    text-transform: capitalize !important;
+}
+
+#site-name a, #site-name a:visited {
+    color: #eee;
+    }
+
 header, nav {
     position: stick;
     z-index: 1000;
 }
 
-.full-cell-link {
-    cursor: pointer;
-}
-.full-cell-link:hover {
+.full-cell-link:hover, .custom_list_apps:hover {
     background-color: #eee; /* Опционально: эффект при наведении */
 }
 

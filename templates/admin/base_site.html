@@ -2,19 +2,72 @@
 {% load static %}
 {% load i18n %}
 
-{% block extrastyle %}
-<link rel="stylesheet" type="text/css" href="{% static 'admin/css/custom_admin.css' %}">
-<script src="{% static 'admin/js/vendor/jquery/jquery.js' %}"></script>
-<script type="text/javascript" src="{% static 'admin/js/admin/ToggleFields.js' %}"></script>
-<script src="https://code.jquery.com/ui/1.14.1/jquery-ui.js"></script>
+{% block extrahead %}
+    {{ block.super }}
+    <script src="{% static 'admin/js/vendor/jquery/jquery.js' %}"></script>
+
+
+    <script src="{% static 'admin/js/admin/ToggleFields.js' %}"></script>
+    <script src="https://code.jquery.com/ui/1.14.1/jquery-ui.js"></script>
+
 {% endblock %}
 
-{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Учет закупок и склада') }}{% endblock %}
-{{ block.super }}
-{% block branding %}
-<div id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Учет закупок и склада') }}</a></div>
+{% block extrastyle %}
+<link rel="stylesheet" type="text/css" href="{% static 'admin/css/custom_admin.css' %}">
 {% endblock %}
-<!--<input type="hidden" id="custom_url" value='{% url "autocomplete" %}'>-->
+
+{% block title %}
+    {% if not subtitle and not title %}
+        Управление складом и закупками
+    {% else %}
+        {% if subtitle %}{{ subtitle }} | {% endif %}
+        {% if title %}{{ title }} | {% endif %}
+        {{ site_header|default:_("Управление складом и закупками") }}
+    {% endif %}
+{% endblock %}
+{{ block.super }}
+
+{% block branding %}
+<div id="site-name">
+    <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" height="28px" version="1.1" style="margin-bottom: -8px !important;shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd"
+    viewBox="0 0 62214 7056">
+     <defs>
+      <style type="text/css">
+        .fil1 {fill:#020014;fill-rule:nonzero}
+        .fil0 {fill:white;fill-rule:nonzero}
+      </style>
+     </defs>
+     <g id="Architection">
+      <path class="fil0" d="M1423 5779l-1423 0 2481 -5673 1812 0 2498 5673 -1456 0 -1558 -3632 -347 -881 -94 0 -347 881 -1566 3632zm3929 -1253l-3997 0 0 -1143 3997 0 0 1143z"/>
+      <path class="fil0" d="M10133 4213l-2523 0 0 -1143 2388 0c355,0 615,-62 779,-187 169,-129 254,-372 254,-728 0,-344 -85,-581 -254,-711 -164,-130 -424,-195 -779,-195l-2388 0 0 -1143 2523 0c440,0 821,82 1143,245 322,158 570,390 745,695 181,305 271,674 271,1109 0,435 -90,807 -271,1118 -175,305 -423,539 -745,703 -322,158 -703,237 -1143,237zm-1694 1566l-1270 0 0 -5673 1270 0 0 5673z"/>
+      <polygon class="fil0" points="24085,5701 25356,5701 25356,27 24001,27 21968,2711 21189,3905 21096,3905 21156,2762 21156,27 19885,27 19885,5701 21240,5701 23332,2991 24052,1924 24136,1924 24085,2965 "/>
+      <path class="fil0" d="M29192 5701l-1270 0 0 -5674 1270 0 0 5674zm2108 -4531l-5487 0 0 -1143 5487 0 0 1143z"/>
+      <path class="fil0" d="M33078 5701l-1270 0 0 -5674 1270 0 0 5674zm3532 0l-4446 0 0 -1144 4446 0 0 1144zm-127 -2287l-4319 0 0 -1135 4319 0 0 1135zm127 -2244l-4446 0 0 -1143 4446 0 0 1143z"/>
+      <path class="fil0" d="M42970 5701l-1524 0 -1465 -2185 -1796 0 0 -1237 1779 0 1507 -2252 1524 0 -1973 2794 1948 2880zm-4421 0l-1270 0 0 -5674 1270 0 0 5674z"/>
+      <polygon class="fil0" points="54988,5701 56258,5701 56258,27 54904,27 52871,2711 52092,3905 51999,3905 52058,2762 52058,27 50788,27 50788,5701 52143,5701 54235,2991 54954,1924 55039,1924 54988,2965 "/>
+      <path class="fil0" d="M60943 5701l1271 0 0 -5674 -3134 0c-468,0 -866,68 -1194,203 -327,130 -576,322 -745,576 -169,254 -254,562 -254,923 0,311 59,576 178,796 118,220 296,398 533,534 238,129 534,211 890,245l0 68c-254,68 -444,169 -568,305 -124,135 -240,302 -347,499l-821 1525 1473 0 779 -1474c79,-147 161,-262 246,-347 84,-85 194,-144 330,-178 130,-39 305,-59 525,-59l838 0 0 2058zm0 -4531l0 1516 -1854 0c-299,0 -520,-51 -661,-152 -141,-108 -211,-311 -211,-610 0,-282 70,-477 211,-584 141,-113 362,-170 661,-170l1854 0z"/>
+      <polygon class="fil0" points="43558,0 44820,0 44820,5676 43558,5676 "/>
+      <polygon class="fil0" points="47815,0 49077,0 49077,5676 47815,5676 "/>
+      <polygon class="fil0" points="44820,5676 44820,4493 47815,4493 47815,5676 "/>
+      <polygon class="fil0" points="13951,101 12242,101 17332,5723 19116,5723 "/>
+      <polygon class="fil0" points="13951,3873 12200,5774 13833,5774 15568,3873 "/>
+      <polygon class="fil0" points="49094,5676 47776,7056 49471,7056 50711,5676 "/>
+      <polygon class="fil0" points="17455,100 15703,2001 17337,2001 19071,100 "/>
+      <polygon class="fil1" points="36069,2207 36542,2207 36542,3469 36069,3469 "/>
+     </g>
+    </svg>
+</div>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Управление складом и закупками</a>
+    {% if title %}
+        › {{ title }}
+    {% endif %}
+</div>
+{% endblock %}
+
 {% block usertools %}
 {% if has_permission %}
 <div id="user-tools">
@@ -33,5 +86,7 @@
 {% endblock %}
 
 {% block nav-global %}{% endblock %}
+
+
 
 

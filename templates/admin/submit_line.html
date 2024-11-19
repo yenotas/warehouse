@@ -1,0 +1,12 @@
+{% extends "admin/submit_line.html" %}
+{% load i18n admin_urls %}
+{% block submit-row %}
+<a href="{% url opts|admin_urlname:'changelist' %}" class="closelink">{% translate 'Close' %}</a>
+<input type="submit" value="Сохранить" class="default" name="_save">
+<input type="submit" value="Сохранить и создать на основе" name="_addanother">
+    {% if change and has_delete_permission %}
+        <a href="{% url opts|admin_urlname:'delete' original.pk %}" class="deletelink">
+            {% translate 'Delete' %}
+        </a>
+    {% endif %}
+{% endblock %}

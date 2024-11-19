@@ -10,46 +10,6 @@ from django import forms
 from django.contrib.contenttypes.models import ContentType
 
 
-# class AutoCompleteForms(forms.ModelForm):
-#     class Meta:
-#         abstract = True
-#
-#     def __init__(self, *args, **kwargs):
-#         self.unique_fields = kwargs.pop('unique_fields', [])
-#         self.auto_fields = kwargs.pop('auto_fields', [])
-#         super().__init__(*args, **kwargs)
-#         self.model_name = self._meta.model._meta.model_name
-#
-#         for field_name in self.auto_fields:
-#             field = self.fields.get(field_name)
-#             if field:
-#                 # Добавляем атрибуты к виджету поля
-#                 field.widget.attrs['field_name'] = field_name
-#                 field.widget.attrs['model_name'] = self.model_name
-#
-#                 # Обновляем класс виджета, добавляя 'single_line_add'
-#                 existing_classes = field.widget.attrs.get('class', '')
-#                 classes = existing_classes.split()
-#                 if 'single_line_add' not in classes:
-#                     classes.append('single_line_add')
-#                 field.widget.attrs['class'] = ' '.join(classes)
-#
-#     def clean(self):
-#         cleaned_data = super().clean()
-#         if self.unique_fields and not self.instance.pk:
-#             model_class = self._meta.model
-#             filter_args = {field: cleaned_data.get(field) for field in self.unique_fields}
-#             if model_class.objects.filter(**filter_args).exists(): raise forms.ValidationError(
-#                 "Такая запись уже существует!")
-#         return cleaned_data
-#
-#     def save(self, commit=True):
-#         instance = super().save(commit=False)
-#         for field in self.fields:
-#             setattr(instance, field, self.cleaned_data.get(field))
-#         if commit:
-#             instance.save()
-#         return instance
 class AutoCompleteForms(forms.ModelForm):
     class Meta:
         abstract = True
@@ -67,15 +27,22 @@ class AutoCompleteForms(forms.ModelForm):
             if field:
 
                 if field_name in related_model_names:
-                    field.widget.attrs['model_name'] = related_model_names[field_name][0].lower()
-                    field.widget.attrs['field_name'] = related_model_names[field_name][1].lower()
-                    print(field.widget.attrs)
+                    related_model_name = related_model_names[field_name][0].lower()
+                    related_field_name = related_model_names[field_name][1].lower()
+                    field.widget.attrs['model_name'] = related_model_name.lower()
+                    field.widget.attrs['rel_field_name'] = related_field_name.lower()
+                    field.widget.attrs['field_name'] = field_name.lower()
+
                 else:
                     field.widget.attrs['field_name'] = field_name.lower()
                     field.widget.attrs['model_name'] = self.model_name.lower()
 
                 # Добавляем CSS-класс для поля автозаполнения
-                field.widget.attrs['class'] = 'single_line_add'
+                existing_classes = field.widget.attrs.get('class', '')
+                classes = existing_classes.split()
+                if 'auto_complete' not in classes:
+                    classes.append('auto_complete')
+                field.widget.attrs['class'] = ' '.join(classes)
 
     def clean(self):
         cleaned_data = super().clean()
@@ -85,14 +52,6 @@ class AutoCompleteForms(forms.ModelForm):
             if model_class.objects.filter(**filter_args).exists():
                 raise forms.ValidationError("Такая запись уже существует!")
         return cleaned_data
-
-    # def save(self, commit=True):
-    #     instance = super().save(commit=False)
-    #     for field in self.fields:
-    #         setattr(instance, field, self.cleaned_data.get(field))
-    #     if commit:
-    #         instance.save()
-    #     return instance
 
 
 class DepartmentsForm(AutoCompleteForms):
@@ -127,9 +86,28 @@ class CustomUserChangeForm(UserChangeForm, AutoCompleteForms):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args,
-                          unique_fields=['username'],
-                          auto_fields=['username', 'first_name', 'last_name', 'position_name'],
+                          auto_fields=['position_name'],
                           **kwargs)
+
+    def clean_groups(self):
+        groups = self.cleaned_data.get('groups')
+        admin_group = Group.objects.filter(name='Администраторы').first()
+
+        if admin_group in groups:
+            # Проверяем, состоит ли текущий пользователь в группе "Администраторы"
+            if not (self.request and self.request.user.groups.filter(name='Администраторы').exists()):
+                raise ValidationError("Вы не можете добавлять пользователей в группу 'Администраторы'.")
+
+        return groups
+
+    def clean_is_superuser(self):
+        is_superuser = self.cleaned_data.get('is_superuser')
+        if is_superuser:
+            # Проверяем, является ли текущий пользователь суперпользователем
+            if not (self.request and self.request.user.is_superuser):
+                raise ValidationError("Вы не можете назначать статус суперпользователя.")
+
+        return is_superuser
 
 
 class CustomUserCreationForm(UserCreationForm, AutoCompleteForms):
@@ -140,8 +118,7 @@ class CustomUserCreationForm(UserCreationForm, AutoCompleteForms):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args,
-                          unique_fields=['username'],
-                          auto_fields=['username', 'first_name', 'last_name', 'position_name'],
+                          auto_fields=['position_name'],
                           **kwargs)
 
 
@@ -157,29 +134,37 @@ class ProductsForm(AutoCompleteForms):
     )
 
     def __init__(self, *args, **kwargs):
+
+        self.request = kwargs.pop('request', None)
         super().__init__(
             *args,
-            unique_fields=['name', 'supplier'],
             auto_fields=['name', 'supplier'],
             related_model_mapping={'supplier': ['Suppliers', 'name']},
             **kwargs
         )
-
-    # def save(self, commit=True):
-    #     instance = super().save(commit=False)
-    #
-    #     # Преобразование значения supplier в объект Suppliers
-    #     supplier_id = self.cleaned_data.get('supplier')
-    #     if supplier_id:
-    #         try:
-    #             supplier_instance = Suppliers.objects.get(id=supplier_id)
-    #             instance.supplier = supplier_instance
-    #         except Suppliers.DoesNotExist:
-    #             raise forms.ValidationError(f"Поставщик с id {supplier_id} не найден.")
-    #
-    #     if commit:
-    #         instance.save()
-    #     return instance
+        if self.request:
+            data = self.request.session.get('initial_data')
+            print('Data loaded from session:', data)  # Отладочный вывод
+            if data:
+                data = self.request.session.get('initial_data')
+                if data:
+                    initial_fields = data.get('fields', {})
+                    m2m_fields = data.get('m2m', {})
+                    # Устанавливаем начальные значения для полей
+                    for field_name, value in initial_fields.items():
+                        if field_name == 'name':
+                            continue  # Пропускаем поле 'name'
+                        field = self.fields.get(field_name)
+                        if field:
+                            field.initial = value
+                    # Устанавливаем начальные значения для ManyToMany полей
+                    for field_name, value in m2m_fields.items():
+                        field = self.fields.get(field_name)
+                        if field:
+                            field.initial = value
+                            print(field, value)
+                    # Удаляем данные из сессии после использования
+                    del self.request.session['initial_data']
 
 
 class SuppliersForm(AutoCompleteForms):
@@ -211,12 +196,6 @@ class ProjectsForm(AutoCompleteForms):
         model = Projects
         exclude = ['creation_date']
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args,
-                          unique_fields=['name'],
-                          auto_fields=['name'],
-                          **kwargs)
-
 
 class OrdersForm(AutoCompleteForms):
     class Meta:
@@ -224,11 +203,21 @@ class OrdersForm(AutoCompleteForms):
         fields = '__all__'
         # exclude = ['order_date']
 
+    product_request = forms.ModelChoiceField(
+        queryset=ProductRequest.objects.all(),
+        label='Заявка №',
+        widget=forms.TextInput(attrs={'class': 'single_line_add'})
+    )
+
     def __init__(self, *args, **kwargs):
-        super().__init__(*args,
-                          unique_fields=['name'],
-                          auto_fields=['name'],
-                          **kwargs)
+
+        self.request = kwargs.pop('request', None)
+        super().__init__(
+            *args,
+            auto_fields=['product_request'],
+            related_model_mapping={'product_request': ['ProductRequest', 'id']},
+            **kwargs
+        )
 
 
 class ProductMoviesForm(AutoCompleteForms):
@@ -240,24 +229,147 @@ class ProductMoviesForm(AutoCompleteForms):
             'reason_id': forms.Select(),
         }
 
+    product = forms.ModelChoiceField(
+        queryset=Products.objects.all(),
+        label='Наименование',
+        widget=forms.TextInput(attrs={'class': 'single_line_add'})
+    )
+
     def __init__(self, *args, **kwargs):
-        super().__init__(*args,
-                          unique_fields=['name'],
-                          auto_fields=['name'],
-                          **kwargs)
-        self.fields['reason_id'].required = False
+
+        self.request = kwargs.pop('request', None)
+        super().__init__(
+            *args,
+            auto_fields=['product'],
+            related_model_mapping={'product': ['Products', 'name']},
+            **kwargs
+        )
+
+
+class ProductRequestForm(AutoCompleteForms):
+    class Meta:
+        model = ProductRequest
+        exclude = ['request_date']
+
+    product = forms.ModelChoiceField(
+        queryset=Products.objects.all(),
+        label='Наименование',
+        widget=forms.TextInput(attrs={'class': 'single_line_add'})
+    )
+
+    def __init__(self, *args, **kwargs):
+
+        self.request = kwargs.pop('request', None)
+        super().__init__(
+            *args,
+            auto_fields=['product'],
+            related_model_mapping={'product': ['Products', 'name']},
+            **kwargs
+        )
+        if self.request:
+            data = self.request.session.get('initial_data')
+            print('Data loaded from session:', data)  # Отладочный вывод
+            if data:
+                data = self.request.session.get('initial_data')
+                if data:
+                    initial_fields = data.get('fields', {})
+                    m2m_fields = data.get('m2m', {})
+                    # Устанавливаем начальные значения для полей
+                    for field_name, value in initial_fields.items():
+                        if field_name == 'name':
+                            continue  # Пропускаем поле 'name'
+                        field = self.fields.get(field_name)
+                        if field:
+                            field.initial = value
+                    # Устанавливаем начальные значения для ManyToMany полей
+                    for field_name, value in m2m_fields.items():
+                        field = self.fields.get(field_name)
+                        if field:
+                            field.initial = value
+                            print(field, value)
+                    # Удаляем данные из сессии после использования
+                    del self.request.session['initial_data']
+
+
+from django.core.exceptions import ValidationError
+
+
+class ModelAccessControlForm(forms.ModelForm):
+    model_name = forms.ModelChoiceField(
+        queryset=ContentType.objects.filter(app_label='storage'),
+        label="Правило для формы",
+        empty_label="Выберите модель",
+        to_field_name="id"
+    )
+    groups = forms.ModelMultipleChoiceField(
+        queryset=Group.objects.all(),
+        widget=forms.CheckboxSelectMultiple,
+        label="Группы редакторов"
+    )
+    fields_to_disable = forms.JSONField(
+        required=False,
+        label="Отключаемые поля для остальных",
+        widget=forms.CheckboxSelectMultiple
+    )
+
+    class Meta:
+        model = ModelAccessControl
+        fields = ['model_name', 'groups', 'fields_to_disable']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        model_choices = [
+            ('', 'Выберите модель'),
+            *[(ct.id, ct.model_class()._meta.verbose_name_plural)
+              for ct in ContentType.objects.filter(app_label='storage')]
+        ]
+        self.fields['model_name'].choices = model_choices
+        self.fields['model_name'].widget.attrs.update({'class': 'dynamic-model-select'})
+
+        # Обработка сохраненного JSON, если он уже существует
+        if isinstance(self.instance.fields_to_disable, list):
+            self.initial['fields_to_disable'] = json.dumps(self.instance.fields_to_disable)
+        elif isinstance(self.instance.fields_to_disable, str):
+            try:
+                # Попытка десериализовать, если строка — корректный JSON
+                self.initial['fields_to_disable'] = json.loads(self.instance.fields_to_disable)
+            except json.JSONDecodeError:
+                # Обработка ошибки, если JSON некорректен
+                print("Ошибка десериализации JSON в fields_to_disable:", self.instance.fields_to_disable)
+
+    def clean_fields_to_disable(self):
+        data = self.cleaned_data['fields_to_disable']
+        if isinstance(data, str):
+            try:
+                # Пробуем десериализовать строку, если это JSON
+                data = json.loads(data)
+            except json.JSONDecodeError:
+                raise ValidationError("Введите корректный JSON.")
+        # Убедимся, что результат — список, и преобразуем в JSON-строку
+        if not isinstance(data, list):
+            raise ValidationError("Ожидается список значений.")
+        return data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        # Сериализация данных перед сохранением
+        if isinstance(self.cleaned_data['fields_to_disable'], list):
+            instance.fields_to_disable = json.dumps(self.cleaned_data['fields_to_disable'])
+        if commit:
+            instance.save()
+        return instance
 
 
 class PivotTableForm(AutoCompleteForms):
     product_name = forms.ModelChoiceField(
         queryset=Products.objects.all(),
-        widget=autocomplete.ModelSelect2(url='names-autocomplete'),
+        widget=forms.TextInput(attrs={'class': 'single_line_add'}),
         label="Наименование",
         required=True
     )
     responsible = forms.ModelChoiceField(
         queryset=CustomUser.objects.all(),
-        widget=autocomplete.ModelSelect2(url='users-autocomplete'),
+        widget=forms.TextInput(attrs={'class': 'single_line_add'}),
         label="Ответственный",
         required=False
     )
@@ -332,76 +444,3 @@ class PivotTableForm(AutoCompleteForms):
         return instance
 
 
-class ProductRequestForm(forms.ModelForm):
-    class Meta:
-        model = ProductRequest
-        exclude = ['request_date']
-
-
-from django.core.exceptions import ValidationError
-
-
-class ModelAccessControlForm(forms.ModelForm):
-    model_name = forms.ModelChoiceField(
-        queryset=ContentType.objects.filter(app_label='storage'),
-        label="Правило для формы",
-        empty_label="Выберите модель",
-        to_field_name="id"
-    )
-    groups = forms.ModelMultipleChoiceField(
-        queryset=Group.objects.all(),
-        widget=forms.CheckboxSelectMultiple,
-        label="Группы редакторов"
-    )
-    fields_to_disable = forms.JSONField(
-        required=False,
-        label="Отключаемые поля для остальных",
-        widget=forms.CheckboxSelectMultiple
-    )
-
-    class Meta:
-        model = ModelAccessControl
-        fields = ['model_name', 'groups', 'fields_to_disable']
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        model_choices = [
-            ('', 'Выберите модель'),
-            *[(ct.id, ct.model_class()._meta.verbose_name_plural)
-              for ct in ContentType.objects.filter(app_label='storage')]
-        ]
-        self.fields['model_name'].choices = model_choices
-        self.fields['model_name'].widget.attrs.update({'class': 'dynamic-model-select'})
-
-        # Обработка сохраненного JSON, если он уже существует
-        if isinstance(self.instance.fields_to_disable, list):
-            self.initial['fields_to_disable'] = json.dumps(self.instance.fields_to_disable)
-        elif isinstance(self.instance.fields_to_disable, str):
-            try:
-                # Попытка десериализовать, если строка — корректный JSON
-                self.initial['fields_to_disable'] = json.loads(self.instance.fields_to_disable)
-            except json.JSONDecodeError:
-                # Обработка ошибки, если JSON некорректен
-                print("Ошибка десериализации JSON в fields_to_disable:", self.instance.fields_to_disable)
-
-    def clean_fields_to_disable(self):
-        data = self.cleaned_data['fields_to_disable']
-        if isinstance(data, str):
-            try:
-                # Пробуем десериализовать строку, если это JSON
-                data = json.loads(data)
-            except json.JSONDecodeError:
-                raise ValidationError("Введите корректный JSON.")
-        # Убедимся, что результат — список, и преобразуем в JSON-строку
-        if not isinstance(data, list):
-            raise ValidationError("Ожидается список значений.")
-        return data
-
-    def save(self, commit=True):
-        instance = super().save(commit=False)
-        # Сериализация данных перед сохранением
-        if isinstance(self.cleaned_data['fields_to_disable'], list):
-            instance.fields_to_disable = json.dumps(self.cleaned_data['fields_to_disable'])
-        if commit:
-            instance.save()
-        return instance

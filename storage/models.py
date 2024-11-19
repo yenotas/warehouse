@@ -1,9 +1,8 @@
-from django.contrib.contenttypes.models import ContentType
-from django.db import models
 from django.contrib.auth.models import AbstractUser, Group
 from django.urls import reverse
-from django.utils.functional import cached_property
 from django.utils.html import format_html
+from django.db import models
+from django.contrib.contenttypes.models import ContentType
 
 
 class ModelColors(models.Model):
@@ -33,6 +32,7 @@ class CustomUser(AbstractUser):
     tg = models.CharField(max_length=255, verbose_name="Телеграм", blank=True, null=True)
     tel = models.CharField(max_length=255, verbose_name="Телефон", blank=True, null=True)
     department = models.ForeignKey(Departments, verbose_name="Отдел/Цех", on_delete=models.SET_NULL, null=True)
+    department_old = models.CharField(max_length=255, blank=True, null=True)
     position_name = models.CharField(max_length=255, verbose_name="Должность", blank=True, null=True)
     groups = models.ManyToManyField(Group, verbose_name="Группы", related_name="custom_users")
 
@@ -59,8 +59,7 @@ class Suppliers(models.Model):
         verbose_name = "поставщика"
         verbose_name_plural = "Поставщики"
 
-    def __str__(self):
-        return self.name
+    def __str__(self): return self.name if self.name else 'Unknown'
 
 
 class Categories(models.Model):
@@ -79,7 +78,8 @@ class Products(models.Model):
     product_link = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ссылка")
     product_sku = models.CharField(max_length=100, blank=True, null=True, verbose_name="SKU / Артикул")
     categories = models.ManyToManyField(Categories, blank=True, verbose_name="Категория / признак")
-    supplier = models.ForeignKey(Suppliers, on_delete=models.PROTECT, blank=True, null=True, verbose_name="Поставщик")
+    supplier = models.ForeignKey(Suppliers, on_delete=models.SET_NULL, blank=True, null=True, verbose_name="Поставщик")
+    supplier_old = models.CharField(max_length=255, blank=True, null=True)
     packaging_unit = models.CharField(max_length=10, verbose_name="Единицы измерения", choices=[
         ('уп.', 'уп.'), ('шт.', 'шт.'), ('кв.м', 'кв.м'),
         ('п.м.', 'п.м.'), ('кг', 'кг'), ('л', 'л'), ('мл', 'мл')
@@ -111,8 +111,11 @@ class Projects(models.Model):
     creation_date = models.DateField(auto_now_add=True, verbose_name="Дата записи")
     name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Полное название проекта")
     detail_full_name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Полное название изделия")
-    manager = models.ForeignKey(CustomUser, on_delete=models.PROTECT, blank=True, null=True, verbose_name="Менеджер")
-    engineer = models.ForeignKey(CustomUser, on_delete=models.PROTECT, related_name='projects_engineer_set', blank=True, null=True, verbose_name="Инженер")
+    manager = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True, verbose_name="Менеджер")
+    manager_old = models.CharField(max_length=255, blank=True, null=True)
+    engineer = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name='projects_engineer_set',
+                                 blank=True, null=True, verbose_name="Инженер")
+    engineer_old = models.CharField(max_length=255, blank=True, null=True)
     project_code = models.CharField(max_length=100, blank=True, null=True, verbose_name="Шифр проекта")
     detail_name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Изделие")
     detail_code = models.CharField(max_length=100, blank=True, null=True, verbose_name="Шифр изделия")
@@ -127,14 +130,17 @@ class Projects(models.Model):
 
 class ProductRequest(models.Model):
     request_date = models.DateField(auto_now_add=True, verbose_name="Дата запроса")
-    project = models.ForeignKey(Projects, on_delete=models.PROTECT, verbose_name="Проект",
+    project = models.ForeignKey(Projects, on_delete=models.SET_NULL, null=True, verbose_name="Проект",
                                 default=1)
-    product = models.ForeignKey(Products, on_delete=models.PROTECT, verbose_name="Наименование",
+    project_old = models.CharField(max_length=255, blank=True, null=True)
+    product = models.ForeignKey(Products, on_delete=models.SET_NULL, null=True, verbose_name="Наименование",
                                 default=1)
+    product_old = models.CharField(max_length=255, blank=True, null=True)
     request_about = models.CharField(blank=True, null=True, verbose_name="Комментарий")
     request_quantity = models.PositiveIntegerField(blank=True, null=True, verbose_name="Количество", default=1)
-    responsible = models.ForeignKey(CustomUser, on_delete=models.PROTECT, blank=True, null=True,
+    responsible = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True,
                                     verbose_name="Ответственный")
+    responsible_old = models.CharField(max_length=255, blank=True, null=True)
     delivery_location = models.CharField(max_length=30, verbose_name="Куда везем?", choices=[
         ('Склад', 'Склад'), ('Офис', 'Офис'), ('Цех', 'Цех'), ('Монтаж', 'Монтаж'),
         ('Подрядчик', 'Подрядчик'), ('Заказчик', 'Заказчик')
@@ -152,10 +158,12 @@ class ProductRequest(models.Model):
 
 class Orders(models.Model):
     order_date = models.DateField(auto_now_add=True, verbose_name="Дата заказа")
-    product_request = models.ForeignKey('ProductRequest', on_delete=models.PROTECT, blank=True, null=True,
+    product_request = models.ForeignKey('ProductRequest', on_delete=models.SET_NULL, blank=True, null=True,
                                  verbose_name="Заявка на закуп")
-    manager = models.ForeignKey(CustomUser, on_delete=models.PROTECT, blank=True, null=True,
+    product_request_old = models.CharField(max_length=255, blank=True, null=True)
+    manager = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True,
                                 verbose_name="Ответственный")
+    manager_old = models.CharField(max_length=255, blank=True, null=True)
     accounted_in_1c = models.BooleanField(blank=True, null=True, verbose_name="Учтено в 1С")
     invoice_number = models.CharField(max_length=100, blank=True, null=True, verbose_name="Номер счета")
     delivery_status = models.CharField(max_length=50, verbose_name="Статус заказа", choices=[
@@ -180,8 +188,9 @@ class Orders(models.Model):
 
 class ProductMovies(models.Model):
     record_date = models.DateField(auto_now_add=True, verbose_name="Дата записи")
-    product = models.ForeignKey(Products, on_delete=models.PROTECT, verbose_name="Наименование",
+    product = models.ForeignKey(Products, on_delete=models.SET_NULL, null=True, verbose_name="Наименование",
                                 default=1)
+    product_old = models.CharField(max_length=255, blank=True, null=True)
     process_type = models.CharField(max_length=50, choices=[
         ('warehouse', 'Прием на склад'), ('distribute', 'Выдача со склада'),
         ('return', 'Возврат на склад'), ('sup_return', 'Возврат поставщику'),
@@ -192,8 +201,9 @@ class ProductMovies(models.Model):
         ('Дефекты изделий', 'Дефекты изделий'), ('Излишек', 'Излишек'),
         ('Нарушение сроков поставки', 'Нарушение сроков поставки')
     ], blank=True, null=True, verbose_name="Причина")
-    new_cell = models.ForeignKey('StorageCells', on_delete=models.PROTECT, blank=True, null=True,
+    new_cell = models.ForeignKey('StorageCells', on_delete=models.SET_NULL, blank=True, null=True,
                                  verbose_name="Адрес ячейки")
+    new_cell_old = models.CharField(max_length=255, blank=True, null=True)
     movie_quantity = models.PositiveIntegerField(blank=True, null=True, verbose_name="Количество", default=1)
     reason_id = models.CharField(max_length=200, blank=True, null=True, verbose_name="Назначение")
 
@@ -217,16 +227,14 @@ class StorageCells(models.Model):
         return self.name
 
 
-# models.py
-
 class PivotTable(models.Model):
-    product_request = models.ForeignKey(ProductRequest, on_delete=models.CASCADE, null=True, blank=True, verbose_name='Заявка на закуп')
-    order = models.ForeignKey(Orders, on_delete=models.CASCADE, null=True, blank=True, verbose_name='Заказ')
-    product_movie = models.ForeignKey(ProductMovies, on_delete=models.CASCADE, null=True, blank=True, verbose_name='Перемещение по складу')
+    product_request = models.ForeignKey(ProductRequest, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Заявка на закуп')
+    order = models.ForeignKey(Orders, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Заказ')
+    product_movie = models.ForeignKey(ProductMovies, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Перемещение по складу')
 
-    product_name = models.ForeignKey(Products, on_delete=models.PROTECT, blank=True, null=True, verbose_name="Наименование товара")
+    product_name = models.ForeignKey(Products, on_delete=models.SET_NULL, blank=True, null=True, verbose_name="Наименование товара")
     request_about = models.CharField(max_length=255, blank=True, null=True, verbose_name="Комментарий")
-    responsible = models.ForeignKey(CustomUser, on_delete=models.PROTECT, blank=True, null=True, verbose_name="Ответственный")
+    responsible = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True, verbose_name="Ответственный")
     invoice_number = models.CharField(max_length=100, blank=True, null=True, verbose_name="Номер счета")
     waiting_date = models.DateField(blank=True, null=True, verbose_name="Планируемая дата поставки")
     delivery_status = models.CharField(max_length=50, blank=True, null=True, verbose_name="Статус доставки", choices=[
@@ -313,7 +321,8 @@ class PivotTable(models.Model):
 
 
 class ModelAccessControl(models.Model):
-    model_name = models.ForeignKey(ContentType, on_delete=models.CASCADE, verbose_name="Правило для формы")
+    model_name = models.ForeignKey(ContentType, on_delete=models.SET_NULL, null=True, verbose_name="Правило для формы")
+    model_name_old = models.CharField(max_length=255, blank=True, null=True)
     groups = models.ManyToManyField(Group, verbose_name="Группы редакторов")
     fields_to_disable = models.JSONField(verbose_name="Отключаемые поля", blank=True, null=True, default=list)
 

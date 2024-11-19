@@ -121,11 +121,22 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, "storage/static/admin/css"),
-    os.path.join(BASE_DIR, "storage/static/admin/js"),
+    os.path.join(BASE_DIR, "storage/static"),  # Указываем корневую папку static
 ]
 
-STATIC_ROOT = os.path.join(BASE_DIR, "static")
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+
+DEBUG_TOOLBAR_CONFIG = {
+    "SHOW_TOOLBAR_CALLBACK": lambda request: False,
+}
+
+# STATICFILES_DIRS = [
+#     os.path.join(BASE_DIR, "storage/static/admin/css"),
+#     os.path.join(BASE_DIR, "storage/static/admin/js"),
+#     os.path.join(BASE_DIR, "storage/static/admin/img"),
+# ]
+#
+# STATIC_ROOT = os.path.join(BASE_DIR, "static")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field

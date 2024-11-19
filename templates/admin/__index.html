@@ -1,0 +1,17 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<h1>{% blocktrans %}Панель управления1{% endblocktrans %}</h1>
+
+{% for group in app_list %}
+    <h2>{{ group.name }}</h2>
+    <ul>
+    {% for model in group.models %}
+        <li>
+            <a href="{{ model.admin_url }}">{{ model.name }}</a>
+        </li>
+    {% endfor %}
+    </ul>
+{% endfor %}
+{% endblock %}

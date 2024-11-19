@@ -1,8 +1,12 @@
 from django.conf.urls.static import static
+from django.http import FileResponse
+
+# from django.http import HttpResponseRedirect
+
 from storage.admin import admin_site
 # from storage.views import get_product_data, get_reason_choices, test_view  # , delete_near_product
 
-from django.urls import path, include
+from django.urls import path
 
 from storage.views import (get_reason_choices, get_product_data, get_model_fields, get_saved_fields,
                            UserAutocomplete, autocomplete)
@@ -13,7 +17,6 @@ urlpatterns = [
     path('get-model-fields/', get_model_fields, name='get_model_fields'),
     path('get-product-data/<int:product_id>/', get_product_data, name='get_product_data'),
     path('autocomplete/', autocomplete, name='autocomplete'),
-    # path('names-autocomplete/<str:model_name>/', NamesAutocomplete.as_view(), name='names-autocomplete'),
     path('get-saved-fields/', get_saved_fields, name='get-saved-fields'),
     path('users-autocomplete/', UserAutocomplete.as_view(), name='users-autocomplete'),
     path('get_reason_choices/', get_reason_choices, name='get_reason_choices'),

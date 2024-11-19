@@ -1,6 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models import ContentType
-from django.http import JsonResponse, Http404
+from django.http import JsonResponse, Http404, FileResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 
@@ -97,22 +97,38 @@ def get_model_fields(request):
 
 @login_required
 def autocomplete(request):
-    if 'term' in request.GET:
+    if 'term' in request.GET or 'item_id' in request.GET:
         model_name = request.GET.get('model_name')
         field_name = request.GET.get('field_name')
-        search_term = request.GET.get('term')
+        search_term = request.GET.get('term', None)
+        item_id = request.GET.get('item_id', None)
+
         try:
             model_class = ContentType.objects.get(model=model_name).model_class()
-            filter_kwargs = {f"{field_name}__icontains": search_term}
-            qs = model_class.objects.filter(**filter_kwargs)
-            results = [{"id": item.id, "text": getattr(item, field_name)} for item in qs]
-            print(model_name, field_name, results)
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=400)
+            if item_id:
+                try:
+                    item = model_class.objects.filter(id=item_id).first()
+                    print('загрузка формы:',  model_name, field_name, item_id)
+                except Exception as e:
+                    print('item_id = строка:', e)
+                    item = model_class.objects.filter(**{field_name: item_id}).first()
+                    return JsonResponse({"id": item.id, "text": getattr(item, field_name)})
+                if item:
+                    return JsonResponse({'text': getattr(item, field_name)})
+                return JsonResponse({'error': 'Item not found'}, status=404)
 
-        return JsonResponse(results, safe=False)
+            if search_term:
+                filter_kwargs = {f"{field_name}__icontains": search_term}
+                qs = model_class.objects.filter(**filter_kwargs)
+                results = [{"id": item.id, "text": getattr(item, field_name)} for item in qs]
+                print('ввод:', model_name, field_name, results)
+                return JsonResponse(results, safe=False)
+
+        except Exception as e:
+            print("Exception", str(e))
 
     return JsonResponse([], safe=False)
+
 
 
 @csrf_exempt

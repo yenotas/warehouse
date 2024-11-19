@@ -1,9 +1,14 @@
+import datetime
+
 from django.core.exceptions import PermissionDenied
-from django.db.models import Q
+from django.db.models import Q, Value, CharField
+from django.db.models.functions import Concat
+from django.http import HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.contrib import admin
 from django.utils.html import format_html
+from urllib.parse import urlencode
 from django.utils.safestring import mark_safe
 from django.shortcuts import redirect
 from django.contrib.auth.forms import AdminPasswordChangeForm
@@ -14,10 +19,65 @@ from .mixins import AccessControlMixin
 from .models import CustomUser, ModelAccessControl, Departments
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
-from django.contrib.auth.admin import UserAdmin as DefaultUserAdmin, GroupAdmin as DefaultGroupAdmin
+from django.contrib.auth.admin import UserAdmin as DefaultUserAdmin, GroupAdmin as DefaultGroupAdmin, UserAdmin
 from django.apps import apps
 from django.contrib.admin import ModelAdmin
 import json
+
+
+class ExtraSaveAdmin():
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+
+        class ModelFormWithRequest(form):
+            def __init__(self, *args, **kwargs):
+                self.request = request
+                super().__init__(*args, **kwargs)
+
+        return ModelFormWithRequest
+
+    def response_add(self, request, obj, post_url_continue=None):
+        if "_addanother" in request.POST:
+            # Сохраняем данные объекта в сессии
+            initial_data = {}
+            for field in obj._meta.fields:
+                field_name = field.name
+                if field_name not in ['id', 'name']:
+                    value = getattr(obj, field_name)
+                    if value is not None:
+                        if isinstance(field, models.ForeignKey):
+                            initial_data[field_name] = value.pk
+                        elif isinstance(field, models.ImageField):
+                            # Сохраняем путь к файлу изображения
+                            initial_data[field_name] = value.name  # или value.url
+                        else:
+                            # Преобразуем значение в строку, если это необходимо
+                            if isinstance(value, (datetime.date, datetime.datetime)):
+                                initial_data[field_name] = value.isoformat()
+                            else:
+                                initial_data[field_name] = value
+
+            # Обработка ManyToMany полей
+            m2m_fields = {}
+            for field in obj._meta.many_to_many:
+                field_name = field.name
+                value = getattr(obj, field_name).all()
+                if value.exists():
+                    m2m_fields[field_name] = [item.pk for item in value]
+
+            # Сохраняем данные в сессии
+            request.session['initial_data'] = {
+                'fields': initial_data,
+                'm2m': m2m_fields,
+            }
+            print('Data to be saved in session:', {'fields': initial_data, 'm2m': m2m_fields})
+
+            self.message_user(request, "Запись сохранена!",
+                              messages.SUCCESS) # "Следующая создана на ее основе - проверьте все поля!",
+            add_url = reverse('admin:%s_%s_add' % (self.model._meta.app_label, self.model._meta.model_name))
+            return HttpResponseRedirect(add_url)
+        else:
+            return super().response_add(request, obj, post_url_continue)
 
 
 class AutoCompleteAdmins(AccessControlMixin, admin.ModelAdmin):
@@ -48,19 +108,18 @@ class AutoCompleteAdmins(AccessControlMixin, admin.ModelAdmin):
                 del actions['delete_selected']
         return actions
 
-    class Media:
-        js = ('admin/js/admin/AutoFields.js',)
-
     def has_add_permission(self, request, obj=None):
         if getattr(self, 'one_line_add', False) and request.path.endswith(f'/{self.model._meta.model_name}/'):
             return False
         return super().has_add_permission(request)
-        # return request.user.is_superuser or request.user.groups.filter(name__in=['Администраторы']).exists()
+
+    class Media:
+        js = ('admin/js/admin/AutoFields.js',)
 
 
 class RestrictedGroupAdmin(DefaultGroupAdmin):
     """
-    Класс для ограничения доступа к редактированию групп и разрешений
+    Ограничение доступа к редактированию групп
     """
     def has_module_permission(self, request):
         return request.user.is_superuser
@@ -82,6 +141,9 @@ class RestrictedGroupAdmin(DefaultGroupAdmin):
 
 
 class RestrictedPermissionAdmin(admin.ModelAdmin):
+    """
+    Ограничение доступа к редактированию разрешений
+    """
     def has_module_permission(self, request):
         return request.user.is_superuser
 
@@ -146,24 +208,45 @@ class ModelAccessControlAdmin(admin.ModelAdmin):
 
 # Кастомный класс AdminSite
 class CustomAdminSite(admin.AdminSite):
-    site_header = "ЗАКУПКИ | СКЛАД"
-    site_title = "Панель управления товарной номенклатурой"
-    index_title = "Управление складом и закупками."
+    site_header = "АРХИТЕКЦИЯ"
+    site_title = "Управление складом и закупками"
+    index_title = "Управление складом и закупками"
 
     def get_app_list(self, request, app_label=None):
         app_list = super().get_app_list(request, app_label=app_label)
 
-        model_order = ['PivotTable', 'Products', 'Suppliers', 'Categories', 'ProductRequest', 'Orders', 'ProductMovies', 'Projects', 'StorageCells', 'Users', 'Groups' 'Departments',]
-        if not request.user.is_superuser:
+        # Группируем модели
+        custom_structure = {
+            "Оперативный учет": ['PivotTable'],
+            "Закупки": ['ProductRequest', 'Orders'],
+            "Склад": ['ProductMovies', 'StorageCells'],
+            "Товары": ["Products", "Categories", "Suppliers"],
+            "Организация": ['Projects', 'Departments', 'CustomUser', 'Group', 'ModelAccessControl'],
+        }
+        # Если `app_label` задан, возвращаем список моделей только для текущего приложения
+        if app_label:
             for app in app_list:
-                app['models'] = [
-                    model for model in app['models']
-                    if model['object_name'] not in ['LogEntry', 'Session', 'ContentType', 'Group', 'Permission']
-                ]
-        for app in app_list:
-            app['models'].sort(key=lambda x: model_order.index(x['object_name'])
-                               if x['object_name'] in model_order else len(model_order))
-        return app_list
+                if app['app_label'] == app_label:
+                    return [app]
+
+        grouped_app_list = []
+        for header, models in custom_structure.items():
+            grouped_models = []
+            for app in app_list:
+                for model in app['models']:
+                    if model['object_name'] in models:
+                        grouped_models.append(model)
+
+            # Сортируем модели в строгом соответствии с порядком в custom_structure
+            grouped_models = sorted(
+                grouped_models,
+                key=lambda m: models.index(m['object_name'])
+            )
+
+            if grouped_models:
+                grouped_app_list.append({'name': header, 'models': grouped_models})
+
+        return grouped_app_list
 
 
 # Создаем экземпляр кастомного AdminSite
@@ -174,10 +257,10 @@ admin_site.register(ModelAccessControl, ModelAccessControlAdmin)
 
 
 # Кастомная модель UserAdmin
-class CustomUserAdmin(AutoCompleteAdmins):
+class CustomUserAdmin(UserAdmin, AutoCompleteAdmins):
     form = CustomUserChangeForm
     add_form = CustomUserCreationForm
-    list_display = ('username', 'full_name', 'department_display', 'email')
+    list_display = ('full_name_display', 'username_display', 'department_display', 'email', 'groups_display')
 
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
@@ -194,8 +277,37 @@ class CustomUserAdmin(AutoCompleteAdmins):
     )
     list_filter = ('department', 'groups')
 
+    def get_queryset(self, request):
+        # Добавляем аннотации для виртуальных полей
+        qs = super().get_queryset(request)
+        return qs.annotate(
+            full_name=Concat(
+                'first_name', Value(' '), 'last_name',
+                output_field=CharField()  # Указываем тип аннотированного поля
+            )
+        ).order_by('full_name', 'department__name')
+
+    def username_display(self, obj):
+        return obj.username
+    username_display.short_description = "Логин"
+    username_display.admin_order_field = 'username'
+
+    def full_name_display(self, obj):
+        return f"{obj.first_name} {obj.last_name}"
+    full_name_display.short_description = 'Имя и Фамилия'
+    full_name_display.admin_order_field = 'full_name'
+
+    def department_display(self, obj):
+        return obj.department.name if obj.department else "—"
+    department_display.short_description = 'Отдел/Цех'
+    department_display.admin_order_field = 'department__name'
+
+    def groups_display(self, obj):
+        return ", ".join([group.name for group in obj.groups.all()]) if obj.groups.exists() else "—"
+    groups_display.short_description = 'Группы доступа'
+
     def get_fieldsets(self, request, obj=None):
-        if not request.user.is_superuser and not request.user.groups.filter(name__in=['Администраторы', 'ОК']).exists():
+        if not request.user.is_superuser and not request.user.groups.filter(name__in=['Администраторы', 'Кадры']).exists():
             # Добавляем поле 'password' для отображения ссылки «Сменить пароль»
             return (
                 (None, {'fields': ('username', 'password')}),
@@ -204,41 +316,33 @@ class CustomUserAdmin(AutoCompleteAdmins):
         return super().get_fieldsets(request, obj)
 
     def get_readonly_fields(self, request, obj=None):
-        if request.user.is_superuser or request.user.groups.filter(name__in=['Администраторы', 'ОК']).exists():
+        if request.user.is_superuser or request.user.groups.filter(name__in=['Администраторы', 'Кадры']).exists():
             return self.readonly_fields
         else:
-            # Не делаем поле 'password' только для чтения
             readonly_fields = [f.name for f in self.model._meta.fields if f.name not in ('first_name', 'last_name', 'email', 'tel', 'tg', 'department', 'position_name', 'password')]
+            readonly_fields += ['is_superuser']
+            print('readonly_fields', readonly_fields)
             return readonly_fields
 
-    def full_name(self, obj):
-        return f"{obj.first_name} {obj.last_name}"
-    full_name.short_description = 'Имя и Фамилия'
-
-    def department_display(self, obj):
-        return obj.department if obj.department else "—"
-    department_display.short_description = 'Отдел/Цех'
-
-    # Методы разрешений остаются без изменений
     def has_view_permission(self, request, obj=None):
-        if request.user.is_superuser or request.user.groups.filter(name__in=['Администраторы', 'ОК']).exists():
+        if request.user.is_superuser or request.user.groups.filter(name__in=['Администраторы', 'Кадры']).exists():
             return True
         if obj is None or obj == request.user:
             return True
         return False
 
     def has_change_permission(self, request, obj=None):
-        if request.user.is_superuser or request.user.groups.filter(name__in=['Администраторы', 'ОК']).exists():
+        if request.user.is_superuser or request.user.groups.filter(name__in=['Администраторы', 'Кадры']).exists():
             return True
         if obj == request.user:
             return True
         return False
 
     def has_delete_permission(self, request, obj=None):
-        return request.user.is_superuser or request.user.groups.filter(name__in=['Администраторы', 'ОК']).exists()
+        return request.user.is_superuser or request.user.groups.filter(name__in=['Администраторы', 'Кадры']).exists()
 
     def has_add_permission(self, request):
-        return request.user.is_superuser or request.user.groups.filter(name__in=['Администраторы', 'ОК']).exists()
+        return request.user.is_superuser or request.user.groups.filter(name__in=['Администраторы', 'Кадры']).exists()
 
     def get_actions(self, request):
         actions = super().get_actions(request)
@@ -246,6 +350,35 @@ class CustomUserAdmin(AutoCompleteAdmins):
             if 'delete_selected' in actions:
                 del actions['delete_selected']
         return actions
+
+    def user_change_password(self, request, id, form_url=''):
+        user = self.get_object(request, id)
+        if not self.has_change_permission(request, user):
+            raise PermissionDenied
+
+        if request.method == 'POST':
+            form = AdminPasswordChangeForm(user, request.POST)
+            if form.is_valid():
+                form.save()
+                messages.success(request, _('Пароль успешно изменен.'))
+                return redirect('myadmin:storage_customuser_change', user.pk)
+        else:
+            form = AdminPasswordChangeForm(user)
+
+        context = {
+            'title': _('Изменить пароль пользователя'),
+            'form': form,
+            'is_popup': '_popup' in request.POST or '_popup' in request.GET,
+            'opts': self.model._meta,
+            'original': user,
+            'media': self.media + form.media,
+        }
+        return TemplateResponse(request, 'admin/auth/user/change_password.html', context)
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        form.request = request  # Передаём объект запроса в форму
+        return form
 
 
 admin_site.register(CustomUser, CustomUserAdmin)
@@ -266,15 +399,19 @@ admin_site.register(Suppliers, SuppliersAdmin)
 class ProductsAdmin(AutoCompleteAdmins):
     form = ProductsForm
 
-    list_display = ('name', 'product_sku', 'product_link', 'product_image_tag', 'display_categories', 'supplier')
-    fields = ('name', 'product_sku', 'product_link', 'product_image', 'categories', 'supplier', 'packaging_unit',
+    list_display = ('name', 'product_sku', 'supplier', 'product_link', 'product_image_tag', 'display_categories')
+    fields = ('name', 'product_sku', 'supplier', 'product_link', 'product_image', 'categories', 'packaging_unit',
               'quantity_in_package',)
-    search_fields = ['categories__name', 'name', 'supplier__name', 'product_sku']
-    ordering = ('categories__name', 'name', 'supplier__name')
-    # list_filter = ('category__name', 'name', 'supplier__name')
-    # autocomplete_fields = ['name']
+    search_fields = ['categories', 'name', 'supplier', 'product_sku']
+    ordering = ('name', 'supplier')
+    list_filter = ('categories', 'supplier')
 
-    def display_categories(self, obj): return ", ".join([category.name for category in obj.categories.all()])
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.distinct()
+
+    def display_categories(self, obj):
+        return ", ".join([category.name for category in obj.categories.all()])
 
     display_categories.short_description = "Категории / признаки"
 
@@ -387,9 +524,9 @@ class OrdersAdmin(AutoCompleteAdmins):
                     'documents', 'waiting_date')
     fields = ('product_request', 'manager', 'accounted_in_1c', 'invoice_number', 'delivery_status', 'documents',
                      'waiting_date')
-    search_fields = ['delivery_status', 'product_request', 'manager', 'invoice_number']
-    ordering = ('id', 'delivery_status', 'order_date', 'product_request', 'waiting_date')
-    list_filter = ('order_date', 'manager', 'product_request', 'delivery_status')
+    # search_fields = ['delivery_status', 'product_request', 'manager', 'invoice_number']
+    # ordering = ('id', 'delivery_status', 'order_date', 'product_request', 'waiting_date')
+    # list_filter = ('order_date', 'manager', 'product_request', 'delivery_status')
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == 'manager':
@@ -411,7 +548,7 @@ class OrdersAdmin(AutoCompleteAdmins):
         return []
 
 
-admin.register(Orders, OrdersAdmin)
+admin_site.register(Orders, OrdersAdmin)
 
 
 class ProductMoviesAdmin(AutoCompleteAdmins):
