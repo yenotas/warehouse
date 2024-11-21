@@ -41,7 +41,7 @@ class CustomUser(AbstractUser):
         verbose_name_plural = "Пользователи"
 
     def __str__(self):
-        return f"{self.first_name} {self.last_name}"
+        return f"{self.first_name} {self.last_name}" or "-"
 
 
 class Suppliers(models.Model):
@@ -59,7 +59,8 @@ class Suppliers(models.Model):
         verbose_name = "поставщика"
         verbose_name_plural = "Поставщики"
 
-    def __str__(self): return self.name if self.name else 'Unknown'
+    def __str__(self):
+        return self.name or "-"
 
 
 class Categories(models.Model):
@@ -104,7 +105,8 @@ class Products(models.Model):
     product_image_tag.short_description = 'Фото товара'
 
     def __str__(self):
-        return f"{self.name}"
+        return self.name or "-"
+
 
 
 class Projects(models.Model):
@@ -125,7 +127,7 @@ class Projects(models.Model):
         verbose_name_plural = "Проекты"
 
     def __str__(self):
-        return self.name
+        return self.name or "-"
 
 
 class ProductRequest(models.Model):
@@ -153,7 +155,7 @@ class ProductRequest(models.Model):
         verbose_name_plural = "Заявки на закуп"
 
     def __str__(self):
-        return f"Заявка {self.id} на {self.product.name}"
+        return f"Заявка {self.id} на {self.product.name}" or "-"
 
 
 class Orders(models.Model):
@@ -183,7 +185,7 @@ class Orders(models.Model):
         verbose_name_plural = "Заказы по заявкам"
 
     def __str__(self):
-        return f"Заказ по заявке №{self.product_request.id}"
+        return f"Заказ по заявке №{self.product_request.id}" or "-"
 
 
 class ProductMovies(models.Model):
@@ -212,7 +214,7 @@ class ProductMovies(models.Model):
         verbose_name_plural = "Перемещения по складу"
 
     def __str__(self):
-        return str(self.id)
+        return str(self.id) or "1"
 
 
 class StorageCells(models.Model):
@@ -224,9 +226,28 @@ class StorageCells(models.Model):
         verbose_name_plural = "Адресные ячейки"
 
     def __str__(self):
-        return self.name
+        return self.name or "-"
 
 
+class ModelAccessControl(models.Model):
+    model_name = models.ForeignKey(ContentType, on_delete=models.SET_NULL, null=True, verbose_name="Правило для формы")
+    model_name_old = models.CharField(max_length=255, blank=True, null=True)
+    groups = models.ManyToManyField(Group, verbose_name="Группы редакторов")
+    fields_to_disable = models.JSONField(verbose_name="Отключаемые поля", blank=True, null=True, default=list)
+
+    class Meta:
+        verbose_name = "Правило блокировки полей формы"
+        verbose_name_plural = "Управление доступом"
+
+    def __str__(self):
+        return f"{self.model_name} - {', '.join(group.name for group in self.groups.all())}"
+
+    def display_groups(self):
+        return ", ".join(group.name for group in self.groups.all())
+    display_groups.short_description = "Группы редакторов"
+
+
+# Пока не используется
 class PivotTable(models.Model):
     product_request = models.ForeignKey(ProductRequest, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Заявка на закуп')
     order = models.ForeignKey(Orders, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Заказ')
@@ -318,22 +339,3 @@ class PivotTable(models.Model):
     class Meta:
         verbose_name = "заявку и заказ закупки"
         verbose_name_plural = "Все закупки"
-
-
-class ModelAccessControl(models.Model):
-    model_name = models.ForeignKey(ContentType, on_delete=models.SET_NULL, null=True, verbose_name="Правило для формы")
-    model_name_old = models.CharField(max_length=255, blank=True, null=True)
-    groups = models.ManyToManyField(Group, verbose_name="Группы редакторов")
-    fields_to_disable = models.JSONField(verbose_name="Отключаемые поля", blank=True, null=True, default=list)
-
-    class Meta:
-        verbose_name = "Правило блокировки полей формы"
-        verbose_name_plural = "Управление доступом"
-
-    def __str__(self):
-        return f"{self.model_name} - {', '.join(group.name for group in self.groups.all())}"
-
-    def display_groups(self):
-        return ", ".join(group.name for group in self.groups.all())
-    display_groups.short_description = "Группы редакторов"
-

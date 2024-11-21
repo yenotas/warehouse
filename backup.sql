@@ -1559,6 +1559,7 @@ COPY public.django_migrations (id, app, name, applied) FROM stdin;
 
 COPY public.django_session (session_key, session_data, expire_date) FROM stdin;
 hzpzw5dzbyf4sydro520tvckzbtiq4vs	.eJxVTs1uhCAQfhfOhoiriB577xs0IeMAOi2iFTg0G9-9uLuH9vLN5PubuTMNOS06R3toMmxkglV_uQnwy4ZLMJ8Q5o3jFtJBE78s_KVG_r4Z699e3n8FC8SlpME5ENIOHUrETgnsoVGdU7LucWqxIN6c7NBJqE0x9kPjbmoyoszWuqGUUqBE4LWBBGy8M0fWm3htMe-7J3uwUVRsL1_ATGHWuQTK6Y9ct616YMNLz3eGkCj9aAr6abbP4LGZjEnT-mBC9v6s2Nqs5cR5nr9LuGSJ:1tCxpt:lGJVXLq3yfs1TJBlEJzHqza80mgNpY2fBOgTVSRdLtg	2024-12-02 10:14:21.85946+01
+35vbr8eroqsxvr607katxcqvz3bghzoy	.eJxVjM0OgyAQhN-Fc0NE5a_H3n0GsixssW0gET01fXcx8WAvM8nMN_NlDrY1ua3Gxc2B3Zlgt2vmAd8xH0V4QX4WjiWvy-z5gfCzrXwqIX4eJ_t3kKCmtgYiECpaiQpRGoEaeiPJqE6jH7EpDqQkkoIuNFDbngbjg2g-RrLstwMEkzin:1tDeuL:OpxKPrYy2gb_jNJE4dzIeLI1XzVpqn8goTqrTfYsCQE	2024-12-04 08:13:49.786653+01
 ckdeg0se5uj2vcnlnzm7173ri4i2841d	.eJxVjM0OgyAQhN-Fc0NE5a_H3n0GsixssW0gET01fXcx8WAvM8nMN_NlDrY1ua3Gxc2B3Zlgt2vmAd8xH0V4QX4WjiWvy-z5gfCzrXwqIX4eJ_t3kKCmtgYiECpaiQpRGoEaeiPJqE6jH7EpDqQkkoIuNFDbngbjg2g-RrLstwMEkzin:1tCtax:fD_kfvItzMKP3y0L9Y0KMg_r7EaEkkJxl6epO_C5qvY	2024-12-02 05:42:39.474593+01
 h4hvuawrj262zuwva71fswrkgdnlgrg4	.eJxVjM0OgyAQhN-Fc0NE5a_H3n0GsixssW0gET01fXcx8WAvM8nMN_NlDrY1ua3Gxc2B3Zlgt2vmAd8xH0V4QX4WjiWvy-z5gfCzrXwqIX4eJ_t3kKCmtgYiECpaiQpRGoEaeiPJqE6jH7EpDqQkkoIuNFDbngbjg2g-RrLstwMEkzin:1tCugB:CIWXCctBYFT-gcZuHEtJVbMQvmKDO9umACIUDhlU3-Q	2024-12-02 06:52:07.447391+01
 \.
@@ -1613,7 +1614,7 @@ COPY public.storage_categories (id, name) FROM stdin;
 COPY public.storage_customuser (id, password, last_login, is_superuser, username, first_name, last_name, email, is_staff, is_active, date_joined, tg, tel, position_name, department_id, department_old) FROM stdin;
 2	pbkdf2_sha256$870000$pM8pyYKECvVxBBkh2j7Oow$WFHB1q2lvUpEozHgCi5aC0xBWpnRs1xpQLW+Vm6VP9o=	2024-11-18 06:10:54+01	f	david	Давид	Вебб	webb.david@ymail.com	t	t	2024-11-11 16:41:35+01	\N	\N	Инженер	42	\N
 3	pbkdf2_sha256$870000$BQslsCfGlgyxRsKGoCnWcx$uyujC0nU1Pqj5+j076If9Qe3WlbuFEYbJM+C5MFsTWQ=	2024-11-18 06:52:27+01	f	osad	Ольга	Осадченко	osadchenkoO85@gmail.com	t	t	2024-11-11 19:26:01+01	@osad	9871289219	Менеджер	8	\N
-1	pbkdf2_sha256$870000$TuRh5qmajbGd6tuya15IZo$9zVSjpIk6wNl5kDEWcVlKiZfGsbgmaKhQfITufGx6hU=	2024-11-18 09:30:33.965714+01	t	slon	Андрей	Коваленко	yenotas@gmail.com	t	t	2024-11-11 14:48:04+01	\N	\N	Администратор	3	\N
+1	pbkdf2_sha256$870000$TuRh5qmajbGd6tuya15IZo$9zVSjpIk6wNl5kDEWcVlKiZfGsbgmaKhQfITufGx6hU=	2024-11-20 08:13:49.784652+01	t	slon	Андрей	Коваленко	yenotas@gmail.com	t	t	2024-11-11 14:48:04+01	\N	\N	Администратор	3	\N
 4	pbkdf2_sha256$870000$CfML7rCUpdv5aaoaPVo4KD$ra/+ltjxau4oXw7ctUcIRzIzwC4BnJ8TI1ox+FINBJY=	\N	t	bars	Дмитрий	Барсуков	yenotas@gmail.com	t	t	2024-11-18 04:59:41+01	\N	\N	Генерал	3	\N
 \.
 

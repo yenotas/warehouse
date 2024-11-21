@@ -1,9 +1,7 @@
 from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
 from django.contrib.contenttypes.models import ContentType
-from django.http import JsonResponse, Http404, FileResponse
-from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
-
 from .models import Products, Orders, Projects, StorageCells, Suppliers, Categories, ModelAccessControl, CustomUser, \
     PivotTable, ProductMovies, Departments
 from dal import autocomplete
@@ -93,6 +91,42 @@ def get_model_fields(request):
         fields = [{'name': field.name, 'verbose_name': field.verbose_name} for field in model_class._meta.fields]
         return JsonResponse({'fields': fields})
     return JsonResponse({'fields': []})
+
+
+# Попытки улучшить
+# @csrf_exempt
+# @login_required
+# def autocomplete(request):
+#     if 'term' in request.GET or 'item_id' in request.GET:
+#         model_name = request.GET.get('model_name')
+#         field_name = request.GET.get('field_name')
+#         search_term = request.GET.get('term', None)
+#         item_id = request.GET.get('item_id', None)
+#
+#         # Получаем список поисковых полей из запроса
+#         allowed_fields = request.GET.getlist('allowed_fields[]', [])
+#
+#         try:
+#             model_class = ContentType.objects.get(model=model_name).model_class()
+#             if item_id:
+#                 try:
+#                     item = model_class.objects.get(id=item_id)
+#                     return JsonResponse({'text': getattr(item, field_name), 'id': item.id})
+#                 except model_class.DoesNotExist:
+#                     return JsonResponse({'error': 'Item not found'}, status=404)
+#
+#             if search_term and field_name in allowed_fields:
+#                 filter_kwargs = {f"{field_name}__icontains": search_term}
+#                 qs = model_class.objects.filter(**filter_kwargs)
+#                 results = [{"id": item.id, "text": getattr(item, field_name)} for item in qs]
+#                 return JsonResponse(results, safe=False)
+#
+#         except ContentType.DoesNotExist:
+#             return JsonResponse({'error': 'Invalid model'}, status=400)
+#         except Exception as e:
+#             return JsonResponse({'error': str(e)}, status=500)
+#
+#     return JsonResponse([], safe=False)
 
 
 @login_required

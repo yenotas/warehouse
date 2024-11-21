@@ -15,7 +15,7 @@
     height: 40px;
     max-width: 100%;
     vertical-align: middle;
-    margin-bottom: -8px !important;
+    margin-top: 0px !important;
 }
 
 body, input, textarea, select, .form-row p, label, form .button {
@@ -30,9 +30,29 @@ select {
     height: inherit;
 }
 
+a.addlink {
+    min-width: 202px;
+}
+
+form.one_line {
+    display: flex;
+    align-items: center;
+}
+
+form.one_line input[type="submit"]{
+    padding: 7px 15px;
+    margin-top: 0px;
+}
+
+
 .one_line_input_block {
     display: flex;
     align-items: center;
+    padding-right: 15px;
+}
+
+.one_line_input_block label{
+    margin-right: 10px;
 }
 
 li, dt, dd {
@@ -80,7 +100,7 @@ header, nav {
 }
 
 .full-cell-link:hover, .custom_list_apps:hover {
-    background-color: #eee; /* Опционально: эффект при наведении */
+    background-color: #eee;
 }
 
 /* Управление горизонтальным скроллингом */

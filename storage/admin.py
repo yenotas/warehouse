@@ -91,14 +91,27 @@ class AutoCompleteAdmins(AccessControlMixin, admin.ModelAdmin):
 
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
+        # Проверяем наличие формы
+        if not hasattr(self, 'form') or self.form is None:
+            raise ValueError("Форма не определена для класса админки.")
+
         form = self.form(request.POST or None)
+
+        # Если метод POST, проверяем форму
         if request.method == 'POST':
             if form.is_valid():
-                form.save()
-                self.message_user(request, "Добавлено успешно")
-                return redirect(request.path)
+                try:
+                    form.save()
+                    self.message_user(request, "Добавлено успешно")
+                    return redirect(request.path)
+                except Exception as e:
+                    self.message_user(request, f"Ошибка при сохранении: {str(e)}", level="error")
 
+        # Передаём форму в контекст
         extra_context['form'] = form
+        if getattr(self, 'need_search', False):
+            extra_context['search_fields_list'] = self.get_search_fields()
+
         return super().changelist_view(request, extra_context=extra_context)
 
     def get_actions(self, request):

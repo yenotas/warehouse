@@ -41,7 +41,7 @@ $(document).ready(function() {
                 "data-model": modelName,
                 id: `add_id_${name}`,
                 "data-popup": "yes",
-                href: `/admin/storage/${modelName}/add/?to_field=${id}&_popup=1`,
+                href: `/storage/${modelName}/add/?to_field=${id}&_popup=1`,
                 title: "Добавить"
             }).append(
                 $("<img>", {
@@ -58,7 +58,7 @@ $(document).ready(function() {
 
     $('.auto_complete').each(function() {
         var fieldElement = $(this);
-
+        var currentId = fieldElement.attr('data-initial-id');
         var modelName = fieldElement.attr('model_name');
         var relFieldName = fieldElement.attr('rel_field_name');
         console.log(`прокси для поля "${fieldElement.attr('field_name')}" =`, relFieldName);
@@ -85,17 +85,9 @@ $(document).ready(function() {
         }
 
         // Проверка на реопенинг: если есть значение, отправляем запрос
-        if (fieldElement.val()) {
+        if (currentId) {
             get_item_name_by_id();
         }
-        // Обработчик события optionAdded
-        selectElement.on('optionAdded', function(event) {
-            console.log('New option added:', event); // Ваш код обработки нового option
-            selectElement.find('option:selected').remove();
-            selectElement.find('option:last').prop('selected', true);
-            var selectedText = selectElement.find('option:selected').text();
-            fieldElement.val(selectedText);
-        });
 
         var observer = new MutationObserver(function(mutations) {
             mutations.forEach(function(mutation) {
@@ -104,8 +96,9 @@ $(document).ready(function() {
                         if (node.nodeName === 'OPTION') {
                             console.log('New option added:', node.value, node.textContent);
                             if (selectElement.children('option').length > 1) {
-                                selectElement.find('option:selected').remove();
-                                selectElement.find('option:last').prop('selected', true);
+                                var lastOption = selectElement.find('option:last');
+                                var selectedValue = lastOption.val();
+                                selectElement.empty().append(lastOption).val(selectedValue).trigger('change');
                             }
                             fieldElement.val(node.textContent);
                         }
@@ -116,9 +109,8 @@ $(document).ready(function() {
         observer.observe(selectElement[0], { childList: true });
 
         function get_item_name_by_id(){
-            var currentId = fieldElement.val();
-            console.log(`Autofields: "${modelName}" Реопенинг: поле "${fieldName}" имеет ID: ${currentId}`);
 
+            console.log(`Autofields: "${modelName}" Реопенинг: поле "${fieldName}" имеет ID: ${currentId}`);
             // Запрос для получения текстового значения по ID
             $.ajax({
                 url: '/autocomplete/',
@@ -138,7 +130,7 @@ $(document).ready(function() {
                                 selected: true
                             }).text(data.text)
                         );
-                        console.log(`Реопенинг: текстовое значение "${data.text}" установлено.`);
+                        console.log(`Реопенинг: текстовое значение "${data.text}" установлено. ID =`, currentId);
                     }
                 },
                 error: function(jqXHR, exception) {
@@ -156,7 +148,8 @@ $(document).ready(function() {
                     data: {
                         term: request.term,
                         model_name: modelName,
-                        field_name: fieldName
+                        field_name: fieldName,
+                        allowed_fields: window.searchFieldsList || []
                     },
                     success: function(data) {
                         response($.map(data, function(item) {
@@ -175,7 +168,7 @@ $(document).ready(function() {
                 // Очищаем и обновляем select с правильным значением
                 selectElement.empty().append(
                     $("<option>", {
-                        value: ui.item.id,
+                        value: fieldElement.hasClass('single_line_add') ? ui.item.id : ui.item.value,
                         selected: true
                     }).text(ui.item.value)
                 );
@@ -190,19 +183,13 @@ $(document).ready(function() {
 
                     selectElement.empty().append(
                     $("<option>", {
-                        value: ui.item.id,
+                        value: manualText,
                         selected: true
-                    }).text(fieldElement.val()));
+                    }).text(manualText));
                     console.log('Autofields: Введено вручную, очищаем select:', manualText);
                 }
+                return false; // Отключаем стандартное поведение autocomplete
             }
-        });
-
-        // Обработка ввода вручную (если пользователь ничего не выбрал)
-        fieldElement.on('input', function() {
-            const currentText = fieldElement.val();
-            selectElement.empty(); // Удаляем все options из select
-            console.log(`Autofields: Поле "${fieldName}" изменено, удаляем старый ID.`);
         });
     });
 });

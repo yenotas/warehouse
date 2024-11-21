@@ -142,6 +142,12 @@ class ProductsForm(AutoCompleteForms):
             related_model_mapping={'supplier': ['Suppliers', 'name']},
             **kwargs
         )
+        # Если есть экземпляр объекта, передаем ID поставщика в атрибуты виджета
+        if self.instance and self.instance.pk:
+            supplier_id = self.instance.supplier_id
+            if supplier_id:
+                field = self.fields['supplier']
+                field.widget.attrs['data-initial-id'] = supplier_id
         if self.request:
             data = self.request.session.get('initial_data')
             print('Data loaded from session:', data)  # Отладочный вывод

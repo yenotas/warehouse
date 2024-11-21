@@ -2,16 +2,18 @@
 {% load static %}
 {% block extrahead %}
     {{ form.media }}
+    <script src="{% static 'admin/js/vendor/jquery/jquery.js' %}"></script>
+    <script src="https://code.jquery.com/ui/1.14.1/jquery-ui.js"></script>
     <script type="text/javascript" src="{% static 'admin/js/admin/AutoFields.js' %}"></script>
-<!--    <script src="https://code.jquery.com/ui/1.14.1/jquery-ui.js"></script>-->
+
 {% endblock %}
 {% block content %}
     <div class="module">
-        <form method="post" action="" style="display: flex; align-items: center;">
+        <form method="post" action="" class="one_line">
             {% csrf_token %}
             {% for field in form %}
                 <div class="one_line_input_block">
-                    <label for="{{ field.id_for_label }}" style="margin-right: 10px;">{{ field.label }}</label>
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                     {{ field }}
                 </div>
             {% endfor %}

@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   db:
-    image: postgres:15
+    image: postgres:17
     container_name: warehouse_db
     environment:
       POSTGRES_DB: warehouse_db
@@ -10,23 +10,28 @@ services:
       POSTGRES_PASSWORD: gjcnu_1827
     volumes:
       - db_data:/var/lib/postgresql/data
+      - ./backup.sql:/docker-entrypoint-initdb.d/backup.sql
     ports:
       - "5432:5432"
 
   app:
     build: .
     container_name: warehouse_app
-    command: gunicorn warehouse.wsgi:application --bind 0.0.0.0:8000
+    command: sh -c "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn warehouse.wsgi:application --bind 0.0.0.0:8000"
     volumes:
       - .:/app
       - static_volume:/app/staticfiles
     ports:
       - "8000:8000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgres://postgres:gjcnu_1827@db:5432/warehouse_db
       DEBUG: "True"
+      DJANGO_SETTINGS_MODULE: settings.docker
+      ENVIRONMENT: docker
+      ALLOWED_HOSTS: "192.168.186.14,localhost,127.0.0.1"
 
 volumes:
   db_data:
