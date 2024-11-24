@@ -13,10 +13,18 @@ $(document).ready(function() {
         const $headers = $resultTable.find('th');
         $headers.each(function() { const $th = $(this);
             const $link = $th.find('a');
-            if ($link.length) { $th.css('cursor', 'pointer'); // Устанавливаем курсор как указатель
+            if ($link.length) {
                 $th.addClass('full-cell-link');
                 $th.on('click', function() { window.location.href = $link.attr('href'); });
             }
+        });
+    }
+    const $appTable = $('#nav-sidebar');
+    if ($appTable.length) {
+        const $headers = $appTable.find('th');
+        $headers.each(function() { const $th = $(this);
+            const $link = $th.find('a');
+            if ($link.length) { $th.on('click', function() { window.location.href = $link.attr('href'); }); }
         });
     }
 

@@ -221,7 +221,7 @@ class OrdersForm(AutoCompleteForms):
         super().__init__(
             *args,
             auto_fields=['product_request'],
-            related_model_mapping={'product_request': ['ProductRequest', 'id']},
+            related_model_mapping={'product_request': ['ProductRequest', 'product__name']},
             **kwargs
         )
 

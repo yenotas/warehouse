@@ -162,6 +162,7 @@ $(document).ready(function() {
                 });
             },
             minLength: 2,
+            delay: 300,
             select: function(event, ui) {
                 fieldElement.val(ui.item.value);
 

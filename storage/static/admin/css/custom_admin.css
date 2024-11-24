@@ -99,6 +99,10 @@ header, nav {
     z-index: 1000;
 }
 
+.custom_list_apps {
+    cursor: pointer;
+}
+
 .full-cell-link:hover, .custom_list_apps:hover {
     background-color: #eee;
 }

@@ -1,10 +1,12 @@
+import logging
+
+from dal import autocomplete
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.contrib.contenttypes.models import ContentType
 from django.views.decorators.csrf import csrf_exempt
 from .models import Products, Orders, Projects, StorageCells, Suppliers, Categories, ModelAccessControl, CustomUser, \
     PivotTable, ProductMovies, Departments
-from dal import autocomplete
 
 
 def get_reason_choices(request):
@@ -93,76 +95,49 @@ def get_model_fields(request):
     return JsonResponse({'fields': []})
 
 
-# Попытки улучшить
-# @csrf_exempt
-# @login_required
-# def autocomplete(request):
-#     if 'term' in request.GET or 'item_id' in request.GET:
-#         model_name = request.GET.get('model_name')
-#         field_name = request.GET.get('field_name')
-#         search_term = request.GET.get('term', None)
-#         item_id = request.GET.get('item_id', None)
-#
-#         # Получаем список поисковых полей из запроса
-#         allowed_fields = request.GET.getlist('allowed_fields[]', [])
-#
-#         try:
-#             model_class = ContentType.objects.get(model=model_name).model_class()
-#             if item_id:
-#                 try:
-#                     item = model_class.objects.get(id=item_id)
-#                     return JsonResponse({'text': getattr(item, field_name), 'id': item.id})
-#                 except model_class.DoesNotExist:
-#                     return JsonResponse({'error': 'Item not found'}, status=404)
-#
-#             if search_term and field_name in allowed_fields:
-#                 filter_kwargs = {f"{field_name}__icontains": search_term}
-#                 qs = model_class.objects.filter(**filter_kwargs)
-#                 results = [{"id": item.id, "text": getattr(item, field_name)} for item in qs]
-#                 return JsonResponse(results, safe=False)
-#
-#         except ContentType.DoesNotExist:
-#             return JsonResponse({'error': 'Invalid model'}, status=400)
-#         except Exception as e:
-#             return JsonResponse({'error': str(e)}, status=500)
-#
-#     return JsonResponse([], safe=False)
+logger = logging.getLogger(__name__)
 
 
 @login_required
-def autocomplete(request):
+def autocompleteJ(request):
     if 'term' in request.GET or 'item_id' in request.GET:
-        model_name = request.GET.get('model_name')
-        field_name = request.GET.get('field_name')
-        search_term = request.GET.get('term', None)
-        item_id = request.GET.get('item_id', None)
-
         try:
+            model_name = request.GET.get('model_name')
+            field_name = request.GET.get('field_name')
+            search_term = request.GET.get('term', None)
+            item_id = request.GET.get('item_id', None)
+
             model_class = ContentType.objects.get(model=model_name).model_class()
+
             if item_id:
                 try:
                     item = model_class.objects.filter(id=item_id).first()
-                    print('загрузка формы:',  model_name, field_name, item_id)
+                    result = {"id": item.id, "text": getattr(item, field_name)}
+                    logger.debug(f'autocomplete / загрузка формы: {model_name}, {field_name}, {item_id}')
+                except AttributeError as e:
+                    logger.error(f'autocomplete / AttributeError: {e}')
+                    return JsonResponse({'error': str(e)}, status=400)
                 except Exception as e:
-                    print('item_id = строка:', e)
-                    item = model_class.objects.filter(**{field_name: item_id}).first()
-                    return JsonResponse({"id": item.id, "text": getattr(item, field_name)})
-                if item:
-                    return JsonResponse({'text': getattr(item, field_name)})
-                return JsonResponse({'error': 'Item not found'}, status=404)
+                    logger.error(f'autocomplete / item_id = строка: {e}')
+                    return JsonResponse({'error': str(e)}, status=400)
+
+                return JsonResponse(result)
 
             if search_term:
                 filter_kwargs = {f"{field_name}__icontains": search_term}
                 qs = model_class.objects.filter(**filter_kwargs)
-                results = [{"id": item.id, "text": getattr(item, field_name)} for item in qs]
-                print('ввод:', model_name, field_name, results)
-                return JsonResponse(results, safe=False)
+                result = [{"id": item.id, "text": getattr(item, field_name)} for item in qs]
+                logger.debug(f'autocomplete / ввод: {model_name}, {field_name}, {result}')
+                return JsonResponse(result, safe=False)
 
+        except ContentType.DoesNotExist as e:
+            logger.error(f'autocomplete / ContentType.DoesNotExist: {e}')
+            return JsonResponse({'error': str(e)}, status=400)
         except Exception as e:
-            print("Exception", str(e))
+            logger.error(f'autocomplete / ошибка: {e}')
+            return JsonResponse({'error': str(e)}, status=400)
 
     return JsonResponse([], safe=False)
-
 
 
 @csrf_exempt
