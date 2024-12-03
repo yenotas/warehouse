@@ -14,7 +14,7 @@ class CustomAdminSite(admin.AdminSite):
             "Оперативный учет": ['PivotTable'],
             "Закупки": ['ProductRequest', 'Orders'],
             "Склад": ['ProductMovies', 'StorageCells'],
-            "Товары": ["Products", "Categories", "Suppliers"],
+            "Товары": ["Products", "Suppliers"],  # "Categories",
             "Организация": ['Projects', 'Departments', 'CustomUser', 'Group', 'ModelAccessControl'],
         }
         # Если `app_label` задан, возвращаем список моделей только для текущего приложения
@@ -41,6 +41,14 @@ class CustomAdminSite(admin.AdminSite):
                 grouped_app_list.append({'name': header, 'models': grouped_models})
 
         return grouped_app_list
+
+    def each_context(self, request):
+        context = super().each_context(request)
+        if request.user.is_authenticated:
+            context['user_groups'] = request.user.groups.values_list('name', flat=True)
+            context['user_first_name'] = request.user.first_name
+            context['user_last_name'] = request.user.last_name
+        return context
 
 
 admin_site = CustomAdminSite(name='myadmin')

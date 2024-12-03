@@ -1,4 +1,4 @@
-$(document).ready(function() {
+django.jQuery(document).ready(function($) {
     const fieldsToDisableContainer = $('#id_fields_to_disable');
     const modelId = $('#id_model_name').val();
     const ruleId = window.location.pathname.includes('change')

@@ -1,4 +1,4 @@
-$(document).ready(function() {
+django.jQuery(document).ready(function($) {
     // При изменении типа перемещения
     const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 

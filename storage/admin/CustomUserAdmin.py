@@ -1,11 +1,11 @@
 
 from .outer_modules import (UserAdmin, Concat, Value, CharField, messages, _, PermissionDenied, AdminPasswordChangeForm, redirect,
                             TemplateResponse)
-from .__AutoCompleteAdmins import AutoCompleteAdmins
+from .ManageAdmins import ManageAdmins
 from ..forms import CustomUserChangeForm, CustomUserCreationForm
 
 
-class CustomUserAdmin(UserAdmin, AutoCompleteAdmins):
+class CustomUserAdmin(UserAdmin, ManageAdmins):
     form = CustomUserChangeForm
     add_form = CustomUserCreationForm
     list_display = ('full_name_display', 'username_display', 'department_display', 'email', 'groups_display')

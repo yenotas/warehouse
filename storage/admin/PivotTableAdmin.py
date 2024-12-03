@@ -1,9 +1,9 @@
 from .outer_modules import Q
-from .__AutoCompleteAdmins import AutoCompleteAdmins
+from .ManageAdmins import ManageAdmins
 from ..forms import PivotTableForm
 
 
-class PivotTableAdmin(AutoCompleteAdmins):
+class PivotTableAdmin(ManageAdmins):
     form = PivotTableForm
     fields = ('product_name', 'product_link', 'request_about', 'packaging_unit', 'request_quantity',
         'project_code', 'detail_name', 'detail_code', 'request_date',

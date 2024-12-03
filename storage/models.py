@@ -18,7 +18,7 @@ class ModelColors(models.Model):
 
 
 class Departments(models.Model):
-    name = models.CharField(max_length=50, verbose_name="Отдел/Цех")
+    name = models.CharField(max_length=50, verbose_name="Отдел/Цех", blank=False)
 
     class Meta:
         verbose_name = "отдел/цех"
@@ -34,7 +34,7 @@ class CustomUser(AbstractUser):
     department = models.ForeignKey(Departments, verbose_name="Отдел/Цех", on_delete=models.SET_NULL, null=True)
     department_old = models.CharField(max_length=255, blank=True, null=True)
     position_name = models.CharField(max_length=255, verbose_name="Должность", blank=True, null=True)
-    groups = models.ManyToManyField(Group, verbose_name="Группы", related_name="custom_users")
+    groups = models.ManyToManyField(Group, verbose_name="Группы", related_name="custom_users_set")
 
     class Meta:
         verbose_name = "пользователя"
@@ -45,7 +45,7 @@ class CustomUser(AbstractUser):
 
 
 class Suppliers(models.Model):
-    name = models.CharField(blank=True, null=True, verbose_name="Поставщик")
+    name = models.CharField(blank=False, null=True, verbose_name="Поставщик")
     inn = models.CharField(max_length=50, blank=True, null=True, verbose_name="ИНН")
     ogrn = models.CharField(max_length=50, blank=True, null=True, verbose_name="ОГРН")
     address = models.CharField(blank=True, null=True, verbose_name="Адрес")
@@ -71,27 +71,29 @@ class Categories(models.Model):
         verbose_name_plural = "Категории, признаки, свойства"
 
     def __str__(self):
-        return self.name
+        return self.name or "-"
 
 
 class Products(models.Model):
-    name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Наименование")
-    product_link = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ссылка")
-    product_sku = models.CharField(max_length=100, blank=True, null=True, verbose_name="SKU / Артикул")
-    categories = models.ManyToManyField(Categories, blank=True, verbose_name="Категория / признак")
-    supplier = models.ForeignKey(Suppliers, on_delete=models.SET_NULL, blank=True, null=True, verbose_name="Поставщик")
-    supplier_old = models.CharField(max_length=255, blank=True, null=True)
-    packaging_unit = models.CharField(max_length=10, verbose_name="Единицы измерения", choices=[
+    name = models.CharField(max_length=255, blank=False, verbose_name="Наименование")
+    packaging_unit = models.CharField(max_length=10, verbose_name="Ед. изм.", choices=[
         ('уп.', 'уп.'), ('шт.', 'шт.'), ('кв.м', 'кв.м'),
         ('п.м.', 'п.м.'), ('кг', 'кг'), ('л', 'л'), ('мл', 'мл')
     ], default=('шт.', 'шт.'))
-    quantity_in_package = models.PositiveIntegerField(blank=True, null=True, verbose_name="Кол-во в упаковке", default=1)
-    product_image = models.ImageField(upload_to="images/%Y/%m/%d/", editable=True, null=True, blank=True, verbose_name="Фото / скриншот")
+    product_sku = models.CharField(max_length=100, blank=True, null=True, verbose_name="SKU / Артикул")
+    product_link = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ссылка")
+    supplier = models.ForeignKey(Suppliers, on_delete=models.SET_NULL, blank=False, null=True, verbose_name="Поставщик")
+    supplier_old = models.CharField(max_length=255, blank=True, null=True)
+    categories = models.ManyToManyField(Categories, blank=True, verbose_name="Категория / признак",
+                                        related_name='name_set')
+    # quantity_in_package = models.PositiveIntegerField(blank=True, null=True, verbose_name="Кол-во в упаковке", default=1)
     near_products = models.ManyToManyField('self', blank=True, verbose_name="Аналоги")
+    product_image = models.ImageField(upload_to="images/%Y/%m/%d/", editable=True, null=True, blank=True,
+                                      verbose_name="Фото / скриншот")
 
     class Meta:
-        verbose_name = "наименование"
-        verbose_name_plural = "Товарные наименования"
+        verbose_name = "Товар"
+        verbose_name_plural = "Товары"
 
     def product_image_tag(self):
         if self.product_image:
@@ -107,11 +109,9 @@ class Products(models.Model):
     def __str__(self):
         return self.name or "-"
 
-
-
 class Projects(models.Model):
     creation_date = models.DateField(auto_now_add=True, verbose_name="Дата записи")
-    name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Полное название проекта")
+    name = models.CharField(max_length=255, blank=False, null=True, verbose_name="Проект")
     detail_full_name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Полное название изделия")
     manager = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True, verbose_name="Менеджер")
     manager_old = models.CharField(max_length=255, blank=True, null=True)
@@ -133,15 +133,15 @@ class Projects(models.Model):
 class ProductRequest(models.Model):
     request_date = models.DateField(auto_now_add=True, verbose_name="Дата запроса")
     project = models.ForeignKey(Projects, on_delete=models.SET_NULL, null=True, verbose_name="Проект",
-                                default=1)
+                                default=1, related_name="name_set")
     project_old = models.CharField(max_length=255, blank=True, null=True)
     product = models.ForeignKey(Products, on_delete=models.SET_NULL, null=True, verbose_name="Наименование",
-                                default=1)
+                                default=1, related_name="product_set")
     product_old = models.CharField(max_length=255, blank=True, null=True)
     request_about = models.CharField(blank=True, null=True, verbose_name="Комментарий")
     request_quantity = models.PositiveIntegerField(blank=True, null=True, verbose_name="Количество", default=1)
     responsible = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True,
-                                    verbose_name="Ответственный")
+                                    verbose_name="Ответственный", related_name="username_set")
     responsible_old = models.CharField(max_length=255, blank=True, null=True)
     delivery_location = models.CharField(max_length=30, verbose_name="Куда везем?", choices=[
         ('Склад', 'Склад'), ('Офис', 'Офис'), ('Цех', 'Цех'), ('Монтаж', 'Монтаж'),
@@ -161,10 +161,10 @@ class ProductRequest(models.Model):
 class Orders(models.Model):
     order_date = models.DateField(auto_now_add=True, verbose_name="Дата заказа")
     product_request = models.ForeignKey('ProductRequest', on_delete=models.SET_NULL, blank=True, null=True,
-                                 verbose_name="Заявка на закуп")
+                                 verbose_name="Заявка на закуп", related_name="product_req_set")
     product_request_old = models.CharField(max_length=255, blank=True, null=True)
     manager = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True,
-                                verbose_name="Ответственный")
+                                verbose_name="Ответственный", related_name="name_set")
     manager_old = models.CharField(max_length=255, blank=True, null=True)
     accounted_in_1c = models.BooleanField(blank=True, null=True, verbose_name="Учтено в 1С")
     invoice_number = models.CharField(max_length=100, blank=True, null=True, verbose_name="Номер счета")
@@ -191,7 +191,7 @@ class Orders(models.Model):
 class ProductMovies(models.Model):
     record_date = models.DateField(auto_now_add=True, verbose_name="Дата записи")
     product = models.ForeignKey(Products, on_delete=models.SET_NULL, null=True, verbose_name="Наименование",
-                                default=1)
+                                default=1, related_name="product_mov_set")
     product_old = models.CharField(max_length=255, blank=True, null=True)
     process_type = models.CharField(max_length=50, choices=[
         ('warehouse', 'Прием на склад'), ('distribute', 'Выдача со склада'),
@@ -204,7 +204,7 @@ class ProductMovies(models.Model):
         ('Нарушение сроков поставки', 'Нарушение сроков поставки')
     ], blank=True, null=True, verbose_name="Причина")
     new_cell = models.ForeignKey('StorageCells', on_delete=models.SET_NULL, blank=True, null=True,
-                                 verbose_name="Адрес ячейки")
+                                 verbose_name="Адрес ячейки", related_name="name_set")
     new_cell_old = models.CharField(max_length=255, blank=True, null=True)
     movie_quantity = models.PositiveIntegerField(blank=True, null=True, verbose_name="Количество", default=1)
     reason_id = models.CharField(max_length=200, blank=True, null=True, verbose_name="Назначение")

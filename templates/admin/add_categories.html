@@ -1,0 +1,13 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block content %}
+  <h1>{% trans "Можно добавить несколько категорий" %}</h1>
+  <form method="post">
+    {% csrf_token %}
+    {{ formset.management_form }}
+    <table>
+      {{ formset.as_table }}
+    </table>
+    <input type="submit" value="{% trans "Сохранить" %}" class="default">
+  </form>
+{% endblock %}

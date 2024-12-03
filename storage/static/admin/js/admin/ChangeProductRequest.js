@@ -1,4 +1,4 @@
-$(document).ready(function() {
+django.jQuery(document).ready(function($) {
     // При изменении запроса на продукт
     $(document).on('change', '#id_product_request', function() {
         var productId = $(this).val();

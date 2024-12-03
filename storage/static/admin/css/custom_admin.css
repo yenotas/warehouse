@@ -9,6 +9,7 @@
     --secondary: #333;
     --breadcrumbs-bg: #666;
     --hairline-color: #e8e8e8;
+    --default-button-bg: #3f6689
 }
 
 #site-name {
@@ -70,7 +71,7 @@ ul li {
     max-width: 274px;
 }
 
-.single_line_add {
+.single_line {
     min-height: 28px;
     padding: 5px 6px;
     margin-top: 2px;
@@ -107,10 +108,185 @@ header, nav {
     background-color: #eee;
 }
 
+.t_row {
+    cursor: pointer;
+    align-items: center;
+    border-radius: 0px !important;
+    text-transform: none;
+}
+
+.t_row th {
+    width: min-content !important;
+}
+
+.t_row label {
+    font-size: 0.6875rem !important;
+    border-radius: 0px !important;
+    font-weight: 500;
+    text-align: left;
+    padding: 5px !important;
+    margin: 0px !important;
+}
+
+/* .one_line table, .table_view table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+Контейнер таблицы для добавления скроллбара */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* Контейнер таблицы для добавления скроллбара */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* Таблица */
+.results.table-row-form {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed; /* Управление распределением столбцов */
+}
+
+/* Заголовки и ячейки */
+.results.table-row-form th,
+.results.table-row-form td {
+    min-width: 70px; /* Минимальная ширина столбца */
+    width: 100%;  /* Макс ширина по минимальному содержимому */
+    word-wrap: break-word; /* Перенос длинных слов */
+    border: 1px solid #ccc; /* Граница для визуального разделения */
+    padding: 0; /* Внутренний отступ */
+    margin: 0;
+    text-align: left; /* Выравнивание текста в ячейках */
+}
+
+.table-row-form th{
+    height: 30px;
+    line-height: 30px;
+ }
+
+.t_row.img_cell {
+    position: relative;
+    height: 50px;
+}
+.image_paste_area {
+    line-height: 50px;
+    position: absolute;
+    top: 3px;
+    text-align: center;
+    height: 50px;
+    width: 100%;
+    z-index: 2;
+    }
+
+.image_paste_area_bg {
+    border: 1px dashed #ccc;
+    padding: 10px;
+    text-align: center;
+    margin-top: 1px;
+    opacity: 0.6;
+    position: absolute;
+    top: 0;
+    width: -webkit-fill-available;
+    }
+
+.image_paste_area img {
+    height: 50px;
+}
+
+.image_preview {
+  max-height: 50px;
+  margin: 0 auto;
+}
+
+.image_preview_container {
+   display: flex;
+   max-height: 50px;
+}
+
+.remove_image_button{
+    margin-top: -3px;
+}
+
+.related-widget-wrapper {
+    display: flex;
+}
+
+.product_image{
+    display:none;
+}
+
+.add-related {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    line-height: 30px;
+}
+
+.add-related img {
+    width: 20px;
+    height: 20px;
+}
+
+.results.table-row-form th label {
+    display: flex;
+    flex-direction: column; /* Вертикальное расположение элементов */
+    align-items: flex-center; /* Выравнивание по левому краю */
+    margin-bottom: 10px; /* Отступ под текстом лейбла */
+    }
+
+.results.table-row-form input,
+.results.table-row-form select{
+    min-width: 70px; /* Минимальная ширина столбца */
+    width: 100%;  /* Макс ширина по минимальному содержимому */
+    height: 50px;
+    box-sizing: border-box;
+    padding: 5px;
+    margin-top: 4px;
+    border: none;
+    min-height: 28px;
+}
+
+/* Заголовки */
+.results.table-row-form th {
+    background-color: #f2f2f2; /* Цвет фона заголовков */
+    padding-left: 10px;
+}
+
+/* кнопка добавить под именем пользователя */
+.object-tools {
+    display: none;
+    font-size: 0.625rem;
+    font-weight: bold;
+    padding-left: 0;
+    float: right;
+    position: relative;
+    margin-top: -37px;
+    margin-right: 40px;
+}
+
+.object-tools a.addlink {
+    background-image: url(../img/tooltag-add.svg);
+    background-color: var(--default-button-bg);
+    color: var(--breadcrumbs-fg);
+    padding-right: 20px;
+    border: 1px solid var(--breadcrumbs-fg);
+}
+.object-tools a.addlink:hover {
+    background-color: #000;
+}
+
+.under_table {
+    margin-top:20px;
+}
+
 /* Управление горизонтальным скроллингом */
 #main {
     overflow-x: auto;
-    padding-right: 40px;
 }
 
 

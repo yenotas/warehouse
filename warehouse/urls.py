@@ -7,8 +7,8 @@ from storage.views import (
     get_product_data,
     get_model_fields,
     get_saved_fields,
-    UserAutocomplete,
-    autocompleteJ
+    autocompleteJ, create_supplier,
+    # add_multiple_categories_view
 )
 from django.conf import settings
 from django.conf.urls.static import static
@@ -18,8 +18,10 @@ urlpatterns = [
     path('get-product-data/<int:product_id>/', get_product_data, name='get_product_data'),
     path('autocomplete/', autocompleteJ, name='autocomplete'),
     path('get-saved-fields/', get_saved_fields, name='get-saved-fields'),
-    path('users-autocomplete/', UserAutocomplete.as_view(), name='users-autocomplete'),
+    # path('users-autocomplete/', UserAutocomplete.as_view(), name='users-autocomplete'),
+    path('create-supplier/', create_supplier, name='create_supplier'),
     path('get_reason_choices/', get_reason_choices, name='get_reason_choices'),
+    # path('categories/add/', add_multiple_categories_view, name='add_multiple_categories'),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

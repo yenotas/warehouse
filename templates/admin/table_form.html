@@ -1,0 +1,64 @@
+<form method="post" action="" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ formset.management_form }}
+    {% if is_popup %}
+        <input type="hidden" name="_popup" value="1" />
+    {% endif %}
+    <table class="results table-row-form">
+        <thead>
+            <tr>
+                {% for field in formset.forms.0.visible_fields %}
+                    <th>{{ field.label }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+        {% for form in formset %}
+            <tr>
+            {% for field in form.visible_fields  %}
+                {% if field.name == 'product_image' %}
+                <td class="t_row img_cell">
+                    <div class="image_preview_container">
+                    <img class="image_preview" src="#" alt="Превью изображения" style="display: none;">
+                    <a href="#" class="remove_image_button" style="display: none;">X</a>
+                    </div>
+                    <!-- Область для вставки изображения -->
+                    <div class="image_paste_area" contenteditable="true"></div>
+                    <div class="image_paste_area_bg">файл: двойной клик<br>вставить: Ctrl+V</div>
+                    {{ field }}
+                </td>
+                {% else %}
+                <td class="t_row">{{ field }}</td>
+                {% endif %}
+            {% endfor %}
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% if not is_popup %}
+        <!-- Шаблон пустой формы для динамического добавления -->
+        <div id="empty_form" style="display: none;">
+            <tr>
+                {% for field in form.visible_fields  %}
+                    {% if field.name == 'product_image' %}
+                    <td class="t_row img_cell">
+                        <div class="image_preview_container">
+                        <img class="image_preview" src="#" alt="Превью изображения" style="display: none;">
+                        <a href="#" class="remove_image_button" style="display: none;">X</a>
+                        </div>
+                        <!-- Область для вставки изображения -->
+                        <div class="image_paste_area" contenteditable="true"></div>
+                        <div class="image_paste_area_bg">файл: двойной клик<br>вставить: Ctrl+V</div>
+                        {{ field }}
+                    </td>
+                    {% else %}
+                    <td class="t_row">{{ field }}</td>
+                    {% endif %}
+                {% endfor %}
+            </tr>
+        </div>
+    {% endif %}
+    <div class="submit-row">
+        <input type="submit" value="Добавить" class="default under_table" />
+    </div>
+</form>

@@ -1,4 +1,4 @@
-$(document).ready(function() {
+django.jQuery(document).ready(function($) {
 
     const $password_sha = $('#id_password');
     if ($password_sha.length) {
@@ -6,6 +6,18 @@ $(document).ready(function() {
         if ($firstP.length) {
             $firstP.css('display', 'none');
         }
+    }
+
+    const $appTable = $('#content-main');
+    if ($appTable.length) {
+      const $headers = $appTable.find('th');
+      $headers.each(function() { const $th = $(this);
+          const $link = $th.find('a');
+          if ($link.length) { $th.css('cursor', 'pointer'); // Устанавливаем курсор как указатель
+              $th.addClass('custom_list_apps');
+              $th.on('click', function() { window.location.href = $link.attr('href'); });
+          }
+      });
     }
 
     const $resultTable = $('#result_list');
@@ -19,9 +31,9 @@ $(document).ready(function() {
             }
         });
     }
-    const $appTable = $('#nav-sidebar');
-    if ($appTable.length) {
-        const $headers = $appTable.find('th');
+    const $appTableNav = $('#nav-sidebar');
+    if ($appTableNav.length) {
+        const $headers = $appTableNav.find('th');
         $headers.each(function() { const $th = $(this);
             const $link = $th.find('a');
             if ($link.length) { $th.on('click', function() { window.location.href = $link.attr('href'); }); }

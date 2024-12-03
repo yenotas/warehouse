@@ -1,12 +1,50 @@
 import logging
 
-from dal import autocomplete
-from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from django.contrib import messages
+# from dal import autocomplete
+from django.contrib.auth.decorators import login_required, permission_required
+from django.http import JsonResponse, HttpResponseRedirect
 from django.contrib.contenttypes.models import ContentType
 from django.views.decorators.csrf import csrf_exempt
+
 from .models import Products, Orders, Projects, StorageCells, Suppliers, Categories, ModelAccessControl, CustomUser, \
     PivotTable, ProductMovies, Departments
+
+# from django.shortcuts import render, redirect
+# from .models import Categories
+
+
+@login_required
+@permission_required('storage.add_suppliers', raise_exception=True)
+def create_supplier(request):
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        if name:
+            supplier, created = Suppliers.objects.get_or_create(name=name)
+            return JsonResponse({'id': supplier.id})
+        else:
+            return JsonResponse({'error': 'Название поставщика обязательно.'}, status=400)
+    else:
+        return JsonResponse({'error': 'Недопустимый метод запроса.'}, status=405)
+
+# def add_multiple_categories_view(request):
+#     if request.method == 'POST':
+#         form = MultipleCategoriesForm(request.POST)
+#         if form.is_valid():
+#             categories_text = form.cleaned_data['categories']
+#             categories_list = [cat.strip() for cat in categories_text.replace('\n', ',').split(',') if cat.strip()]
+#
+#             created = 0
+#             for category in categories_list:
+#                 if not Categories.objects.filter(name__iexact=category).exists():
+#                     Categories.objects.create(name=category)
+#                     created += 1
+#             messages.success(request, f"Добавлено {created} новых категорий.")
+#             return redirect('/admin/storage/categories/')  # Переход в админку
+#     else:
+#         form = MultipleCategoriesForm()
+#
+#     return render(request, 'admin/add_bulk_categories.html', {'form': form})
 
 
 def get_reason_choices(request):
@@ -32,14 +70,14 @@ def get_reason_choices(request):
     return JsonResponse({'choices': choices})
 
 
-class UserAutocomplete(autocomplete.Select2QuerySetView):
-    def get_queryset(self):
-        if not self.request.user.is_authenticated:
-            return ''
-        qs = Departments.objects.all()
-        if self.q:
-            qs = qs.filter(first_name__icontains=self.q) | qs.filter(last_name__icontains=self.q)
-        return qs
+# class UserAutocomplete(autocomplete.Select2QuerySetView):
+#     def get_queryset(self):
+#         if not self.request.user.is_authenticated:
+#             return ''
+#         qs = Departments.objects.all()
+#         if self.q:
+#             qs = qs.filter(first_name__icontains=self.q) | qs.filter(last_name__icontains=self.q)
+#         return qs
 
 
 # @login_required
@@ -95,8 +133,38 @@ def get_model_fields(request):
     return JsonResponse({'fields': []})
 
 
-logger = logging.getLogger(__name__)
+@login_required
+def autocomplete(request):
+    if 'term' in request.GET or 'item_id' in request.GET:
+        model_name = request.GET.get('model_name')
+        field_name = request.GET.get('field_name')
+        search_term = request.GET.get('term', None)
+        item_id = request.GET.get('item_id', None)
 
+        model_class = ContentType.objects.get(model=model_name).model_class()
+        if item_id:
+            try:
+                item = model_class.objects.filter(id=item_id).first()
+                result = {"id": item.id, "text": getattr(item, field_name)}
+                print('autocomplete / загрузка формы:', model_name, field_name, item_id)
+            except Exception as e:
+                item = model_class.objects.filter(**{field_name: item_id}).first()
+                result = {'text': getattr(item, field_name)}
+                print('autocomplete / item_id = строка:', e, result)
+
+            return JsonResponse(result)
+
+        if search_term:
+            filter_kwargs = {f"{field_name}__icontains": search_term}
+            qs = model_class.objects.filter(**filter_kwargs)
+            result = [{"id": item.id, "text": getattr(item, field_name)} for item in qs]
+            print('autocomplete / ввод:', model_name, field_name, result)
+            return JsonResponse(result, safe=False)
+
+    return JsonResponse([], safe=False)
+
+
+logger = logging.getLogger(__name__)
 
 @login_required
 def autocompleteJ(request):

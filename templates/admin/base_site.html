@@ -3,11 +3,10 @@
 {% load i18n %}
 
 {% block extrahead %}
-    {{ block.super }}
     <script src="{% static 'admin/js/vendor/jquery/jquery.js' %}"></script>
-    <script src="{% static 'admin/js/admin/ToggleFields.js' %}"></script>
-    <script src="https://code.jquery.com/ui/1.14.1/jquery-ui.js"></script>
-
+    <script src="{% static 'admin/js/admin/jquery-ui.js' %}"></script>
+<!--    <script src="https://code.jquery.com/ui/1.14.1/jquery-ui.js"></script>-->
+    {{ block.super }}
 {% endblock %}
 
 {% block extrastyle %}
@@ -70,13 +69,13 @@
 {% if has_permission %}
 <div id="user-tools">
     {% block welcome-msg %}
-        {% trans 'Пользователь:' %}
-        <strong>{% firstof user.get_short_name user.get_username %}</strong>.
+        <b>{% trans 'Пользователь:' %}</b>&nbsp;&nbsp;{{ user_first_name }} {{ user_last_name }}&nbsp;&nbsp;<b>{% trans '/' %}</b>
+        {% for group in user_groups %}&nbsp;{{ group }}{% endfor %}
     {% endblock %}
     {% block userlinks %}
         <form id="logout-form" method="post" action="{% url 'admin:logout' %}">
             {% csrf_token %}
-            <button type="submit">{% translate 'Log out' %}</button>
+            &nbsp;&nbsp;<button type="submit">{% translate 'Log out' %}</button>
         </form>
     {% endblock %}
 </div>

@@ -32,16 +32,3 @@
 {% else %}
   <p>{% translate 'You don’t have permission to view or edit anything.' %}</p>
 {% endif %}
-<script>
-    const $resultTable = $('#content-main');
-    if ($resultTable.length) {
-        const $headers = $resultTable.find('th');
-        $headers.each(function() { const $th = $(this);
-            const $link = $th.find('a');
-            if ($link.length) { $th.css('cursor', 'pointer'); // Устанавливаем курсор как указатель
-                $th.addClass('custom_list_apps');
-                $th.on('click', function() { window.location.href = $link.attr('href'); });
-            }
-        });
-    }
-</script>

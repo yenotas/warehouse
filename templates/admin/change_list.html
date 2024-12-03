@@ -19,9 +19,8 @@
 {% endblock %}
 
 {% block extrahead %}
-{{ block.super }}
-{{ media.js }}
-<script src="{% static 'admin/js/filters.js' %}" defer></script>
+    {{ block.super }}
+    {{ media.js }}
 {% endblock %}
 
 {% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} change-list{% endblock %}
@@ -42,12 +41,7 @@
     {% endif %}
 </div>
 {% endblock %}
-{% endif %}
-
-{% block coltype %}{% endblock %}
-
-{% block content %}
-  <div id="content-main">
+<div>
     {% block object-tools %}
         <ul class="object-tools">
           {% block object-tools-items %}
@@ -55,6 +49,13 @@
           {% endblock %}
         </ul>
     {% endblock %}
+</div>
+{% endif %}
+
+{% block coltype %}{% endblock %}
+
+{% block content %}
+  <div id="content-main">
     {% if cl.formset and cl.formset.errors %}
         <p class="errornote">
         {% blocktranslate count counter=cl.formset.total_error_count %}Please correct the error below.{% plural %}Please correct the errors below.{% endblocktranslate %}

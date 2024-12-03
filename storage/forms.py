@@ -2,7 +2,8 @@ import json
 
 from django.contrib.admin.widgets import AdminDateWidget
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
-from django.forms import modelformset_factory
+from django.db.models import ForeignKey, ManyToManyField
+from django.forms import modelformset_factory, formset_factory, ImageField
 
 from .models import *
 from dal import autocomplete
@@ -10,25 +11,46 @@ from django import forms
 from django.contrib.contenttypes.models import ContentType
 
 
-class AutoCompleteForms(forms.ModelForm):
+class AutoCompleteFields(forms.ModelForm):
     class Meta:
         abstract = True
+
+    def get_related_models(self):
+        """
+        Получает словарь с информацией о связанных моделях из полей модели.
+        """
+        related_models = {}
+
+        for field in self.Meta.model._meta.get_fields():
+            if isinstance(field, (ForeignKey, ManyToManyField)):
+
+                if hasattr(field, 'related_query_name'):
+                    related_model_name = field.related_model._meta.model_name
+                    related_models[field.name] = {field.related_query_name(): related_model_name}
+                    print('поле', field.name, "модель / ключевое поле в модели",
+                          related_models[field.name])
+
+        return related_models
 
     def __init__(self, *args, **kwargs):
         self.unique_fields = kwargs.pop('unique_fields', [])
         self.auto_fields = kwargs.pop('auto_fields', [])
-        related_model_names = self.related_model_mapping = kwargs.pop('related_model_mapping', [])
+        self.related_models = kwargs.pop('related_models', None) or self.get_related_models() or {}
+        print('related_models:', self.related_models)
         self.model_name = self._meta.model._meta.model_name
-
+        kwargs.pop('request', None)
         super().__init__(*args, **kwargs)
 
         for field_name in self.auto_fields:
             field = self.fields.get(field_name)
             if field:
 
-                if field_name in related_model_names:
-                    related_model_name = related_model_names[field_name][0].lower()
-                    related_field_name = related_model_names[field_name][1].lower()
+                field.label = self._meta.model._meta.get_field(field_name).verbose_name
+
+                if self.related_models and field_name in self.related_models:
+
+                    related_model_name, related_field_name = next(
+                        iter([(model, field) for model, field in self.related_models.get(field_name, {}).items()]))
                     field.widget.attrs['model_name'] = related_model_name.lower()
                     field.widget.attrs['rel_field_name'] = related_field_name.lower()
                     field.widget.attrs['field_name'] = field_name.lower()
@@ -54,7 +76,7 @@ class AutoCompleteForms(forms.ModelForm):
         return cleaned_data
 
 
-class DepartmentsForm(AutoCompleteForms):
+class DepartmentsForm(AutoCompleteFields):
     class Meta:
         model = Departments
         fields = '__all__'
@@ -66,20 +88,20 @@ class DepartmentsForm(AutoCompleteForms):
                           **kwargs)
 
 
-class CategoriesForm(AutoCompleteForms):
+class CategoriesForm(AutoCompleteFields):
     class Meta:
         model = Categories
         fields = '__all__'
 
     def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request', None)
         super().__init__(*args,
                           unique_fields=['name'],
                           auto_fields=['name'],
                           **kwargs)
 
 
-class CustomUserChangeForm(UserChangeForm, AutoCompleteForms):
-
+class CustomUserChangeForm(UserChangeForm, AutoCompleteFields):
     class Meta:
         model = CustomUser
         fields = '__all__'
@@ -110,123 +132,145 @@ class CustomUserChangeForm(UserChangeForm, AutoCompleteForms):
         return is_superuser
 
 
-class CustomUserCreationForm(UserCreationForm, AutoCompleteForms):
+class CustomUserCreationForm(UserCreationForm, AutoCompleteFields):
 
     class Meta:
         model = CustomUser
         fields = ('username', 'first_name', 'last_name', 'email', 'department', 'position_name', 'tel', 'tg')
 
     def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request', None)
         super().__init__(*args,
                           auto_fields=['position_name'],
                           **kwargs)
 
 
-class ProductsForm(AutoCompleteForms):
+class ProductsForm(AutoCompleteFields):
     class Meta:
         model = Products
-        exclude = ['near_products']
+        exclude = ['near_products', 'supplier_old', 'categories']
 
     supplier = forms.ModelChoiceField(
         queryset=Suppliers.objects.all(),
-        label='Поставщик',
-        widget=forms.TextInput(attrs={'class': 'single_line_add'})
+        widget=forms.TextInput(attrs={'class': 'single_line'})
     )
+    # product_image = ImageField(required=False)
+
+    def clean_supplier(self):
+        supplier_name = self.cleaned_data['supplier']
+        supplier, created = Suppliers.objects.get_or_create(name=supplier_name)
+        return supplier
 
     def __init__(self, *args, **kwargs):
-
         self.request = kwargs.pop('request', None)
         super().__init__(
             *args,
             auto_fields=['name', 'supplier'],
-            related_model_mapping={'supplier': ['Suppliers', 'name']},
+            related_models={'supplier': {'Suppliers': 'name'}},
             **kwargs
         )
+        self.fields['name'].widget.attrs.update({'required': 'required'})
+        self.fields['supplier'].widget.attrs.update({'required': 'required'})
+        self.fields['product_image'].widget.attrs.update({'class': 'product_image'})
+
+
+
         # Если есть экземпляр объекта, передаем ID поставщика в атрибуты виджета
-        if self.instance and self.instance.pk:
-            supplier_id = self.instance.supplier_id
-            if supplier_id:
-                field = self.fields['supplier']
-                field.widget.attrs['data-initial-id'] = supplier_id
-        if self.request:
-            data = self.request.session.get('initial_data')
-            print('Data loaded from session:', data)  # Отладочный вывод
-            if data:
-                data = self.request.session.get('initial_data')
-                if data:
-                    initial_fields = data.get('fields', {})
-                    m2m_fields = data.get('m2m', {})
-                    # Устанавливаем начальные значения для полей
-                    for field_name, value in initial_fields.items():
-                        if field_name == 'name':
-                            continue  # Пропускаем поле 'name'
-                        field = self.fields.get(field_name)
-                        if field:
-                            field.initial = value
-                    # Устанавливаем начальные значения для ManyToMany полей
-                    for field_name, value in m2m_fields.items():
-                        field = self.fields.get(field_name)
-                        if field:
-                            field.initial = value
-                            print(field, value)
-                    # Удаляем данные из сессии после использования
-                    del self.request.session['initial_data']
+        # if self.instance and self.instance.pk:
+        #     supplier_id = self.instance.suppliers__id
+        #     if supplier_id:
+        #         field = self.fields['supplier']
+        #         field.widget.attrs['data-initial-id'] = supplier_id
+        # if self.request:
+        #     data = self.request.session.get('initial_data')
+        #     print('Data loaded from session:', data)  # Отладочный вывод
+        #     if data:
+        #         data = self.request.session.get('initial_data')
+        #         if data:
+        #             initial_fields = data.get('fields', {})
+        #             m2m_fields = data.get('m2m', {})
+        #             # Устанавливаем начальные значения для полей
+        #             for field_name, value in initial_fields.items():
+        #                 if field_name == 'name':
+        #                     continue  # Пропускаем поле 'name'
+        #                 field = self.fields.get(field_name)
+        #                 if field:
+        #                     field.initial = value
+        #             # Устанавливаем начальные значения для ManyToMany полей
+        #             for field_name, value in m2m_fields.items():
+        #                 field = self.fields.get(field_name)
+        #                 if field:
+        #                     field.initial = value
+        #                     print(field, value)
+        #             # Удаляем данные из сессии после использования
+        #             del self.request.session['initial_data']
 
 
-class SuppliersForm(AutoCompleteForms):
+class SuppliersForm(AutoCompleteFields):
     class Meta:
         model = Suppliers
         fields = '__all__'
 
     def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request', None)
         super().__init__(*args,
                           unique_fields=['name'],
                           auto_fields=['name'],
                           **kwargs)
+        self.fields['name'].widget.attrs.update({'required': 'required'})
 
 
-class StorageCellsForm(AutoCompleteForms):
+class StorageCellsForm(AutoCompleteFields):
     class Meta:
         model = StorageCells
         fields = '__all__'
+        exclude = ['new_cell_old']
 
     def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request', None)
         super().__init__(*args,
                           unique_fields=['name'],
                           auto_fields=['name', 'info'],
                           **kwargs)
 
 
-class ProjectsForm(AutoCompleteForms):
+class ProjectsForm(AutoCompleteFields):
     class Meta:
         model = Projects
-        exclude = ['creation_date']
+        fields = '__all__'
+        exclude = ['manager_old', 'engineer_old']
+
+        def __init__(self, *args, **kwargs):
+            self.request = kwargs.pop('request', None)
+            super().__init__(*args,
+                             unique_fields=['detail_code'],
+                             auto_fields=['name', 'project_code', 'detail_name', 'detail_name', 'detail_full_name'],
+                             **kwargs)
 
 
-class OrdersForm(AutoCompleteForms):
+class OrdersForm(AutoCompleteFields):
     class Meta:
         model = Orders
         fields = '__all__'
-        # exclude = ['order_date']
+        exclude = ['order_date']
 
     product_request = forms.ModelChoiceField(
         queryset=ProductRequest.objects.all(),
         label='Заявка №',
-        widget=forms.TextInput(attrs={'class': 'single_line_add'})
+        widget=forms.TextInput(attrs={'class': 'single_line'})
     )
 
     def __init__(self, *args, **kwargs):
-
         self.request = kwargs.pop('request', None)
         super().__init__(
             *args,
             auto_fields=['product_request'],
-            related_model_mapping={'product_request': ['ProductRequest', 'product__name']},
+            related_models={'product_request': ['ProductRequest', 'product__name']},
             **kwargs
         )
 
 
-class ProductMoviesForm(AutoCompleteForms):
+class ProductMoviesForm(AutoCompleteFields):
     class Meta:
         model = ProductMovies
         fields = '__all__'
@@ -238,63 +282,61 @@ class ProductMoviesForm(AutoCompleteForms):
     product = forms.ModelChoiceField(
         queryset=Products.objects.all(),
         label='Наименование',
-        widget=forms.TextInput(attrs={'class': 'single_line_add'})
+        widget=forms.TextInput(attrs={'class': 'single_line'})
     )
 
     def __init__(self, *args, **kwargs):
-
         self.request = kwargs.pop('request', None)
         super().__init__(
             *args,
             auto_fields=['product'],
-            related_model_mapping={'product': ['Products', 'name']},
+            related_models={'product': ['Products', 'name']},
             **kwargs
         )
 
 
-class ProductRequestForm(AutoCompleteForms):
+class ProductRequestForm(AutoCompleteFields):
     class Meta:
         model = ProductRequest
-        exclude = ['request_date']
+        exclude = ['request_date', 'project_old', 'product_old', 'responsible_old']
 
     product = forms.ModelChoiceField(
         queryset=Products.objects.all(),
         label='Наименование',
-        widget=forms.TextInput(attrs={'class': 'single_line_add'})
+        widget=forms.TextInput(attrs={'class': 'single_line'})
     )
 
     def __init__(self, *args, **kwargs):
-
         self.request = kwargs.pop('request', None)
         super().__init__(
             *args,
             auto_fields=['product'],
-            related_model_mapping={'product': ['Products', 'name']},
+            related_models={'product': ['Products', 'name']},
             **kwargs
         )
-        if self.request:
-            data = self.request.session.get('initial_data')
-            print('Data loaded from session:', data)  # Отладочный вывод
-            if data:
-                data = self.request.session.get('initial_data')
-                if data:
-                    initial_fields = data.get('fields', {})
-                    m2m_fields = data.get('m2m', {})
-                    # Устанавливаем начальные значения для полей
-                    for field_name, value in initial_fields.items():
-                        if field_name == 'name':
-                            continue  # Пропускаем поле 'name'
-                        field = self.fields.get(field_name)
-                        if field:
-                            field.initial = value
-                    # Устанавливаем начальные значения для ManyToMany полей
-                    for field_name, value in m2m_fields.items():
-                        field = self.fields.get(field_name)
-                        if field:
-                            field.initial = value
-                            print(field, value)
-                    # Удаляем данные из сессии после использования
-                    del self.request.session['initial_data']
+        # if self.request:
+        #     data = self.request.session.get('initial_data')
+        #     print('Data loaded from session:', data)  # Отладочный вывод
+        #     if data:
+        #         data = self.request.session.get('initial_data')
+        #         if data:
+        #             initial_fields = data.get('fields', {})
+        #             m2m_fields = data.get('m2m', {})
+        #             # Устанавливаем начальные значения для полей
+        #             for field_name, value in initial_fields.items():
+        #                 if field_name == 'name':
+        #                     continue  # Пропускаем поле 'name'
+        #                 field = self.fields.get(field_name)
+        #                 if field:
+        #                     field.initial = value
+        #             # Устанавливаем начальные значения для ManyToMany полей
+        #             for field_name, value in m2m_fields.items():
+        #                 field = self.fields.get(field_name)
+        #                 if field:
+        #                     field.initial = value
+        #                     print(field, value)
+        #             # Удаляем данные из сессии после использования
+        #             del self.request.session['initial_data']
 
 
 from django.core.exceptions import ValidationError
@@ -366,19 +408,19 @@ class ModelAccessControlForm(forms.ModelForm):
         return instance
 
 
-class PivotTableForm(AutoCompleteForms):
-    product_name = forms.ModelChoiceField(
-        queryset=Products.objects.all(),
-        widget=forms.TextInput(attrs={'class': 'single_line_add'}),
-        label="Наименование",
-        required=True
-    )
-    responsible = forms.ModelChoiceField(
-        queryset=CustomUser.objects.all(),
-        widget=forms.TextInput(attrs={'class': 'single_line_add'}),
-        label="Ответственный",
-        required=False
-    )
+class PivotTableForm(AutoCompleteFields):
+    # product_name = forms.ModelChoiceField(
+    #     queryset=Products.objects.all(),
+    #     widget=forms.TextInput(attrs={'class': 'single_line'}),
+    #     label="Наименование",
+    #     required=True
+    # )
+    # responsible = forms.ModelChoiceField(
+    #     queryset=CustomUser.objects.all(),
+    #     widget=forms.TextInput(attrs={'class': 'single_line'}),
+    #     label="Ответственный",
+    #     required=False
+    # )
 
     class Meta:
         model = PivotTable
