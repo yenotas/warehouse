@@ -50,7 +50,7 @@ class ExtraSaveAdmin():
             print('Data to be saved in session:', {'fields': initial_data, 'm2m': m2m_fields})
 
             self.message_user(request, "Запись сохранена!",
-                              messages.SUCCESS) # "Следующая создана на ее основе - проверьте все поля!",
+                              messages.SUCCESS)  # "Следующая создана на ее основе - проверьте все поля!",
             add_url = reverse('admin:%s_%s_add' % (self.model._meta.app_label, self.model._meta.model_name))
             return HttpResponseRedirect(add_url)
         else:

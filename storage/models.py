@@ -207,7 +207,7 @@ class ProductMovies(models.Model):
                                  verbose_name="Адрес ячейки", related_name="name_set")
     new_cell_old = models.CharField(max_length=255, blank=True, null=True)
     movie_quantity = models.PositiveIntegerField(blank=True, null=True, verbose_name="Количество", default=1)
-    reason_id = models.CharField(max_length=200, blank=True, null=True, verbose_name="Назначение")
+    reason = models.CharField(max_length=200, blank=True, null=True, verbose_name="Назначение")
 
     class Meta:
         verbose_name = "запись о перемещении товара"

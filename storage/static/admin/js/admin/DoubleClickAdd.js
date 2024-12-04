@@ -2,7 +2,7 @@ django.jQuery(document).ready(function($) {
 
     console.log('DoubleClickAdd');
 
-    $('.single_line').each(function () {
+    $('.rel_field').each(function () {
         var fieldElement = $(this);
         var id = fieldElement.attr('id');
         var fieldName = fieldElement.attr('field_name');

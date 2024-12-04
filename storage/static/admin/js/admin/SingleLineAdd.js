@@ -2,7 +2,7 @@ django.jQuery(document).ready(function($) {
 
     console.log('SingleLineAdd');
 
-    $('.single_line').each(function () {
+    $('.rel_field').each(function () {
         var fieldElement = $(this);
         var fieldName = fieldElement.attr('field_name');
         var relFieldName = fieldElement.attr('rel_field_name');

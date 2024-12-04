@@ -71,14 +71,14 @@ ul li {
     max-width: 274px;
 }
 
-.single_line {
+.rel_field {
     min-height: 28px;
     padding: 5px 6px;
     margin-top: 2px;
     min-width: 320px;
 }
 
-.single_line a{
+.rel_field a{
     margin-top: 8px;
 }
 

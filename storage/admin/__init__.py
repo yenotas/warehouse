@@ -181,9 +181,9 @@ class ProductMoviesAdmin(ManageAdmins):
     form = ProductMoviesForm
     tabled_add = True
     list_display = ('id', 'record_date', 'product', 'process_type', 'return_to_supplier_reason', 'movie_quantity', 'new_cell',
-                    'reason_id')
+                    'reason')
     fields = ('product', 'process_type', 'return_to_supplier_reason', 'movie_quantity', 'new_cell',
-              'reason_id')
+              'reason')
     search_fields = ['product', 'process_type', 'new_cell']
     list_filter = ('product', 'process_type', 'new_cell')
     ordering = ('id', 'product', 'process_type', 'new_cell')
