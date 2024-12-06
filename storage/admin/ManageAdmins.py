@@ -1,5 +1,5 @@
-from .outer_modules import admin, redirect
-from ..mixins import AccessControlMixin
+from storage.admin.outer_modules import admin, redirect
+from storage.mixins import AccessControlMixin
 
 
 class ManageAdmins(AccessControlMixin, admin.ModelAdmin):
@@ -10,10 +10,6 @@ class ManageAdmins(AccessControlMixin, admin.ModelAdmin):
         super().__init__(*args, **kwargs)
         if getattr(self, 'one_line_add', False):
             self.change_list_template = "admin/one_line_add.html"
-        if getattr(self, 'tabled_add', False):
-            self.add_form_template = "admin/table_add.html"
-            self.change_list_template = "admin/table_view.html"
-            # self.Media.js += ('admin/js/admin/TableView.js',)
 
     def changelist_view(self, request, extra_context=None):
 
@@ -21,7 +17,9 @@ class ManageAdmins(AccessControlMixin, admin.ModelAdmin):
         if not hasattr(self, 'form') or self.form is None:
             raise ValueError("Форма не определена для автозаполнения.")
 
-        form = self.form(request.POST or None, request=request)
+        form_class = self.get_form(request)
+
+        form = form_class(request.POST or None)
 
         if request.method == 'POST':
             if form.is_valid():
@@ -34,8 +32,6 @@ class ManageAdmins(AccessControlMixin, admin.ModelAdmin):
 
         extra_context['form'] = form
         extra_context['title'] = ""
-        if form.related_models:
-            extra_context['related_models'] = form.related_models
 
         print('extra_context', extra_context)
 

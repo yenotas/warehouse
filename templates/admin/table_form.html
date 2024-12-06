@@ -1,4 +1,4 @@
-<form method="post" action="" enctype="multipart/form-data">
+<form method="post" action="" class="table_view" enctype="multipart/form-data" novalidate>
     {% csrf_token %}
     {{ formset.management_form }}
     {% if is_popup %}
@@ -7,7 +7,7 @@
     <table class="results table-row-form">
         <thead>
             <tr>
-                {% for field in formset.forms.0 %}
+                {% for field in formset.forms.0.visible_fields  %}
                     <th>{{ field.label }}</th>
                 {% endfor %}
             </tr>
@@ -15,35 +15,37 @@
         <tbody>
             {% for form in formset %}
                 <tr>
-                {% for field in formset.forms.0 %}
+                {% for field in form %}
                     {% if field.name == 'product_image' %}
                     <td class="t_row img_cell">
                         <div class="image_preview_container">
                         <img class="image_preview" src="#" alt="Превью изображения" style="display: none;">
                         <a href="#" class="remove_image_button" style="display: none;">X</a>
                         </div>
-                        <!-- Область для вставки изображения -->
                         <div class="image_paste_area" contenteditable="true"></div>
                         <div class="image_paste_area_bg">файл: двойной клик<br>вставить: Ctrl+V</div>
                         {{ field }}
                     </td>
-                    {% else %}
                     {% elif "_id" not in field.name %}
-                        <td>{{ field }}</td>
+                        <td class="t_row">{{ field }}</td>
                     {% else %}
-                        <div data-type="hidden" style="display:none">{{ field }}</div>
+                    {{ field }}
                     {% endif %}
 
                 {% endfor %}
                 </tr>
+                {% if form.errors %}
+                    <tr class="error-row">
+                        <td colspan="{{ formset.forms.0.visible_fields|length }}">
+                            {{ form.non_field_errors }}
+                            {{ form.name.errors }}
+                        </td>
+                    </tr>
+                {% endif %}
             {% endfor %}
-        </tbody>
-    </table>
     {% if not is_popup %}
-
-        <div id="empty_form" style="display: none;">
-            <tr>
-                {% for field in form.  %}
+            <tr id="empty_form" style="display: none;">
+                {% for field in formset.empty_form  %}
 
                     {% if field.name == 'product_image' %}
                     <td class="t_row img_cell">
@@ -51,22 +53,26 @@
                         <img class="image_preview" src="#" alt="Превью изображения" style="display: none;">
                         <a href="#" class="remove_image_button" style="display: none;">X</a>
                         </div>
-                        <!-- Область для вставки изображения -->
                         <div class="image_paste_area" contenteditable="true"></div>
                         <div class="image_paste_area_bg">файл: двойной клик<br>вставить: Ctrl+V</div>
                         {{ field }}
                     </td>
                     {% elif "_id" not in field.name %}
-                        <td>{{ field }}</td>
+                        <td class="t_row">{{ field }}</td>
                     {% else %}
-                    <div data-type="hidden" style="display:none">{{ field }}</div>
+                    {{ field }}
                     {% endif %}
 
                 {% endfor %}
             </tr>
-        </div>
     {% endif %}
+    </tbody>
+    </table>
+    {% if is_popup %}
+    <div class="submit-row close_popup">
+    {% else %}
     <div class="submit-row">
-        <input type="submit" value="Добавить" class="default under_table" />
+    {% endif %}
+    <input type="submit" value={{ button_name }} class="default under_table" />
     </div>
 </form>

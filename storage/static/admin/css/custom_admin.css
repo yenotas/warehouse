@@ -23,6 +23,11 @@ body, input, textarea, select, .form-row p, label, form .button {
     font-size: 1rem !important;
 }
 
+body.popup {
+    width: fit-content;
+    height: fit-content;
+}
+
 input[type="file"] {
     font-size: 1em !important;
 }
@@ -74,12 +79,12 @@ ul li {
 .rel_field {
     min-height: 28px;
     padding: 5px 6px;
-    margin-top: 2px;
+    margin-top: 0;
     min-width: 320px;
 }
 
 .rel_field a{
-    margin-top: 8px;
+    margin-top: 0;
 }
 
 thead th, tfoot td {
@@ -232,12 +237,21 @@ header, nav {
     height: 20px;
 }
 
+td ul.errorlist{
+    padding: 5px;
+    font-size: 0.725rem;
+}
+
+ul.errorlist li {
+    font-size: 0.725rem;
+}
+
 .results.table-row-form th label {
     display: flex;
     flex-direction: column; /* Вертикальное расположение элементов */
     align-items: flex-center; /* Выравнивание по левому краю */
     margin-bottom: 10px; /* Отступ под текстом лейбла */
-    }
+}
 
 .results.table-row-form input,
 .results.table-row-form select{
@@ -246,7 +260,7 @@ header, nav {
     height: 50px;
     box-sizing: border-box;
     padding: 5px;
-    margin-top: 4px;
+    margin-top: 0;
     border: none;
     min-height: 28px;
 }

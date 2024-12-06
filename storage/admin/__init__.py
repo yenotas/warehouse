@@ -23,10 +23,9 @@ class SuppliersAdmin(TableModelAdmin):
     form = SuppliersForm
     change_list_template = "admin/table_view.html"
     add_form_template = "admin/table_add.html"
-    list_display = ('name', 'inn', 'ogrn', 'address', 'contact_person', 'website', 'email', 'phone', 'tg')
-    fields = ('name', 'inn', 'ogrn', 'address', 'contact_person', 'website', 'email', 'phone', 'tg')
+    list_display = ['name', 'inn', 'ogrn', 'address', 'contact_person', 'website', 'email', 'phone', 'tg']
     search_fields = ['name', 'inn', 'ogrn', 'address', 'contact_person', 'website']
-    list_filter = ('name',)
+    list_filter = ['name']
 
 
 admin_site.register(Suppliers, SuppliersAdmin)
@@ -34,17 +33,13 @@ admin_site.register(Suppliers, SuppliersAdmin)
 
 class ProductsAdmin(TableModelAdmin):
     form = ProductsForm
-    tabled_add = True
-    change_list_template = "admin/table_view.html"
-    add_form_template = "admin/table_add.html"
+    # change_form_template = 'admin/table_view.html'
 
-    list_display = ('id', 'name', 'product_sku', 'supplier', 'product_link', 'product_image_tag', 'packaging_unit',)
-    # 'display_categories', 'quantity_in_package',
-    fields = ('name', 'product_sku', 'supplier', 'product_link', 'product_image', 'packaging_unit',)
-    # 'categories', 'quantity_in_package',
-    search_fields = ['name', 'product_sku']  # 'categories',
-    ordering = ('-id',)
-    list_filter = ('supplier',)
+    list_display = ['id', 'name', 'product_sku', 'packaging_unit', 'supplier', 'product_link', 'product_image_tag']
+    # 'display_categories' пока не выводим
+    search_fields = ['name', 'product_sku']  # 'categories' пока не выводим
+    ordering = ['-id']
+    list_filter = ['supplier']
 
     def display_categories(self, obj):
         return ", ".join([category.name for category in obj.categories.all()])
@@ -55,11 +50,9 @@ class ProductsAdmin(TableModelAdmin):
 admin_site.register(Products, ProductsAdmin)
 
 
-
 class CategoriesAdmin(ManageAdmins):
     one_line_add = True
     form = CategoriesForm
-    fields = ('name',)
     list_display = ('name',)
 
 
@@ -69,8 +62,7 @@ admin_site.register(Categories, CategoriesAdmin)
 class DepartmentsAdmin(ManageAdmins):
     one_line_add = True
     form = DepartmentsForm
-    fields = ('name',)
-    list_display = ('name',)
+    list_display = ['name']
     ordering = ['name']
 
 
@@ -80,22 +72,23 @@ admin_site.register(Departments, DepartmentsAdmin)
 class StorageCellsAdmin(ManageAdmins):
     one_line_add = True
     form = StorageCellsForm
-    list_display = ('name', 'info')
-    fields = ('name', 'info')
-    ordering = ('name',)
+    list_display = ['name', 'info']
+    fields = ['name', 'info']
+    ordering = ['name']
 
 
 admin_site.register(StorageCells, StorageCellsAdmin)
 
 
-class ProjectsAdmin(ManageAdmins):
+class ProjectsAdmin(TableModelAdmin):
     form = ProjectsForm
     tabled_add = True
-    list_display = ('id', 'creation_date', 'name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name', 'detail_code')
-    fields = ('name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name', 'detail_code')
+    list_display = ['id', 'creation_date', 'name', 'detail_full_name', 'manager', 'engineer', 'project_code',
+                    'detail_name', 'detail_code']
     search_fields = ['name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name', 'detail_code']
-    ordering = ('name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name', 'detail_code')
-    list_filter = ('creation_date', 'name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name', 'detail_code')
+    ordering = ['name']
+    list_filter = ['creation_date', 'name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name',
+                   'detail_code']
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == 'manager':
@@ -119,16 +112,14 @@ class ProjectsAdmin(ManageAdmins):
 admin_site.register(Projects, ProjectsAdmin)
 
 
-class ProductRequestAdmin(ManageAdmins):
+class ProductRequestAdmin(TableModelAdmin):
     form = ProductRequestForm
     tabled_add = True
-    list_display = ('id', 'request_date', 'product', 'request_about', 'request_quantity', 'project', 'responsible', 'delivery_location',
-    'delivery_address', 'deadline_delivery_date')
-    fields = ('product', 'request_about', 'request_quantity', 'project', 'responsible', 'delivery_location',
-    'delivery_address', 'deadline_delivery_date')
+    list_display = ['id', 'request_date', 'product', 'request_about', 'request_quantity', 'project', 'responsible',
+                    'delivery_location', 'delivery_address', 'deadline_delivery_date']
     search_fields = ['product__name', 'project__project_code']
-    ordering = ('id', 'request_date', 'product', 'project')
-    list_filter = ('request_date', 'product', 'project')
+    ordering = ['id', 'request_date', 'product', 'project']
+    list_filter = ['request_date', 'product', 'project']
 
 
     def save_model(self, request, obj, form, change):
@@ -146,16 +137,14 @@ class ProductRequestAdmin(ManageAdmins):
 admin_site.register(ProductRequest, ProductRequestAdmin)
 
 
-class OrdersAdmin(ManageAdmins):
+class OrdersAdmin(TableModelAdmin):
     form = OrdersForm
     tabled_add = True
-    list_display = ('id', 'order_date', 'product_request', 'manager', 'accounted_in_1c', 'invoice_number', 'delivery_status',
-                    'documents', 'waiting_date')
-    fields = ('product_request', 'manager', 'accounted_in_1c', 'invoice_number', 'delivery_status', 'documents',
-                     'waiting_date')
+    list_display = ['id', 'order_date', 'product_request', 'manager', 'accounted_in_1c', 'invoice_number',
+                    'delivery_status', 'documents', 'waiting_date']
     search_fields = ['delivery_status', 'product_request', 'manager', 'invoice_number']
-    ordering = ('id', 'delivery_status', 'order_date', 'product_request', 'waiting_date')
-    list_filter = ('order_date', 'manager', 'product_request', 'delivery_status')
+    ordering = ['id', 'delivery_status', 'order_date', 'product_request', 'waiting_date']
+    list_filter = ['order_date', 'manager', 'product_request', 'delivery_status']
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == 'manager':
@@ -177,16 +166,14 @@ class OrdersAdmin(ManageAdmins):
 admin_site.register(Orders, OrdersAdmin)
 
 
-class ProductMoviesAdmin(ManageAdmins):
+class ProductMoviesAdmin(TableModelAdmin):
     form = ProductMoviesForm
     tabled_add = True
-    list_display = ('id', 'record_date', 'product', 'process_type', 'return_to_supplier_reason', 'movie_quantity', 'new_cell',
-                    'reason')
-    fields = ('product', 'process_type', 'return_to_supplier_reason', 'movie_quantity', 'new_cell',
-              'reason')
+    list_display = ['id', 'record_date', 'product', 'process_type', 'return_to_supplier_reason', 'movie_quantity', 'new_cell',
+                    'reason']
     search_fields = ['product', 'process_type', 'new_cell']
-    list_filter = ('product', 'process_type', 'new_cell')
-    ordering = ('id', 'product', 'process_type', 'new_cell')
+    list_filter = ['product', 'process_type', 'new_cell']
+    ordering = ['id', 'product', 'process_type', 'new_cell']
 
     class Media:
         js = ('admin/js/admin/ChangeProductMovies.js',)

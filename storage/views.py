@@ -3,6 +3,7 @@ import logging
 from django.contrib import messages
 # from dal import autocomplete
 from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse, HttpResponseRedirect
 from django.contrib.contenttypes.models import ContentType
 from django.views.decorators.csrf import csrf_exempt
@@ -10,22 +11,41 @@ from django.views.decorators.csrf import csrf_exempt
 from .models import Products, Orders, Projects, StorageCells, Suppliers, Categories, ModelAccessControl, CustomUser, \
     PivotTable, ProductMovies, Departments
 
-# from django.shortcuts import render, redirect
-# from .models import Categories
+from django.views import View
+from django.http import JsonResponse
+from django.apps import apps
 
 
-@login_required
-@permission_required('storage.add_suppliers', raise_exception=True)
-def create_supplier(request):
-    if request.method == 'POST':
-        name = request.POST.get('name', '').strip()
-        if name:
-            supplier, created = Suppliers.objects.get_or_create(name=name)
-            return JsonResponse({'id': supplier.id})
-        else:
-            return JsonResponse({'error': 'Название поставщика обязательно.'}, status=400)
-    else:
-        return JsonResponse({'error': 'Недопустимый метод запроса.'}, status=405)
+class AutocompleteView(View):
+    def get(self, request):
+        term = request.GET.get('term', '')
+        model_name = request.GET.get('model', '')
+        field_name = request.GET.get('field', '')
+        app_label = 'storage'
+        print(model_name, field_name, term)
+
+        if not term or not model_name or not field_name:
+            return JsonResponse([], safe=False)
+
+        # Получаем модель
+        try:
+            model = apps.get_model(app_label, model_name)
+        except LookupError:
+            return JsonResponse([], safe=False)
+
+        filter_kwargs = {f'{field_name}__icontains': term}
+        qs = model.objects.filter(**filter_kwargs)[:10]
+
+        results = []
+        for obj in qs:
+            label = getattr(obj, field_name)
+            results.append({
+                'id': obj.id,
+                'label': label,
+                'value': label
+            })
+
+        return JsonResponse(results, safe=False)
 
 # def add_multiple_categories_view(request):
 #     if request.method == 'POST':
@@ -68,28 +88,6 @@ def get_reason_choices(request):
         choices.append({'id': obj.id, 'text': str(obj)})
 
     return JsonResponse({'choices': choices})
-
-
-# class UserAutocomplete(autocomplete.Select2QuerySetView):
-#     def get_queryset(self):
-#         if not self.request.user.is_authenticated:
-#             return ''
-#         qs = Departments.objects.all()
-#         if self.q:
-#             qs = qs.filter(first_name__icontains=self.q) | qs.filter(last_name__icontains=self.q)
-#         return qs
-
-
-# @login_required
-# def pivot_table_view(request):
-#     if request.method == 'POST':
-#         formset = PivotTableFormSet(request.POST)
-#         if formset.is_valid():
-#             formset.save()
-#             return redirect('pivot_table')
-#     else:
-#         formset = PivotTableFormSet(queryset=PivotTable.objects.all())
-#     return render(request, 'pivot_table.html', {'formset': formset})
 
 
 @csrf_exempt

@@ -13,16 +13,16 @@ django.jQuery(document).ready(function($) {
              success: function(data) {
                 console.log(data);
 
-                $('#id_reason_id').empty();  // Очищаем поле
+                $('#id_reason').empty();  // Очищаем поле
                 $.each(data.choices, function(index, choice) {
                     console.log(choice.text, choice.id);
-                    $('#id_reason_id').append(new Option(choice.text, choice.id));
+                    $('#id_reason').append(new Option(choice.text, choice.id));
                 });
                 // Делаем поле обязательным в зависимости от типа перемещения
                 if (['move', 'warehouse', 'distribute'].includes(processType)) {
-                    $('#id_reason_id').prop('required', true);
+                    $('#id_reason').prop('required', true);
                 } else {
-                    $('#id_reason_id').prop('required', false);
+                    $('#id_reason').prop('required', false);
                 }
             },
             error: function(xhr, status, error) {

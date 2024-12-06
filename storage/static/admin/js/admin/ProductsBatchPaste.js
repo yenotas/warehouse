@@ -4,7 +4,6 @@ django.jQuery(document).ready(function($) {
   // Инициализируем обработчики для существующих строк
   $('.table-row-form tbody tr').each(function() {
     var row = $(this);
-    initializeRow(row);
   });
 
   // Обработчик события вставки в первое поле первой строки
@@ -72,22 +71,4 @@ django.jQuery(document).ready(function($) {
       $('#id_form-' + index + '-' + fieldName).val(fieldValue);
     }
   }
-
-  function initializeRow(row) {
-    // Обработка изображений, если поле изображения присутствует
-    if (formFields.includes('product_image') || formFields.includes('image')) {
-      // Инициализация обработчиков для изображения
-      var imagePreviewContainer = row.find('.image_preview_container');
-      var imagePreview = row.find('.image_preview');
-      var removeImageButton = row.find('.remove_image_button');
-      var imagePasteArea = row.find('.image_paste_area');
-      var productImageInput = row.find('input[type="file"]');
-
-      // код для обработки кликов, вставки изображений и т.д.
-    }
-
-    // Другие инициализации, если нужны
-  }
-
-  // код для обработки изображений (resizeImage и т.д.)
 });

@@ -1,20 +1,17 @@
 {% extends "admin/change_form.html" %}
 {% load static %}
-
 {% block extrahead %}
     {{ block.super }}
     <script src="{% static 'admin/js/jquery.init.js' %}"></script>
     <script src="{% static 'admin/js/core.js' %}"></script>
     {{ form.media }}
     <script src="{% static 'admin/js/admin/AutoFields.js' %}"></script>
-    {% if not is_popup %}
-        <script src="{% static 'admin/js/admin/ProductsBatchPaste.js' %}"></script>
-    {% endif %}
 {% endblock %}
 {% block content %}
 <script type="text/javascript">
-  var formFields = {{ form_fields_json|safe }};
+    var formFields = {{ form_fields_json|safe }};
 </script>
+    {% csrf_token %}
 <div class="module">
     {% include "admin/table_form.html" %}
 </div>

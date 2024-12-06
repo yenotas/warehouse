@@ -19,6 +19,7 @@ class ModelColors(models.Model):
 
 class Departments(models.Model):
     name = models.CharField(max_length=50, verbose_name="Отдел/Цех", blank=False)
+    relate_creating = True
 
     class Meta:
         verbose_name = "отдел/цех"
@@ -54,6 +55,7 @@ class Suppliers(models.Model):
     email = models.CharField(max_length=255, blank=True, null=True, verbose_name="Email")
     phone = models.CharField(max_length=50, blank=True, null=True, verbose_name="Телефон")
     tg = models.CharField(max_length=50, blank=True, null=True, verbose_name="Телеграм")
+    relate_creating = True
 
     class Meta:
         verbose_name = "поставщика"
@@ -65,6 +67,7 @@ class Suppliers(models.Model):
 
 class Categories(models.Model):
     name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Категория/признак", db_index=True)
+    relate_creating = True
 
     class Meta:
         verbose_name = "категорию / признак"
@@ -108,6 +111,7 @@ class Products(models.Model):
 
     def __str__(self):
         return self.name or "-"
+
 
 class Projects(models.Model):
     creation_date = models.DateField(auto_now_add=True, verbose_name="Дата записи")
@@ -202,7 +206,7 @@ class ProductMovies(models.Model):
         ('Несоответствие заказу', 'Несоответствие заказу'), ('Дефекты материалов', 'Дефекты материалов'),
         ('Дефекты изделий', 'Дефекты изделий'), ('Излишек', 'Излишек'),
         ('Нарушение сроков поставки', 'Нарушение сроков поставки')
-    ], blank=True, null=True, verbose_name="Причина")
+    ], default=('none', 'Выбрать'), verbose_name="Причина")
     new_cell = models.ForeignKey('StorageCells', on_delete=models.SET_NULL, blank=True, null=True,
                                  verbose_name="Адрес ячейки", related_name="name_set")
     new_cell_old = models.CharField(max_length=255, blank=True, null=True)
