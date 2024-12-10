@@ -4,6 +4,8 @@
     {{ block.super }}
     <script src="{% static 'admin/js/jquery.init.js' %}"></script>
     <script src="{% static 'admin/js/core.js' %}"></script>
+    <script src="{% static 'admin/js/admin/RelatedObjectLookups.js' %}"></script>
+    <script src="{% static 'admin/js/admin/MultiRowsImgPaste.js' %}"></script>
     {{ form.media }}
     <script src="{% static 'admin/js/admin/AutoFields.js' %}"></script>
 {% endblock %}
@@ -11,8 +13,5 @@
 <script type="text/javascript">
     var formFields = {{ form_fields_json|safe }};
 </script>
-    {% csrf_token %}
-<div class="module">
-    {% include "admin/table_form.html" %}
-</div>
+{% include "admin/table_form.html" %}
 {% endblock %}

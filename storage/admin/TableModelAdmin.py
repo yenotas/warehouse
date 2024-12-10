@@ -1,7 +1,9 @@
 from django.contrib import admin
 from django.forms import modelformset_factory
+from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.contrib import messages
+from django.utils.html import escape
 from django.utils.translation import gettext_lazy as _
 import json
 
@@ -66,9 +68,16 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
         if request.method == 'POST':
             formset = formset_class(request.POST, request.FILES, queryset=self.model.objects.none())
             if formset.is_valid():
+                # Создаем новые объекты, но не сохраняем их сразу
                 new_objects = formset.save(commit=False)
+
+                # Сохраняем каждый объект и вызываем дополнительные методы, если нужно
                 for new_object in new_objects:
-                    self.save_model(request, new_object, formset, change=False)
+                    self.save_model(request, new_object, formset,
+                                    change=False)  # Применение кастомной логики сохранения
+                    new_object.save()  # Сохранение объекта в базе
+
+                # Отправляем сообщение об успешном добавлении
                 count = len(new_objects)
                 if is_popup:
                     return self.response_add(request, new_objects[-1])
@@ -78,10 +87,15 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
                     else:
                         msg = _('Записи добавлены!')
                     self.message_user(request, msg, messages.SUCCESS)
-                    return redirect('admin:%s_%s_changelist' % (self.model._meta.app_label, self.model._meta.model_name))
+
+                    # Редирект на список объектов
+                    return redirect(
+                        'admin:%s_%s_changelist' % (self.model._meta.app_label, self.model._meta.model_name))
             else:
+                # Передача формы с ошибками в контекст
                 extra_context['formset'] = formset
         else:
+            # Создаем пустой formset для добавления новых записей
             formset = formset_class(queryset=self.model.objects.none())
             extra_context['formset'] = formset
 
@@ -92,6 +106,7 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
         extra_context['button_name'] = "Добавить"
         form_fields = list(formset.forms[0].fields.keys()) if formset.forms else []
         extra_context['form_fields_json'] = json.dumps(form_fields)
+
         return super().add_view(request, form_url, extra_context=extra_context)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
@@ -110,9 +125,20 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
                 updated_objects = formset.save(commit=False)
                 for updated_object in updated_objects:
                     self.save_model(request, updated_object, formset, change=True)
-                msg = _('Запись обновлена.')
-                self.message_user(request, msg, messages.SUCCESS)
-                return redirect('admin:%s_%s_changelist' % (self.model._meta.app_label, self.model._meta.model_name))
+                if is_popup:
+                    # Логика для обработки попапа
+                    obj_repr = escape(str(updated_objects[0]))
+                    return HttpResponse(f"""
+                        <script type="text/javascript">
+                            opener.dismissChangeRelatedObjectPopup(window, "{updated_objects[0].pk}", "{obj_repr}");
+                        </script>
+                    """)
+                else:
+                    # Обычный редирект на список объектов
+                    msg = _('Запись обновлена.')
+                    self.message_user(request, msg, messages.SUCCESS)
+                    return redirect(
+                        'admin:%s_%s_changelist' % (self.model._meta.app_label, self.model._meta.model_name))
             else:
                 extra_context['formset'] = formset
         else:
@@ -128,5 +154,6 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
         form_fields = list(formset.forms[0].fields.keys()) if formset.forms else []
         extra_context['form_fields_json'] = json.dumps(form_fields)
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
+
 
 

@@ -56,7 +56,6 @@ django.jQuery(document).ready(function($) {
             });
 
         container.append(addButton);
-
         }
 
         fieldElement.on('dblclick', function(event) {

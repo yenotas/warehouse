@@ -1,3 +1,4 @@
+<div class="module">
 <form method="post" action="" class="table_view" enctype="multipart/form-data" novalidate>
     {% csrf_token %}
     {{ formset.management_form }}
@@ -16,22 +17,7 @@
             {% for form in formset %}
                 <tr>
                 {% for field in form %}
-                    {% if field.name == 'product_image' %}
-                    <td class="t_row img_cell">
-                        <div class="image_preview_container">
-                        <img class="image_preview" src="#" alt="Превью изображения" style="display: none;">
-                        <a href="#" class="remove_image_button" style="display: none;">X</a>
-                        </div>
-                        <div class="image_paste_area" contenteditable="true"></div>
-                        <div class="image_paste_area_bg">файл: двойной клик<br>вставить: Ctrl+V</div>
-                        {{ field }}
-                    </td>
-                    {% elif "_id" not in field.name %}
-                        <td class="t_row">{{ field }}</td>
-                    {% else %}
-                    {{ field }}
-                    {% endif %}
-
+                {% include "admin/table_rows.html" %}
                 {% endfor %}
                 </tr>
                 {% if form.errors %}
@@ -46,33 +32,14 @@
     {% if not is_popup %}
             <tr id="empty_form" style="display: none;">
                 {% for field in formset.empty_form  %}
-
-                    {% if field.name == 'product_image' %}
-                    <td class="t_row img_cell">
-                        <div class="image_preview_container">
-                        <img class="image_preview" src="#" alt="Превью изображения" style="display: none;">
-                        <a href="#" class="remove_image_button" style="display: none;">X</a>
-                        </div>
-                        <div class="image_paste_area" contenteditable="true"></div>
-                        <div class="image_paste_area_bg">файл: двойной клик<br>вставить: Ctrl+V</div>
-                        {{ field }}
-                    </td>
-                    {% elif "_id" not in field.name %}
-                        <td class="t_row">{{ field }}</td>
-                    {% else %}
-                    {{ field }}
-                    {% endif %}
-
+                {% include "admin/table_rows.html" %}
                 {% endfor %}
             </tr>
     {% endif %}
     </tbody>
     </table>
-    {% if is_popup %}
-    <div class="submit-row close_popup">
-    {% else %}
     <div class="submit-row">
-    {% endif %}
-    <input type="submit" value={{ button_name }} class="default under_table" />
+        <input type="submit" value={{ button_name }} class="default under_table" />
     </div>
 </form>
+</div>

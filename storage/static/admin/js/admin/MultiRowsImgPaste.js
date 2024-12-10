@@ -1,27 +1,33 @@
 django.jQuery(document).ready(function($) {
-  var totalForms = $('#id_form-TOTAL_FORMS');
 
   // Инициализируем обработчики для существующих строк
-  $('.table-row-form tbody tr').each(function() {
-    var row = $(this);
-    initializeRow(row);
+  window.initializeImgCell = function(img_cell) {
+    initializeCell(img_cell);
+  }
+
+  $('.img_cell').each(function() {
+    var img_cell = $(this);
+    initializeCell(img_cell);
   });
 
   // Функция инициализации строки
-  function initializeRow(row) {
-    var imagePreviewContainer = row.find('.image_preview_container');
-    var imagePreview = row.find('.image_preview');
-    var removeImageButton = row.find('.remove_image_button');
-    var imagePasteArea = row.find('.image_paste_area');
-    var productImageInput = row.find('.product_image_input');
+  function initializeCell(img_cell) {
+    var imagePreviewContainer = img_cell.find('.image_preview_container');
+    var imagePreview = img_cell.find('.image_preview');
+    var removeImageButton = img_cell.find('.remove_image_button');
+    var imagePasteArea = img_cell.find('.image_paste_area');
+    var imagePasteAreaBG = img_cell.find('.image_paste_area_bg');
+    var productImageInput = img_cell.find('.product_image');
 
     // Одинарный клик - фокус на область вставки изображения
     imagePasteArea.on('click', function(event) {
+      console.log('click');
       imagePasteArea.focus();
     });
 
     // Двойной клик - открытие диалога выбора файла
     imagePasteArea.on('dblclick', function(event) {
+      console.log('dblclick');
       productImageInput.click();
     });
 
@@ -37,10 +43,11 @@ django.jQuery(document).ready(function($) {
 
           // Отображаем превью изображения
           imagePreview.attr('src', dataURL);
-          imagePreview.css({ width: '50px', height: '50px' });
+          imagePasteAreaBG.hide();
           imagePreview.show();
           imagePasteArea.hide();
           removeImageButton.show();
+
         });
       }
     });
@@ -51,13 +58,13 @@ django.jQuery(document).ready(function($) {
       for (var i = 0; i < items.length; i++) {
         if (items[i].kind === 'file') {
           var file = items[i].getAsFile();
-          resizeImage(file, 50, 50, function(resizedFile, dataURL) {
+          resizeImage(file, 1000, 50, function(resizedFile, dataURL) {
             var container = new DataTransfer();
             container.items.add(resizedFile);
             productImageInput[0].files = container.files;
 
             imagePreview.attr('src', dataURL);
-            imagePreview.css({ width: '50px', height: '50px' });
+            imagePasteAreaBG.hide();
             imagePreview.show();
             imagePasteArea.hide();
             removeImageButton.show();
@@ -77,6 +84,7 @@ django.jQuery(document).ready(function($) {
       imagePreview.hide();
       removeImageButton.hide();
       productImageInput.val('');
+      imagePasteAreaBG.show();
       imagePasteArea.show();
     });
 
@@ -86,30 +94,39 @@ django.jQuery(document).ready(function($) {
     });
   }
 
-  // Функция для масштабирования изображения (остается без изменений)
-  function resizeImage(file, maxWidth, maxHeight, callback) {
-    var reader = new FileReader();
-    reader.onload = function(event) {
-      var img = new Image();
-      img.onload = function() {
-        var canvas = document.createElement('canvas');
-        canvas.width = maxWidth;
-        canvas.height = maxHeight;
-        var ctx = canvas.getContext('2d');
+    // Функция для масштабирования изображения (остается без изменений)
+    function resizeImage(file, maxWidth, maxHeight, callback) {
+        var reader = new FileReader();
+        reader.onload = function(event) {
+            var img = new Image();
+            img.onload = function() {
+                // Вычисляем пропорции
+                var ratio = maxHeight / img.height;
 
-        ctx.clearRect(0, 0, maxWidth, maxHeight);
-        ctx.drawImage(img, 0, 0, maxWidth, maxHeight);
+                var newWidth = img.width * ratio;
+                var newHeight = img.height * ratio;
 
-        canvas.toBlob(function(blob) {
-          var resizedFile = new File([blob], file.name, {
-            type: file.type,
-            lastModified: Date.now()
-          });
-          callback(resizedFile, canvas.toDataURL(file.type));
-        }, file.type);
-      }
-      img.src = event.target.result;
+                // Создаем canvas для изменения размера
+                var canvas = document.createElement('canvas');
+                canvas.width = newWidth;
+                canvas.height = newHeight;
+
+                var ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, newWidth, newHeight);
+                ctx.drawImage(img, 0, 0, newWidth, newHeight);
+
+                // Преобразуем в Blob и передаем callback
+                canvas.toBlob(function(blob) {
+                    var resizedFile = new File([blob], file.name, {
+                        type: file.type,
+                        lastModified: Date.now()
+                    });
+                    callback(resizedFile, canvas.toDataURL(file.type));
+                }, file.type);
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
     }
-    reader.readAsDataURL(file);
-  }
+
 });

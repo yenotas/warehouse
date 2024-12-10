@@ -8,23 +8,21 @@ window.dismissChangeRelatedObjectPopup = function (win, objId, newRepr) {
     if (elem) {
         // Обновляем значение текстового поля
         elem.value = newRepr;
+        elem.dispatchEvent(new Event('change'));
 
         // Обновляем скрытое поле, если оно существует
-        const hiddenField = document.querySelector(`input[name="${id.replace('_name', '_id')}"]`);
+        const hiddenField = document.getElementById(`${id.replace('_name', '_id')}`);
         if (hiddenField) {
             hiddenField.value = objId;
         }
 
-        // Триггерим событие change для поля
-        elem.dispatchEvent(new Event('change'));
     } else {
         console.error('Field not found for ID:', id);
     }
 
-    // Закрываем попап
+    console.log('win.close();');
     win.close();
 };
-
 
 
 django.jQuery(document).ready(function($) {
@@ -34,16 +32,17 @@ django.jQuery(document).ready(function($) {
     }
 
     window.dismissAddRelatedObjectPopup = function(win, newId, newRepr) {
-        console.log('dismiss', newRepr, newId);
-        var id = windowname_to_id(win.name);
-        var elem = $('#' + id);
-        var hiddenFieldName = name.replace('_name', '_id');
+        var textFieldId = windowname_to_id(win.name);
+        var elem = $('#' + textFieldId);
         // для текстового поля
         elem.val(newRepr);
         // для скрытого поля
-        $('input[name="' + hiddenFieldName + '"]').val(newId);
+        var hiddenFieldId = textFieldId.replace('_name', '_id');
+        $('#' + hiddenFieldId ).val(newId);
         elem.trigger('change');
+        $('#' + hiddenFieldId ).trigger('change');
         win.close();
+        console.log('dismiss: hidden id='+hiddenFieldId, 'order id='+newId, 'input elem id='+textFieldId, 'value='+newRepr);
     }
 
 });
@@ -84,15 +83,13 @@ django.jQuery(document).ready(function($) {
                 const isEdit = hiddenInput.length && hiddenInput.val(); // Проверяем, есть ли ID связанной записи
                 const recordId = hiddenInput.val(); // Получаем ID, если он есть
                 const url = isEdit
-                    ? `${baseUrl}/${recordId}/change/?_popup=1&to_field=${id}` // Редактирование
+                    ? `${baseUrl}/${recordId}/change/?_to_field=id&_popup=1` // Редактирование
                     : `${baseUrl}/add/?_popup=1&to_field=${id}`; // Добавление
                 const win_name = isEdit ? "change_"+id : "add_"+id
-
                 const popupWindow = window.open(url, win_name, 'width=1200,height=300,resizable=yes,scrollbars=yes');
-
                 if (popupWindow) {
-                    popupWindow.focus();
-                }
+                        popupWindow.focus();
+                    }
             });
         }
 

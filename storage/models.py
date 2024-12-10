@@ -80,9 +80,9 @@ class Categories(models.Model):
 class Products(models.Model):
     name = models.CharField(max_length=255, blank=False, verbose_name="Наименование")
     packaging_unit = models.CharField(max_length=10, verbose_name="Ед. изм.", choices=[
-        ('уп.', 'уп.'), ('шт.', 'шт.'), ('кв.м', 'кв.м'),
-        ('п.м.', 'п.м.'), ('кг', 'кг'), ('л', 'л'), ('мл', 'мл')
-    ], default=('шт.', 'шт.'))
+        ('уп', 'уп'), ('шт', 'шт'), ('кв.м', 'кв.м'),
+        ('п.м', 'п.м'), ('кг', 'кг'), ('л', 'л'), ('мл', 'мл')
+    ], default=('шт', 'шт'))
     product_sku = models.CharField(max_length=100, blank=True, null=True, verbose_name="SKU / Артикул")
     product_link = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ссылка")
     supplier = models.ForeignKey(Suppliers, on_delete=models.SET_NULL, blank=False, null=True, verbose_name="Поставщик")

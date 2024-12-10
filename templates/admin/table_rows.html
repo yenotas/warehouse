@@ -1,0 +1,15 @@
+{% if field.name == 'product_image' %}
+<td class="t_row img_cell">
+    <div class="image_preview_container">
+    <img class="image_preview" src="#" alt="Превью изображения" style="display: none;">
+    <a href="#" class="remove_image_button" style="display: none;">X</a>
+    </div>
+    <div class="image_paste_area" contenteditable="true"></div>
+    <div class="image_paste_area_bg">файл: двойной клик<br>вставить: Ctrl+V</div>
+    {{ field }}
+</td>
+{% elif "_id" not in field.name %}
+    <td class="t_row">{{ field }}</td>
+{% else %}
+{{ field }}
+{% endif %}
