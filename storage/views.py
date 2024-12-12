@@ -22,6 +22,7 @@ class AutocompleteView(View):
         model_name = request.GET.get('model', '')
         field_name = request.GET.get('field', '')
         app_label = 'storage'
+
         print(model_name, field_name, term)
 
         if not term or not model_name or not field_name:
@@ -33,19 +34,36 @@ class AutocompleteView(View):
         except LookupError:
             return JsonResponse([], safe=False)
 
+        # Обработка для модели ProductRequest
+        if model_name == "productrequest" and field_name == "product":
+            qs = model.objects.filter(
+                product__name__icontains=term  # Фильтрация по связанному полю product.name
+            ).select_related('product')[:10]
+
+            results = [
+                {
+                    'id': obj.id,
+                    'label': obj.product.name,  # Используем имя товара
+                    'value': obj.product.name
+                }
+                for obj in qs
+            ]
+            return JsonResponse(results, safe=False)
+
+        # Общая обработка для других моделей
         filter_kwargs = {f'{field_name}__icontains': term}
         qs = model.objects.filter(**filter_kwargs)[:10]
 
-        results = []
-        for obj in qs:
-            label = getattr(obj, field_name)
-            results.append({
+        results = [
+            {
                 'id': obj.id,
-                'label': label,
-                'value': label
-            })
-
+                'label': getattr(obj, field_name, ''),
+                'value': getattr(obj, field_name, '')
+            }
+            for obj in qs
+        ]
         return JsonResponse(results, safe=False)
+
 
 # def add_multiple_categories_view(request):
 #     if request.method == 'POST':

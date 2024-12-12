@@ -373,6 +373,24 @@ class StorageCellsForm(BaseAutoCompleteForm):
 
 
 class ProjectsForm(BaseAutoCompleteForm):
+
+    manager = forms.ModelChoiceField(
+        queryset=CustomUser.objects.all(),
+        label="Менеджер",
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        required=False,
+        initial=None,
+        empty_label='---------',
+    )
+    engineer = forms.ModelChoiceField(
+        queryset=CustomUser.objects.all(),
+        label="Инженер",
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        required=False,
+        initial=None,
+        empty_label='---------',
+    )
+
     class Meta:
         model = Projects
         fields = '__all__'
@@ -384,15 +402,27 @@ class ProjectsForm(BaseAutoCompleteForm):
                              unique_fields=['detail_code'],
                              auto_fields=['name', 'project_code', 'detail_name', 'detail_name', 'detail_full_name'],
                              **kwargs)
+            self.fields['manager'].initial = None
+            self.fields['engineer'].initial = None
 
 
 class OrdersForm(BaseAutoCompleteForm):
+
+    manager = forms.ModelChoiceField(
+        queryset=CustomUser.objects.all(),
+        label="Менеджер",
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        required=False,
+        initial=None,
+        empty_label='---------',
+    )
+
     class Meta:
         model = Orders
         fields = '__all__'
-        exclude = ['order_date']
+        exclude = ['order_date', 'manager_old', 'product_request_old']
 
-    related_fields = {'product_request': {'ProductRequest': 'product'}},
+    related_fields = {'product_request': {'ProductRequest': 'product'}}
 
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request', None)
@@ -401,6 +431,7 @@ class OrdersForm(BaseAutoCompleteForm):
             auto_fields=['product_request'],
             **kwargs
         )
+        self.fields['manager'].initial = None
 
 
 class ProductMoviesForm(BaseAutoCompleteForm):
@@ -415,25 +446,36 @@ class ProductMoviesForm(BaseAutoCompleteForm):
         self.request = kwargs.pop('request', None)
         super().__init__(
             *args,
-            auto_fields=['product'],
+            auto_fields=['product', 'new_cell'],
             **kwargs
         )
 
 
 class ProductRequestForm(BaseAutoCompleteForm):
+
+    responsible = forms.ModelChoiceField(
+        queryset=CustomUser.objects.all(),
+        label="Ответственный",
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        required=False,
+        empty_label='---------',
+        initial=None,
+    )
     class Meta:
         model = ProductRequest
         exclude = ['request_date', 'project_old', 'product_old', 'responsible_old']
 
-    related_fields = {'product': {'Products': 'name'}}
+    related_fields = {'product': {'Products': 'name'}, 'project': {'Projects': 'name'}}
 
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request', None)
         super().__init__(
             *args,
-            auto_fields=['product'],
+            auto_fields=['product', 'project'],
             **kwargs
         )
+        self.fields['responsible'].initial = None
+
         # if self.request:
         #     data = self.request.session.get('initial_data')
         #     print('Data loaded from session:', data)  # Отладочный вывод

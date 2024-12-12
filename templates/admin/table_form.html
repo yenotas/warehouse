@@ -1,45 +1,43 @@
 <div class="module">
-<form method="post" action="" class="table_view" enctype="multipart/form-data" novalidate>
-    {% csrf_token %}
-    {{ formset.management_form }}
-    {% if is_popup %}
-        <input type="hidden" name="_popup" value="1" />
-    {% endif %}
-    <table class="results table-row-form">
-        <thead>
-            <tr>
-                {% for field in formset.forms.0.visible_fields  %}
-                    <th>{{ field.label }}</th>
-                {% endfor %}
-            </tr>
-        </thead>
-        <tbody>
-            {% for form in formset %}
+    <form method="post" action="" id="input_form" class="table_view" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+        {{ formset.management_form }}
+        {% if is_popup %}
+            <input type="hidden" name="_popup" value="1" />
+        {% endif %}
+        <table class="results table-row-form">
+            <thead>
                 <tr>
-                {% for field in form %}
-                {% include "admin/table_rows.html" %}
-                {% endfor %}
+                    {% for field in formset.forms.0.visible_fields  %}
+                    <th>{{ field.label }}</th>
+                    {% endfor %}
                 </tr>
-                {% if form.errors %}
-                    <tr class="error-row">
-                        <td colspan="{{ formset.forms.0.visible_fields|length }}">
-                            {{ form.non_field_errors }}
-                            {{ form.name.errors }}
-                        </td>
+            </thead>
+            <tbody>
+                {% for form in formset %}
+                    <tr>
+                    {% for field in form.visible_fields %}
+                        {% include "admin/table_rows.html" %}
+                    {% endfor %}
                     </tr>
-                {% endif %}
-            {% endfor %}
-    {% if not is_popup %}
+                {% endfor %}
+        {% if not is_popup %}
             <tr id="empty_form" style="display: none;">
-                {% for field in formset.empty_form  %}
-                {% include "admin/table_rows.html" %}
+                {% for field in formset.empty_form.visible_fields  %}
+                    {% include "admin/table_rows.html" %}
                 {% endfor %}
             </tr>
-    {% endif %}
-    </tbody>
-    </table>
-    <div class="submit-row">
-        <input type="submit" value={{ button_name }} class="default under_table" />
-    </div>
-</form>
+        {% endif %}
+        </tbody>
+        </table>
+        <div class="submit-row">
+            <input type="submit" value={{ button_name }} class="default under_table" />
+            <input type="button" onclick="document.getElementById('input_form').reset();" class="second under_table" value="Сбросить">
+            <div id="errors_viewer"></div>
+            <div class="error-row">
+                {{ form.non_field_errors }}
+                {{ form.name.errors }}
+            </div>
+        </div>
+    </form>
 </div>

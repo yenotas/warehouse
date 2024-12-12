@@ -100,12 +100,14 @@ class ProjectsAdmin(TableModelAdmin):
     def save_model(self, request, obj, form, change):
         if not change:
             obj.manager = request.user
+            obj.engineer = request.user
         super().save_model(request, obj, form, change)
 
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
-        if not obj:
+        if not obj:  # Только при создании нового объекта
             form.base_fields['manager'].initial = request.user
+            form.base_fields['engineer'].initial = request.user
         return form
 
 

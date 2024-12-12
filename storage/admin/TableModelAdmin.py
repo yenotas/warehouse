@@ -1,6 +1,10 @@
+import base64
+
 from django.contrib import admin
+from django.core.files.base import ContentFile
+from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.forms import modelformset_factory
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.utils.html import escape
@@ -8,6 +12,23 @@ from django.utils.translation import gettext_lazy as _
 import json
 
 from storage.mixins import AccessControlMixin
+
+
+def save_files_to_session(request, formset):
+    files_data = {}
+    for form in formset.forms:
+        for field_name, file in form.files.items():
+            print('save', field_name, file.name, file.content_type)
+            if isinstance(file, InMemoryUploadedFile):
+                file.seek(0)  # Перемещаем указатель в начало
+                file_content_base64 = base64.b64encode(file.read()).decode('utf-8')
+                files_data[field_name] = {
+                    'name': file.name,
+                    'content': file_content_base64,
+                    'content_type': file.content_type,
+                }
+    request.session['saved_files'] = files_data
+
 
 
 class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
@@ -36,6 +57,9 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
         if request.method == 'POST':
             formset_class = self.get_formset_class(request)
             formset = formset_class(request.POST, request.FILES, queryset=self.model.objects.none())
+            print('ИНФО!')
+            print(formset.errors)
+            print(request.FILES)
             if formset.is_valid():
                 new_objects = formset.save(commit=False)
                 for new_object in new_objects:
@@ -48,7 +72,11 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
                 self.message_user(request, msg, messages.SUCCESS)
                 return redirect(request.path)
             else:
+                # Сохраняем файлы в сессию
+                print('no valid set!')
+                save_files_to_session(request, formset)
                 extra_context['formset'] = formset
+
         else:
             formset_class = self.get_formset_class(request)
             formset = formset_class(queryset=self.model.objects.none())
@@ -67,6 +95,9 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
 
         if request.method == 'POST':
             formset = formset_class(request.POST, request.FILES, queryset=self.model.objects.none())
+            print('ИНФО!')
+            print(formset.errors)
+            print(request.FILES)
             if formset.is_valid():
                 # Создаем новые объекты, но не сохраняем их сразу
                 new_objects = formset.save(commit=False)
@@ -92,7 +123,9 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
                     return redirect(
                         'admin:%s_%s_changelist' % (self.model._meta.app_label, self.model._meta.model_name))
             else:
-                # Передача формы с ошибками в контекст
+                # Сохраняем файлы в сессию
+                print('no valid set!')
+                save_files_to_session(request, formset)
                 extra_context['formset'] = formset
         else:
             # Создаем пустой formset для добавления новых записей
@@ -140,6 +173,8 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
                     return redirect(
                         'admin:%s_%s_changelist' % (self.model._meta.app_label, self.model._meta.model_name))
             else:
+                # Сохраняем файлы в сессию
+                save_files_to_session(request, formset)
                 extra_context['formset'] = formset
         else:
             # Создаём formset только для редактируемого объекта
@@ -155,5 +190,26 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
         extra_context['form_fields_json'] = json.dumps(form_fields)
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
 
+    def get_form(self, request, obj=None, **kwargs):
+        print('get_form')
+        # Восстановление файлов из сессии
+        files_data = request.session.get('saved_files', {})
+        if files_data:
+            for field_name, file_data in files_data.items():
+                print('field_name', field_name, file_data['name'])
+                if file_data['content']:  # Убедимся, что данные есть
+                    file_content = base64.b64decode(file_data['content'].encode('utf-8'))
+                    file = InMemoryUploadedFile(
+                        file=ContentFile(file_content),
+                        field_name=field_name,
+                        name=file_data['name'],
+                        content_type=file_data['content_type'],
+                        size=len(file_content),
+                        charset=None,
+                    )
+                    # Добавляем в request.FILES
+                    request.FILES[field_name] = file
+
+        return super().get_form(request, obj, **kwargs)
 
 

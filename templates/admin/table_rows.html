@@ -9,7 +9,11 @@
     {{ field }}
 </td>
 {% elif "_id" not in field.name %}
-    <td class="t_row">{{ field }}</td>
+    <td class="t_row">{{ field }}
+        <div class="error-field">
+            {{ field.errors }}
+        </div>
+    </td>
 {% else %}
 {{ field }}
 {% endif %}

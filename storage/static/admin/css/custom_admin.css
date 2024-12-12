@@ -1,7 +1,5 @@
 /*! jQuery UI - v1.14.1 - 2024-11-14
 * https://jqueryui.com
-* Includes: selectable.css, core.css, autocomplete.css, menu.css, selectmenu.css, button.css, theme.css
-* To view and modify this theme, visit https://jqueryui.com/themeroller/?ffDefault=Arial%2CHelvetica%2Csans-serif&fsDefault=1em&fwDefault=normal&cornerRadius=3px&bgColorHeader=%23e9e9e9&bgTextureHeader=flat&borderColorHeader=%23dddddd&fcHeader=%23333333&iconColorHeader=%23444444&bgColorContent=%23ffffff&bgTextureContent=flat&borderColorContent=%23dddddd&fcContent=%23333333&iconColorContent=%23444444&bgColorDefault=%23f6f6f6&bgTextureDefault=flat&borderColorDefault=%23c5c5c5&fcDefault=%23454545&iconColorDefault=%23777777&bgColorHover=%23ededed&bgTextureHover=flat&borderColorHover=%23cccccc&fcHover=%232b2b2b&iconColorHover=%23555555&bgColorActive=%23205067&bgTextureActive=flat&borderColorActive=%23205067&fcActive=%23ffffff&iconColorActive=%23ffffff&bgColorHighlight=%23fffa90&bgTextureHighlight=flat&borderColorHighlight=%23dad55e&fcHighlight=%23777620&iconColorHighlight=%23777620&bgColorError=%23fddfdf&bgTextureError=flat&borderColorError=%23f1a899&fcError=%235f3f3f&iconColorError=%23cc0000&bgColorOverlay=%23aaaaaa&bgTextureOverlay=flat&bgImgOpacityOverlay=0&opacityOverlay=30&bgColorShadow=%23666666&bgTextureShadow=flat&bgImgOpacityShadow=0&opacityShadow=30&thicknessShadow=5px&offsetTopShadow=0px&offsetLeftShadow=0px&cornerRadiusShadow=8px&bgImgOpacityHeader=&bgImgOpacityContent=&bgImgOpacityDefault=&bgImgOpacityHover=&bgImgOpacityActive=&bgImgOpacityHighlight=&bgImgOpacityError=
 * Copyright OpenJS Foundation and other contributors; Licensed MIT */
 
 :root {
@@ -9,7 +7,9 @@
     --secondary: #333;
     --breadcrumbs-bg: #666;
     --hairline-color: #e8e8e8;
-    --default-button-bg: #3f6689
+    --default-button-bg: #3f6689;
+    --alarm-bg: #ba2121;
+    --accent: #95901d;
 }
 
 #site-name {
@@ -32,13 +32,6 @@ input[type="file"] {
     font-size: 1em !important;
 }
 
-select {
-    height: inherit;
-}
-
-a.addlink {
-    min-width: 202px;
-}
 
 form.one_line {
     display: flex;
@@ -120,59 +113,48 @@ header, nav {
     text-transform: none;
 }
 
-.t_row th {
-    width: min-content !important;
-}
-
 .t_row label {
-    font-size: 0.6875rem !important;
-    border-radius: 0px !important;
+    font-size: 0.75rem !important;
     font-weight: 500;
     text-align: left;
     padding: 5px !important;
     margin: 0px !important;
 }
 
-/* .one_line table, .table_view table {
-    width: 100%;
-    border-collapse: collapse;
-}
 
-Контейнер таблицы для добавления скроллбара */
-.table-container {
-    width: 100%;
-    overflow-x: auto;
-}
-
-/* Контейнер таблицы для добавления скроллбара */
 .table-container {
     width: 100%;
     overflow-x: auto;
 }
 
 /* Таблица */
-.results.table-row-form {
+.table-row-form {
     width: 100%;
     border-collapse: collapse;
-    table-layout: fixed; /* Управление распределением столбцов */
+    table-layout: fixed;
 }
 
 /* Заголовки и ячейки */
-.results.table-row-form th,
-.results.table-row-form td {
-    min-width: 70px; /* Минимальная ширина столбца */
-    width: 100%;  /* Макс ширина по минимальному содержимому */
-    word-wrap: break-word; /* Перенос длинных слов */
-    border: 1px solid #ccc; /* Граница для визуального разделения */
-    padding: 0; /* Внутренний отступ */
+.table-row-form th,
+.table-row-form td {
+    min-width: 70px;
+    width: 100%;
+    word-wrap: break-word;
+    border: 1px solid #ccc;
+    padding: 0;
     margin: 0;
-    text-align: left; /* Выравнивание текста в ячейках */
+    text-align: left;
 }
 
-.table-row-form th{
+.error-field {display: none;}
+
+
+.table-row-form th, .t_row th{
     height: 30px;
-    line-height: 30px;
+    align-content: center;
  }
+
+ .t_row p.date { padding: 0; margin: 0}
 
 .t_row.img_cell {
     position: relative;
@@ -239,11 +221,11 @@ header, nav {
 
 td ul.errorlist{
     padding: 5px;
-    font-size: 0.725rem;
+    font-size: 0.75rem;
 }
 
 ul.errorlist li {
-    font-size: 0.725rem;
+    font-size: 0.75rem;
 }
 
 .results.table-row-form th label {
@@ -294,8 +276,32 @@ ul.errorlist li {
     background-color: #000;
 }
 
-.under_table {
+.under_table, #errors_viewer {
     margin-top:20px;
+}
+.submit-row {
+    display: inline-flex;
+}
+
+#errors_viewer, .error-row {
+    font-size: 0.75rem;
+    line-height: 1rem;
+    color: var(--alarm-bg);
+    padding-left: 30px;
+}
+
+.submit-row .second{
+    margin-left: 15px;
+}
+
+.submit-row .default:hover{
+    background-color: #95901d;
+}
+.submit-row .second:hover{
+    background-color: var(--alarm-bg);
+}
+.submit-row .second:hovered{
+    background-color: #000;
 }
 
 /* Управление горизонтальным скроллингом */

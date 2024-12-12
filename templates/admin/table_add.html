@@ -6,13 +6,14 @@
     <script src="{% static 'admin/js/jquery.init.js' %}"></script>
     <script src="{% static 'admin/js/core.js' %}"></script>
     {{ form.media }}
-
-    <script src="{% static 'admin/js/admin/ImagePaste.js' %}"></script>
+    <script src="{% static 'admin/js/admin/MultiRowsImgPaste.js' %}"></script>
     <script src="{% static 'admin/js/admin/AutoFields.js' %}"></script>
     {{ media.js }}
     {% if not is_popup %}
         <script src="{% static 'admin/js/admin/ProductsBatchPaste.js' %}"></script>
     {% endif %}
+    <script src="{% static 'admin/js/admin/ErrorsDispatcher.js' %}"></script>
+
 {% endblock %}
 {% block content %}
 <script type="text/javascript">
