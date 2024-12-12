@@ -19,6 +19,7 @@
 {% block content %}
 <script type="text/javascript">
   var formFields = {{ form_fields_json|safe }};
+  var filePreviews = {{ file_previews|safe }};
 </script>
 {% include "admin/table_form.html" %}
 {{ block.super }}

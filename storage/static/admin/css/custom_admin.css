@@ -408,6 +408,15 @@ ul.errorlist li {
 	top: 0;
 	left: 0;
 	cursor: default;
+    z-index: 1000; /* Приоритет для выпадающего списка */
+    max-height: 200px; /* Высота списка */
+    overflow-y: auto; /* Вертикальный скролл */
+    overflow-x: hidden; /* Отключаем горизонтальный скролл */
+    border: 1px solid #ccc; /* Граница */
+    background-color: white; /* Фон */
+    padding: 5px; /* Отступы внутри */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Тень */
+    border-radius: 4px; /* Закругленные углы */
 }
 .ui-menu {
 	list-style: none;
@@ -422,6 +431,9 @@ ul.errorlist li {
 .ui-menu .ui-menu-item {
 	margin: 0;
 	cursor: pointer;
+}
+.ui-menu-item {
+    font-size: 0.75rem;
 }
 .ui-menu .ui-menu-item-wrapper {
 	position: relative;

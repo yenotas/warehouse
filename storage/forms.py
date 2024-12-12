@@ -112,9 +112,6 @@ class BaseAutoCompleteForm(forms.ModelForm):
 
                     # Скрываем оригинальное связанное поле
                     if rel_field in self.fields:
-                        # self.fields[rel_field].widget = forms.HiddenInput()
-                        # self.fields[rel_field].required = False
-                        # удаляю исходное поле связи
                         del self.fields[rel_field]
             else:
                 self.model_name = self._meta.model._meta.model_name.lower()
@@ -375,7 +372,7 @@ class StorageCellsForm(BaseAutoCompleteForm):
 class ProjectsForm(BaseAutoCompleteForm):
 
     manager = forms.ModelChoiceField(
-        queryset=CustomUser.objects.all(),
+        queryset=CustomUser.objects.filter(groups__name='Менеджеры'),
         label="Менеджер",
         widget=forms.Select(attrs={'class': 'form-control'}),
         required=False,
@@ -383,7 +380,7 @@ class ProjectsForm(BaseAutoCompleteForm):
         empty_label='---------',
     )
     engineer = forms.ModelChoiceField(
-        queryset=CustomUser.objects.all(),
+        queryset=CustomUser.objects.filter(groups__name='Инженеры'),
         label="Инженер",
         widget=forms.Select(attrs={'class': 'form-control'}),
         required=False,
@@ -396,14 +393,30 @@ class ProjectsForm(BaseAutoCompleteForm):
         fields = '__all__'
         exclude = ['manager_old', 'engineer_old']
 
-        def __init__(self, *args, **kwargs):
-            self.request = kwargs.pop('request', None)
-            super().__init__(*args,
-                             unique_fields=['detail_code'],
-                             auto_fields=['name', 'project_code', 'detail_name', 'detail_name', 'detail_full_name'],
-                             **kwargs)
-            self.fields['manager'].initial = None
-            self.fields['engineer'].initial = None
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request', None)
+        super().__init__(*args,
+                         unique_fields=['detail_code'],
+                         auto_fields=['name', 'project_code', 'detail_name', 'detail_name', 'detail_full_name'],
+                         **kwargs)
+        max_detail_code = Projects.objects.all().aggregate(models.Max('detail_code'))['detail_code__max']
+        if max_detail_code:
+            prefix = 'АРХ'
+            number = max_detail_code.replace(prefix, '')
+            new_number = int(number) + 1
+            new_detail_code = f"{prefix}{new_number}"
+        else:
+            new_detail_code = "{prefix}1"  # Начальное значение если нет записей
+
+        self.fields['detail_code'].initial = new_detail_code
+
+        def clean_name(self):
+            name = self.cleaned_data.get('name')
+            if Projects.objects.filter(name=name).exists():
+                raise forms.ValidationError('Проект с таким именем уже существует.')
+            if name == '':
+                raise forms.ValidationError('Поле должно быть заполнено!')
+            return name
 
 
 class OrdersForm(BaseAutoCompleteForm):
@@ -461,11 +474,12 @@ class ProductRequestForm(BaseAutoCompleteForm):
         empty_label='---------',
         initial=None,
     )
+
+    related_fields = {'product': {'Products': 'name'}, 'project': {'Projects': 'name'}}
+
     class Meta:
         model = ProductRequest
         exclude = ['request_date', 'project_old', 'product_old', 'responsible_old']
-
-    related_fields = {'product': {'Products': 'name'}, 'project': {'Projects': 'name'}}
 
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request', None)

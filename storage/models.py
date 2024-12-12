@@ -42,7 +42,7 @@ class CustomUser(AbstractUser):
         verbose_name_plural = "Пользователи"
 
     def __str__(self):
-        return f"{self.first_name} {self.last_name}" or "-"
+        return f"{self.first_name} {self.last_name}" if self.first_name and self.last_name else f"User {self.pk}"
 
 
 class Suppliers(models.Model):
@@ -115,16 +115,16 @@ class Products(models.Model):
 
 class Projects(models.Model):
     creation_date = models.DateField(auto_now_add=True, verbose_name="Дата записи")
-    name = models.CharField(max_length=255, blank=False, null=True, verbose_name="Проект")
-    detail_full_name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Полное название изделия")
+    name = models.CharField(max_length=255, blank=False, verbose_name="Проект")
+    detail_full_name = models.CharField(max_length=255, blank=False, verbose_name="Полное название изделия")
     manager = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True, verbose_name="Менеджер")
     manager_old = models.CharField(max_length=255, blank=True, null=True)
     engineer = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name='projects_engineer_set',
                                  blank=True, null=True, verbose_name="Инженер")
     engineer_old = models.CharField(max_length=255, blank=True, null=True)
-    project_code = models.CharField(max_length=100, blank=True, null=True, verbose_name="Шифр проекта")
-    detail_name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Изделие")
-    detail_code = models.CharField(max_length=100, blank=True, null=True, verbose_name="Шифр изделия")
+    project_code = models.CharField(max_length=100, blank=False, verbose_name="Шифр проекта")
+    detail_name = models.CharField(max_length=255, blank=False, verbose_name="Изделие")
+    detail_code = models.CharField(max_length=100, blank=False, verbose_name="Шифр изделия")
 
     class Meta:
         verbose_name = "проект"

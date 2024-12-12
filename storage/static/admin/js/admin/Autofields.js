@@ -45,9 +45,6 @@ django.jQuery(document).ready(function($) {
         console.log('dismiss: hidden id='+hiddenFieldId, 'order id='+newId, 'input elem id='+textFieldId, 'value='+newRepr);
     }
 
-});
-
-django.jQuery(document).ready(function($) {
     $('.auto_complete').each(function() {
         var fieldElement = $(this);
         var id = fieldElement.attr('id');
@@ -94,13 +91,14 @@ django.jQuery(document).ready(function($) {
         }
 
         fieldElement.autocomplete({
-            minLength: 2,
+            minLength: 0, // Позволяет показывать подсказки при пустом запросе
             source: function(request, response) {
+                const term = request.term || ''; // Если запрос пустой, используем term = ''
                 $.ajax({
                     url: '/autocomplete/',
                     dataType: 'json',
                     data: {
-                        term: request.term,
+                        term: term,
                         model: modelName,
                         field: fieldName
                     },
@@ -127,5 +125,13 @@ django.jQuery(document).ready(function($) {
                 return false;
             }
         });
+
+        fieldElement.on('focus', function() {
+            console.log('focus!');
+            if (!fieldElement.val()) {
+                fieldElement.autocomplete('search', ''); // Передаем пустой запрос
+            }
+        });
+
     });
 });

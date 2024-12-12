@@ -66,6 +66,27 @@ window.initErrorHandling = function () {
     });
 };
 
+window.filePreviews = function () {
+    console.log('Инициализация превью изображений');
+    django.jQuery(document).ready(function ($) {
+        // Проходим по данным из initialFileData
+        Object.keys(initialFileData).forEach(function (fieldName) {
+            var fileUrl = initialFileData[fieldName]; // URL изображения
+            var inputField = $('input[name="' + fieldName + '"]'); // Находим input по имени
+            var cell = inputField.closest('td'); // Ячейка с input
+            var imagePreview = cell.find('.image_preview'); // Находим <img> для превью
+
+            if (imagePreview.length) {
+                imagePreview.attr('src', fileUrl).show(); // Устанавливаем изображение
+                cell.find('.remove_image_button').show(); // Показываем кнопку удаления, если есть
+                console.log('Превью установлено для:', fieldName);
+            } else {
+                console.warn('Превью не найдено для:', fieldName);
+            }
+        });
+    });
+};
+
 // Подключение скрипта после загрузки страницы
 document.addEventListener('DOMContentLoaded', function () {
     initErrorHandling();

@@ -25,7 +25,7 @@ class AutocompleteView(View):
 
         print(model_name, field_name, term)
 
-        if not term or not model_name or not field_name:
+        if not model_name or not field_name:
             return JsonResponse([], safe=False)
 
         # Получаем модель
@@ -52,7 +52,7 @@ class AutocompleteView(View):
 
         # Общая обработка для других моделей
         filter_kwargs = {f'{field_name}__icontains': term}
-        qs = model.objects.filter(**filter_kwargs)[:10]
+        qs = model.objects.filter(**filter_kwargs)[:20]
 
         results = [
             {

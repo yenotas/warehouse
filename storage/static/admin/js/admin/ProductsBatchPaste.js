@@ -15,10 +15,16 @@ django.jQuery(document).ready(function ($) {
         event.preventDefault();
 
         var clipboardData = (event.originalEvent || event).clipboardData || window.clipboardData;
-        // Получаем HTML из буфера обмена
-        var pastedHTML = clipboardData.getData('text/html');
+
+        var singlePaste = clipboardData.getData('Text');
+        if (!singlePaste.includes("\t") && !singlePaste.includes("\n")) {
+            console.log('Text', singlePaste);
+            $('#id_form-0-' + formFields[0]).val(singlePaste);
+            return;
+        }
 
         // Парсим HTML
+        var pastedHTML = clipboardData.getData('text/html');
         var parser = new DOMParser();
         var doc = parser.parseFromString(pastedHTML, 'text/html');
 
