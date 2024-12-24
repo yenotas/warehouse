@@ -11,30 +11,40 @@ django.jQuery(document).ready(function ($) {
     console.log('fieldNames:', fieldNames);
 
 
-    $('#id_form-0-' + formFields[0]).on('paste', function (event) {
+    $('#id_form-0-' + formFields[0]).on('paste', async function (event) {
         event.preventDefault();
 
         var clipboardData = (event.originalEvent || event).clipboardData || window.clipboardData;
 
-        var singlePaste = clipboardData.getData('Text');
-        if (!singlePaste.includes("\t") && !singlePaste.includes("\n")) {
-            console.log('Text', singlePaste);
-            $('#id_form-0-' + formFields[0]).val(singlePaste);
+        var pastedText = clipboardData.getData('Text');
+        if (!pastedText.includes("\t") && !pastedText.includes("\n")) {
+            console.log('Text', pastedText);
+            $('#id_form-0-' + formFields[0]).val(pastedText);
             return;
         }
+        var rows = pastedText.split(/\r?\n/);
+        var dataRows = rows.map(row => row.trim().split('\t'));
+
+        // var maxElements = Math.max(...dataRows.map(row => row.length));
+        // Найти строки без текста и запомнить их индексы
+        var emptyRowsIndex = dataRows.map((row, index) => row.every(cell => cell === '') ? index : -1).filter(index => index !== -1);
+
+        // Удаление пустых строк
+        var textTable = dataRows.filter((row, index) => !emptyRowsIndex.includes(index));
+        console.log('Матрица:', textTable);
 
         // Парсим HTML
         var pastedHTML = clipboardData.getData('text/html');
         var parser = new DOMParser();
-        var doc = parser.parseFromString(pastedHTML, 'text/html');
+        var html = parser.parseFromString(pastedHTML, 'text/html');
 
         // Извлекаем строки из таблицы
-        var rows = doc.querySelectorAll('table tr');
-        console.log('rows', rows);
+        var htmlTable = html.querySelectorAll('table tr');
+        console.log('htmlTable:', Array.from(htmlTable));
 
         // Проверяем количество форм и добавляем недостающие
         var existingForms = parseInt(totalForms.val());
-        var formsToAdd = Math.max(0, rows.length - existingForms);
+        var formsToAdd = Math.max(0, textTable.length - existingForms);
 
         for (var i = 0; i < formsToAdd; i++) {
             addEmptyForm();
@@ -44,14 +54,27 @@ django.jQuery(document).ready(function ($) {
         // Перезапоминаем новые строки для отображения ошибок
         initErrorHandling();
 
-        // Собираем файлы и данные из буфера
-        var { files, data } = processFiles(rows);
-
+        // Собираем файлы
+        var files = await processFiles(Array.from(htmlTable), emptyRowsIndex);
         // Заполняем строки формы
-        rows.forEach((rows, rowIndex) => {
-            populateForm(rowIndex, data[rowIndex], files[rowIndex]);
-        });
+        await Promise.all(textTable.map(async (row, i) => { // Ожидаем завершения всех промисов
+            await populateForm(i, row, files[i]); // Ожидаем завершения populateForm
+        }));
     });
+
+    async function fetchFile(url, fileName = 'downloaded_file') {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Ошибка загрузки файла: ${response.statusText}`);
+            }
+            const blob = await response.blob();
+            return new File([blob], fileName, { type: blob.type });
+        } catch (error) {
+            console.error('Ошибка загрузки:', error);
+            return null;
+        }
+    }
 
     function dataURLtoFile(dataurl, filename) {
         var arr = dataurl.split(','),
@@ -65,27 +88,23 @@ django.jQuery(document).ready(function ($) {
         return new File([u8arr], filename, {type:mime});
     }
 
-    function processFiles(rows) {
-        var files = Array(rows.length).fill(null);
-        var data = [];
+    async function processFiles(rows, emptyRowsIndex) {
 
-        rows.forEach((row, rowIndex) => {
-            var cells = row.querySelectorAll('td');
-            var rowData = Array(cells.length).fill('');
-            console.log('ряд', rowIndex);
-            cells.forEach((cell, colIndex) => {
-
-                var img = cell.querySelector('img');
-                if (img) {
-                    files[rowIndex] = dataURLtoFile(img.src, 'image.png');
-                    console.log('Файл найден сразу, ряд', rowIndex);
-                } else {
-                    rowData[colIndex] = cell.textContent.trim();
-                }
-            });
-            data.push(rowData);
-        });
-        return {files: files, data: data}
+        return await Promise.all(
+            rows
+                .filter((_, rowIndex) => !emptyRowsIndex.includes(rowIndex)) // Убираем ненужные индексы
+                .map(async (row) => {
+                    const img = row.querySelector('img');
+                    if (img) {
+                        const filename = 'image.png';
+                        const src = img.getAttribute('src');
+                        return src.startsWith('data:image/')
+                            ? dataURLtoFile(src, filename)
+                            : await fetchFile(src, filename);
+                    }
+                    return null;
+                })
+        );
     }
 
     function addEmptyForm() {
@@ -102,10 +121,8 @@ django.jQuery(document).ready(function ($) {
     }
 
 
-    function populateForm(rowIndex, rowData, file) {
+    async function populateForm(rowIndex, rowData, file) {
         var formRow = $(`.table-row-form tbody tr`).eq(rowIndex);
-        console.log(formRow);
-        console.log('заполняем:', rowIndex, rowData, "есть файл", file && true);
 
         rowData.forEach((value, colIndex) => {
             const fieldName = `form-${rowIndex}-${fieldNames[colIndex]}`;
@@ -133,17 +150,15 @@ django.jQuery(document).ready(function ($) {
         });
 
         if (file) {
-            insertImageToCell(formRow, file);
+            await insertImageToCell(formRow, file);
         }
     }
 
-
-    function insertImageToCell(formRow, file) {
+    async function insertImageToCell(formRow, file) {
         var imgCell = formRow.find('.img_cell');
-
         if (imgCell.length) {
             var imageCell = new ImageCell(imgCell);
-            imageCell.insertImage(file);
+            await imageCell.insertImage(file);
         }
     }
 });

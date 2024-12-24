@@ -66,7 +66,7 @@ window.initErrorHandling = function () {
     });
 };
 
-window.filePreviews = function () {
+window.initFilePreviews = function () {
     console.log('Инициализация превью изображений');
     django.jQuery(document).ready(function ($) {
         // Проходим по данным из initialFileData
@@ -91,3 +91,50 @@ window.filePreviews = function () {
 document.addEventListener('DOMContentLoaded', function () {
     initErrorHandling();
 });
+
+function resetForm() {
+    // Установить TOTAL_FORMS в 1
+    document.getElementById('id_form-TOTAL_FORMS').value = '1';
+    document.getElementById('id_form-INITIAL_FORMS').value = '0';
+
+    // Найти tbody и все строки в нем
+    const tbody = document.querySelector('table.results tbody');
+    const rows = tbody.querySelectorAll('tr');
+
+    // Удалить все строки, кроме первой
+    rows.forEach((row, index) => {
+        if (index > 0) {
+            tbody.removeChild(row);
+        }
+    });
+
+    // Очистить все input и select в первой строке
+    const firstRowInputs = rows[0].querySelectorAll('input, select');
+    firstRowInputs.forEach(input => {
+        if (input.tagName === 'INPUT') {
+            if(!['hidden', 'submit', 'reset'].includes(input.type)){
+                 input.value = ''; // Сбросить файлы
+            }
+        } else if (input.tagName === 'SELECT') {
+            input.selectedIndex = 0; // Выбрать первый пункт
+        }
+    });
+
+    // Убрать ошибки валидации, если они есть
+    const errorFields = document.querySelectorAll('.error-field');
+    errorFields.forEach(field => {
+        field.textContent = '';
+    });
+
+    // Удалить превью изображений, если есть
+    const imagePreviews = document.querySelectorAll('.image_preview');
+    imagePreviews.forEach(img => {
+        img.src = '#';
+        img.style.display = 'none';
+    });
+
+    const removeButtons = document.querySelectorAll('.remove_image_button');
+    removeButtons.forEach(button => {
+        button.style.display = 'none';
+    });
+}

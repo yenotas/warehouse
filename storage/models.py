@@ -18,7 +18,7 @@ class ModelColors(models.Model):
 
 
 class Departments(models.Model):
-    name = models.CharField(max_length=50, verbose_name="Отдел/Цех", blank=False)
+    name = models.CharField(max_length=50, verbose_name="Отдел/Цех", blank=False, unique=True)
     relate_creating = True
 
     class Meta:
@@ -115,16 +115,16 @@ class Products(models.Model):
 
 class Projects(models.Model):
     creation_date = models.DateField(auto_now_add=True, verbose_name="Дата записи")
-    name = models.CharField(max_length=255, blank=False, verbose_name="Проект")
-    detail_full_name = models.CharField(max_length=255, blank=False, verbose_name="Полное название изделия")
+    name = models.CharField(max_length=255, blank=False, default='-', verbose_name="Проект")
+    detail_full_name = models.CharField(max_length=255, blank=True, default='-', verbose_name="Полное название изделия")
     manager = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True, verbose_name="Менеджер")
     manager_old = models.CharField(max_length=255, blank=True, null=True)
     engineer = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name='projects_engineer_set',
                                  blank=True, null=True, verbose_name="Инженер")
     engineer_old = models.CharField(max_length=255, blank=True, null=True)
-    project_code = models.CharField(max_length=100, blank=False, verbose_name="Шифр проекта")
-    detail_name = models.CharField(max_length=255, blank=False, verbose_name="Изделие")
-    detail_code = models.CharField(max_length=100, blank=False, verbose_name="Шифр изделия")
+    project_code = models.CharField(max_length=100, blank=True, default='-', verbose_name="Шифр проекта")
+    detail_name = models.CharField(max_length=255, blank=True, default='-', verbose_name="Изделие")
+    detail_code = models.CharField(max_length=100, blank=True, default='-', verbose_name="Шифр изделия")
 
     class Meta:
         verbose_name = "проект"
@@ -153,6 +153,7 @@ class ProductRequest(models.Model):
     ], default=('Склад', 'Склад'))
     delivery_address = models.CharField(blank=True, null=True, verbose_name="Адрес")
     deadline_delivery_date = models.DateField(blank=True, null=True, verbose_name="Требуемая дата поставки")
+    request_accepted = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = "заявку на закуп"
@@ -183,13 +184,14 @@ class Orders(models.Model):
         ('Нет', 'Нет'), ('ИП', 'ИП'), ('ЭДО', 'ЭДО'), ('Бумага', 'Бумага')
     ], default=('Нет', 'Нет'))
     waiting_date = models.DateField(blank=True, null=True, verbose_name="Ожидаемая дата поставки")
+    order_accepted = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = "заказ по заявке"
         verbose_name_plural = "Заказы по заявкам"
 
     def __str__(self):
-        return f"Заказ по заявке №{self.product_request.id}" or "-"
+        return f"По заявке №{self.product_request}" or "-"
 
 
 class ProductMovies(models.Model):

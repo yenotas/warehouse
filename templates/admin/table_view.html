@@ -18,8 +18,15 @@
 {% endblock %}
 {% block content %}
 <script type="text/javascript">
-  var formFields = {{ form_fields_json|safe }};
-  var filePreviews = {{ file_previews|safe }};
+    var formFields = {{ form_fields_json|safe }};
+    var filePreviews = {% if file_previews %} {{ file_previews|safe }} {% else %} {} {% endif %};
+    if (filePreviews) {
+        Object.keys(filePreviews).forEach(function(fieldName) {
+            const previewPath = filePreviews[fieldName];
+            // Логика отображения превью файлов
+            console.log(`Превью файла для ${fieldName}: ${previewPath}`);
+        });
+    }
 </script>
 {% include "admin/table_form.html" %}
 {{ block.super }}

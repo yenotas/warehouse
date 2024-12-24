@@ -1,76 +1,66 @@
 import json
 from collections import OrderedDict
-
 from django.contrib.admin.widgets import AdminDateWidget
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from django.db.models import ForeignKey, ManyToManyField
-
 from .models import *
 from django.contrib.contenttypes.models import ContentType
 from django import forms
 from django.apps import apps
 from django.core.exceptions import ValidationError
+from django.db.models.functions import Concat
+from django.db.models import QuerySet
 
 
-class AutoCompleteFields(forms.ModelForm):
-    class Meta:
-        abstract = True
-
-    def get_related_models(self):
-        """
-        Получает словарь с информацией о связанных моделях из полей модели.
-        """
-        related_models = {}
-
-        for field in self.Meta.model._meta.get_fields():
-            if isinstance(field, (ForeignKey, ManyToManyField)):
-
-                if hasattr(field, 'related_query_name'):
-                    related_model_name = field.related_model._meta.model_name
-                    related_models[field.name] = {field.related_query_name(): related_model_name}
-                    print('поле', field.name, "модель / ключевое поле в модели",
-                          related_models[field.name])
-
-        return related_models
-
-    def __init__(self, *args, **kwargs):
-        self.unique_fields = kwargs.pop('unique_fields', [])
-        self.auto_fields = kwargs.pop('auto_fields', [])
-        self.related_fields = kwargs.pop('related_models', None) or self.get_related_models() or {}
-        print('related_models:', self.related_fields)
-        self.model_name = self._meta.model._meta.model_name
-        kwargs.pop('request', None)
-        super().__init__(*args, **kwargs)
-
-        for field_name in self.auto_fields:
-            field = self.fields.get(field_name)
-            if field:
-
-                field.label = self._meta.model._meta.get_field(field_name).verbose_name
-
-                if self.related_fields and field_name in self.related_fields:
-
-                    related_model_name, related_field_name = next(
-                        iter([(model, field) for model, field in self.related_fields.get(field_name, {}).items()]))
-                    field.widget.attrs['data-model-name'] = related_model_name.lower()
-                    field.widget.attrs['data-field-name'] = related_field_name.lower()
-                    field.widget.attrs['field_name'] = field_name.lower()
-
-                else:
-                    field.widget.attrs['data-field-name'] = field_name.lower()
-                    field.widget.attrs['data-model-name'] = self.model_name.lower()
-
-                # Добавляем CSS-класс для поля автозаполнения
-                existing_classes = field.widget.attrs.get('class', '')
-                classes = existing_classes.split()
-                if 'auto_complete' not in classes:
-                    classes.append('auto_complete')
-                field.widget.attrs['class'] = ' '.join(classes)
+from django.db.models import Value, TextField
+from django.db.models.functions import Cast
+from django.contrib.postgres.search import TrigramSimilarity
 
 
-class BaseAutoCompleteForm(forms.ModelForm):
+def trigram_search(query, model_or_queryset, search_field, threshold=0.3):
+    """
+    Универсальная функция триграммного поиска.
+
+    :param query: строка запроса для поиска (например, "Иван Иванов").
+    :param model_or_queryset: модель или QuerySet для поиска.
+    :param search_field: поле, в котором выполняется поиск.
+    :param threshold: порог схожести для поиска (по умолчанию 0.3).
+    :return: tuple (id записи, найденный текст) или None, если ничего не найдено.
+    """
+    if not query or not model_or_queryset or not search_field:
+        raise ValueError("Все параметры (query, model_or_queryset, search_field) обязательны.")
+
+    # Если передана модель, получаем QuerySet
+    if isinstance(model_or_queryset, type) and hasattr(model_or_queryset, 'objects'):
+        queryset = model_or_queryset.objects.all()
+    elif isinstance(model_or_queryset, QuerySet):
+        queryset = model_or_queryset
+    else:
+        raise ValueError("model_or_queryset должен быть либо моделью, либо QuerySet.")
+
+    # Выполняем триграммный поиск
+    result = (
+        queryset.annotate(
+            similarity=TrigramSimilarity(search_field, query)
+        )
+        .filter(similarity__gte=threshold)
+        .order_by('-similarity')
+        .values_list('id', search_field, 'similarity')
+        .first()
+    )
+
+    if result:
+        record_id, record_text, similarity = result
+        return record_id, record_text
+    return None, None
+
+
+class BaseTableForm(forms.ModelForm):
     related_fields = {}
     model_name = None
+
+    def get_fields_relations(self, field_name):
+        return self.related_fields.get(field_name, {})
 
     def __init__(self, *args, **kwargs):
         self.unique_fields = kwargs.pop('unique_fields', [])
@@ -78,46 +68,59 @@ class BaseAutoCompleteForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         # Обработка полей модели для автозаполнения
+        if self.related_fields:
+            self.auto_fields = list(set(self.auto_fields + [field for field in list(self.related_fields.keys())]))
+        print('Все поля автозаполнения:', self.auto_fields)
+
         for field_name in self.auto_fields:
             field = self.fields.get(field_name)
 
             # Обработка связанных полей
             if self.related_fields and field_name in self.related_fields:
-                for rel_field, rel_info in self.related_fields.items():
-                    rel_model_name = list(rel_info.keys())[0]
-                    rel_field_name = rel_info[rel_model_name]
 
-                    id_field_name = f"{rel_field}_id"
-                    name_field_name = f"{rel_field}_name"
+                rel_info = self.get_fields_relations(field_name)
+                print('related_field:', field_name, 'INFO:', rel_info)
 
-                    # Скрытое поле для ID
-                    self.fields[id_field_name] = forms.IntegerField(widget=forms.HiddenInput(), required=False)
-                    # Текстовое поле для имени
-                    self.fields[name_field_name] = forms.CharField(
-                        required=False,
-                        label=self._meta.model._meta.get_field(rel_field).verbose_name,
-                        widget=forms.TextInput(attrs={
-                            'class': 'auto_complete rel_field',
-                            'data-field-name': rel_field_name.lower(),
-                            'data-model-name': rel_model_name.lower(),
-                            'required': False,
-                        })
-                    )
-                    # Если форма создаётся для редактирования
-                    if self.instance.pk:
-                        related_object = getattr(self.instance, rel_field, None)
-                        if related_object:
-                            self.fields[f"{rel_field}_id"].initial = related_object.id
-                            self.fields[f"{rel_field}_name"].initial = getattr(related_object, rel_field_name, "")
+                rel_model_name = rel_info['model']
+                rel_field_name = rel_info.get('field', '__str__')
+                rel_filter = rel_info.get('filter', None)
+                rel_filter_field = rel_info.get('filter_field', None)
 
-                    # Скрываем оригинальное связанное поле
-                    if rel_field in self.fields:
-                        del self.fields[rel_field]
+                id_field_name = f"{field_name}_id"
+                name_field_name = f"{field_name}_name"
+                print('Создаем', id_field_name, name_field_name)
+
+                # Скрытое поле для ID
+                self.fields[id_field_name] = forms.IntegerField(widget=forms.HiddenInput(), required=False)
+                # Текстовое поле для имени
+                self.fields[name_field_name] = forms.CharField(
+                    required=False,
+                    label=self._meta.model._meta.get_field(field_name).verbose_name,
+                    widget=forms.TextInput(attrs={
+                        'class': 'auto_complete rel_field',
+                        'data-field-name': rel_field_name.lower(),
+                        'data-model-name': rel_model_name.lower(),
+                        'data-filter': rel_filter,
+                        'data-filter-field': rel_filter_field,
+                        'required': False,
+                    })
+                )
+                # Если форма создаётся для редактирования
+                if self.instance.pk:
+                    related_object = getattr(self.instance, field, None)
+                    if related_object:
+                        self.fields[id_field_name].initial = related_object.id
+                        self.fields[name_field_name].initial = getattr(related_object, rel_field_name, "")
+                # Убираем исходное связанное поле
+                if field_name in self.fields:
+                    del self.fields[field_name]
+
+            # Обработка несвязанных полей
             else:
                 self.model_name = self._meta.model._meta.model_name.lower()
                 field.widget.attrs.update({
                     'data-field-name': field_name.lower(),
-                    'data-model-name': self.model_name,
+                    'data-model-name': self.model_name.lower(),
                     'class': field.widget.attrs.get('class', '') + ' auto_complete',
                     'required': False,
                 })
@@ -141,7 +144,7 @@ class BaseAutoCompleteForm(forms.ModelForm):
                 new_order.append(field_name)
 
         # Создаём новый OrderedDict с полями в нужном порядке
-        self.fields = OrderedDict((k, self.fields[k]) for k in new_order if k in self.fields)
+        self.fields = OrderedDict((f, self.fields[f]) for f in new_order if f in self.fields)
 
     def clean(self):
         cleaned_data = super().clean()
@@ -149,11 +152,14 @@ class BaseAutoCompleteForm(forms.ModelForm):
         if self.related_fields:
             # Обработка связанных полей
             for rel_field, rel_info in self.related_fields.items():
-                rel_model_name = list(rel_info.keys())[0]
-                rel_field_name = rel_info[rel_model_name]
+                print('Проверка rel_info', rel_info)
+                rel_model_name = rel_info['model']
+                rel_field_name = rel_info.get('field', None)
+                rel_filter = rel_info.get('filter', None)
 
                 id_field = f"{rel_field}_id"
                 name_field = f"{rel_field}_name"
+                print('Проверяем поля', rel_field, id_field, name_field)
 
                 # Получаем модель
                 try:
@@ -161,15 +167,31 @@ class BaseAutoCompleteForm(forms.ModelForm):
                 except LookupError:
                     raise ValidationError(f"Модель {rel_model_name} не найдена.")
 
-                if not getattr(related_model, 'relate_creating', False):
-                    self.add_error(
-                        name_field,
-                        f"Откройте форму добавления (двойной клик) для '{related_model._meta.verbose_name}'."
-                    )
-                    continue
+                rel_id = cleaned_data.get(id_field, None)
+                rel_name = cleaned_data.get(name_field, '').strip()
+                print(f"Модель {rel_model_name} ищем {rel_name}")
 
-                rel_id = cleaned_data.get(id_field)
-                rel_name = cleaned_data.get(name_field)
+                if rel_model_name == 'CustomUser' and not rel_id:
+                    print('Поиск пользователя по имени и фамилии')
+                    # Queryset для поля full_name
+                    queryset = related_model.objects.annotate(
+                        full_name=Concat('first_name', Value(' '), 'last_name')
+                    )
+                    print(queryset)
+                    print(trigram_search("Дэвид Вебб", queryset, queryset.objects.get('full_name')))
+                    # Триграммный поиск по аннотированному полю
+                    rel_id, true_name = trigram_search(rel_name, queryset, 'full_name')
+                    if rel_id:
+                        cleaned_data[id_field] = rel_id
+                        print(f"Имя {true_name} id {rel_id}")
+                    else:
+                        self.add_error(
+                            name_field,
+                            f"Откройте форму для добавления '{related_model._meta.verbose_name}' (двойной клик)"
+                        )
+                        continue
+                else:
+                    rel_id, true_name = trigram_search(rel_name, related_model, rel_field)
 
                 related_object = None
 
@@ -186,11 +208,17 @@ class BaseAutoCompleteForm(forms.ModelForm):
                                 related_object = existing_object  # Используем существующую запись
                             else:
                                 # Создаём новую запись (если это разрешено)
+                                if not getattr(related_model, 'relate_creating', False):
+                                    self.add_error(
+                                        name_field,
+                                        f"Откройте форму добавления (двойной клик) для '{related_model._meta.verbose_name}'."
+                                    )
+                                    continue
                                 related_object = related_model.objects.create(**{rel_field_name: rel_name})
                     else:
                         print(id_field, f"Запись с ID {rel_id} не найдена.")
 
-                if not related_object and rel_name:
+                if not related_object and rel_name and getattr(related_model, 'relate_creating', False):
                     # Если указан только name, создаём новую запись
                     related_object = related_model.objects.create(**{rel_field_name: rel_name})
 
@@ -220,14 +248,14 @@ class BaseAutoCompleteForm(forms.ModelForm):
         return cleaned_data
 
 
-class ProductsForm(BaseAutoCompleteForm):
+class ProductsForm(BaseTableForm):
+
+    related_fields = {'supplier': {'model': 'Suppliers', 'field': 'name'}}
 
     class Meta:
         model = Products
         fields = ['name', 'product_sku', 'packaging_unit', 'supplier', 'product_link', 'product_image']
         exclude = ['near_products', 'supplier_old', 'categories']
-
-    related_fields = {'supplier': {'Suppliers': 'name'}}
 
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request', None)
@@ -270,7 +298,135 @@ class ProductsForm(BaseAutoCompleteForm):
         #             del self.request.session['initial_data']
 
 
-class SuppliersForm(BaseAutoCompleteForm):
+class ProjectsForm(BaseTableForm):
+
+    related_fields = {
+        'manager': {'model': 'CustomUser', 'filter': 'Менеджеры'},
+        'engineer': {'model': 'CustomUser', 'filter': 'Инженеры'},
+    }
+
+    class Meta:
+        model = Projects
+        fields = '__all__'
+        exclude = ['manager_old', 'engineer_old']
+
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request', None)
+        super().__init__(*args,
+                         unique_fields=['detail_code'],
+                         auto_fields=['manager', 'engineer', 'name', 'project_code', 'detail_name', 'detail_name', 'detail_full_name'],
+                         **kwargs)
+        max_detail_code = Projects.objects.all().aggregate(models.Max('detail_code'))['detail_code__max']
+
+        prefix = 'АРХ'
+
+        if max_detail_code:
+            number = max_detail_code.replace(prefix, '')
+            new_number = int(number) + 1
+            new_detail_code = f"{prefix}{new_number}"
+        else:
+            new_detail_code = f"{prefix}1"  # Начальное значение если нет записей
+
+        self.fields['detail_code'].initial = new_detail_code
+
+    def clean_name(self):
+        name = self.cleaned_data.get('name')
+        if Projects.objects.filter(name=name).exists():
+            raise forms.ValidationError('Проект с таким именем уже существует.')
+        if name == '':
+            raise forms.ValidationError('Поле должно быть заполнено!')
+        return name
+
+
+class OrdersForm(BaseTableForm):
+
+    related_fields = {
+        'manager': {'model': 'CustomUser', 'filter': 'Менеджеры'},
+        'product_request': {'model': 'ProductRequest', 'field': 'product', 'filter_field': 'request_accepted'}
+    }
+
+    class Meta:
+        model = Orders
+        fields = '__all__'
+        exclude = ['order_date', 'manager_old', 'product_request_old', 'order_accepted']
+
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request', None)
+        super().__init__(
+            *args,
+            auto_fields=['manager', 'product_request'],
+            **kwargs
+        )
+
+
+class ProductMoviesForm(BaseTableForm):
+
+    related_fields = {
+        'product': {'model': 'Products', 'field': 'name'},
+        'new_cell': {'model': 'StorageCells', 'field': 'name'}
+    }
+
+    class Meta:
+        model = ProductMovies
+        fields = '__all__'
+        exclude = ['record_date', 'product_old', 'new_cell_old']
+
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request', None)
+        super().__init__(
+            *args,
+            auto_fields=['product', 'new_cell'],
+            **kwargs
+        )
+
+
+class ProductRequestForm(BaseTableForm):
+
+    related_fields = {
+        'product': {'model': 'Products', 'field': 'name'},
+        'project': {'model': 'Projects', 'field': 'name'},
+        'responsible': {'model': 'CustomUser', 'filter': 'ПДО'}
+        }
+
+    class Meta:
+        model = ProductRequest
+        exclude = ['request_date', 'project_old', 'product_old', 'responsible_old', 'request_accepted']
+
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request', None)
+        super().__init__(
+            *args,
+            auto_fields=['product', 'project', 'responsible'],
+            **kwargs
+        )
+        # self.fields['responsible'].initial = self.request.user
+
+        # if self.request:
+        #     data = self.request.session.get('initial_data')
+        #     print('Data loaded from session:', data)  # Отладочный вывод
+        #     if data:
+        #         data = self.request.session.get('initial_data')
+        #         if data:
+        #             initial_fields = data.get('fields', {})
+        #             m2m_fields = data.get('m2m', {})
+        #             # Устанавливаем начальные значения для полей
+        #             for field_name, value in initial_fields.items():
+        #                 if field_name == 'name':
+        #                     continue  # Пропускаем поле 'name'
+        #                 field = self.fields.get(field_name)
+        #                 if field:
+        #                     field.initial = value
+        #             # Устанавливаем начальные значения для ManyToMany полей
+        #             for field_name, value in m2m_fields.items():
+        #                 field = self.fields.get(field_name)
+        #                 if field:
+        #                     field.initial = value
+        #                     print(field, value)
+        #             # Удаляем данные из сессии после использования
+        #             del self.request.session['initial_data']
+
+
+class SuppliersForm(BaseTableForm):
     class Meta:
         model = Suppliers
         fields = '__all__'
@@ -284,7 +440,7 @@ class SuppliersForm(BaseAutoCompleteForm):
         self.fields['name'].widget.attrs.update({'required': 'required'})
 
 
-class DepartmentsForm(BaseAutoCompleteForm):
+class DepartmentsForm(BaseTableForm):
     class Meta:
         model = Departments
         fields = '__all__'
@@ -298,7 +454,7 @@ class DepartmentsForm(BaseAutoCompleteForm):
         self.fields['name'].widget.attrs.update({'required': 'required'})
 
 
-class CategoriesForm(BaseAutoCompleteForm):
+class CategoriesForm(BaseTableForm):
     class Meta:
         model = Categories
         fields = '__all__'
@@ -311,7 +467,7 @@ class CategoriesForm(BaseAutoCompleteForm):
                           **kwargs)
 
 
-class CustomUserChangeForm(UserChangeForm, BaseAutoCompleteForm):
+class CustomUserChangeForm(UserChangeForm, BaseTableForm):
     class Meta:
         model = CustomUser
         fields = '__all__'
@@ -342,7 +498,7 @@ class CustomUserChangeForm(UserChangeForm, BaseAutoCompleteForm):
         return is_superuser
 
 
-class CustomUserCreationForm(UserCreationForm, BaseAutoCompleteForm):
+class CustomUserCreationForm(UserCreationForm, BaseTableForm):
 
     class Meta:
         model = CustomUser
@@ -355,7 +511,7 @@ class CustomUserCreationForm(UserCreationForm, BaseAutoCompleteForm):
                           **kwargs)
 
 
-class StorageCellsForm(BaseAutoCompleteForm):
+class StorageCellsForm(BaseTableForm):
     class Meta:
         model = StorageCells
         fields = '__all__'
@@ -367,155 +523,6 @@ class StorageCellsForm(BaseAutoCompleteForm):
                           unique_fields=['name'],
                           auto_fields=['name', 'info'],
                           **kwargs)
-
-
-class ProjectsForm(BaseAutoCompleteForm):
-
-    manager = forms.ModelChoiceField(
-        queryset=CustomUser.objects.filter(groups__name='Менеджеры'),
-        label="Менеджер",
-        widget=forms.Select(attrs={'class': 'form-control'}),
-        required=False,
-        initial=None,
-        empty_label='---------',
-    )
-    engineer = forms.ModelChoiceField(
-        queryset=CustomUser.objects.filter(groups__name='Инженеры'),
-        label="Инженер",
-        widget=forms.Select(attrs={'class': 'form-control'}),
-        required=False,
-        initial=None,
-        empty_label='---------',
-    )
-
-    class Meta:
-        model = Projects
-        fields = '__all__'
-        exclude = ['manager_old', 'engineer_old']
-
-    def __init__(self, *args, **kwargs):
-        self.request = kwargs.pop('request', None)
-        super().__init__(*args,
-                         unique_fields=['detail_code'],
-                         auto_fields=['name', 'project_code', 'detail_name', 'detail_name', 'detail_full_name'],
-                         **kwargs)
-        max_detail_code = Projects.objects.all().aggregate(models.Max('detail_code'))['detail_code__max']
-        if max_detail_code:
-            prefix = 'АРХ'
-            number = max_detail_code.replace(prefix, '')
-            new_number = int(number) + 1
-            new_detail_code = f"{prefix}{new_number}"
-        else:
-            new_detail_code = "{prefix}1"  # Начальное значение если нет записей
-
-        self.fields['detail_code'].initial = new_detail_code
-
-        def clean_name(self):
-            name = self.cleaned_data.get('name')
-            if Projects.objects.filter(name=name).exists():
-                raise forms.ValidationError('Проект с таким именем уже существует.')
-            if name == '':
-                raise forms.ValidationError('Поле должно быть заполнено!')
-            return name
-
-
-class OrdersForm(BaseAutoCompleteForm):
-
-    manager = forms.ModelChoiceField(
-        queryset=CustomUser.objects.all(),
-        label="Менеджер",
-        widget=forms.Select(attrs={'class': 'form-control'}),
-        required=False,
-        initial=None,
-        empty_label='---------',
-    )
-
-    class Meta:
-        model = Orders
-        fields = '__all__'
-        exclude = ['order_date', 'manager_old', 'product_request_old']
-
-    related_fields = {'product_request': {'ProductRequest': 'product'}}
-
-    def __init__(self, *args, **kwargs):
-        self.request = kwargs.pop('request', None)
-        super().__init__(
-            *args,
-            auto_fields=['product_request'],
-            **kwargs
-        )
-        self.fields['manager'].initial = None
-
-
-class ProductMoviesForm(BaseAutoCompleteForm):
-    class Meta:
-        model = ProductMovies
-        fields = '__all__'
-        exclude = ['record_date', 'product_old', 'new_cell_old']
-
-    related_fields = {'product': {'Products': 'name'}, 'new_cell': {'StorageCells': 'name'}}
-
-    def __init__(self, *args, **kwargs):
-        self.request = kwargs.pop('request', None)
-        super().__init__(
-            *args,
-            auto_fields=['product', 'new_cell'],
-            **kwargs
-        )
-
-
-class ProductRequestForm(BaseAutoCompleteForm):
-
-    responsible = forms.ModelChoiceField(
-        queryset=CustomUser.objects.all(),
-        label="Ответственный",
-        widget=forms.Select(attrs={'class': 'form-control'}),
-        required=False,
-        empty_label='---------',
-        initial=None,
-    )
-
-    related_fields = {'product': {'Products': 'name'}, 'project': {'Projects': 'name'}}
-
-    class Meta:
-        model = ProductRequest
-        exclude = ['request_date', 'project_old', 'product_old', 'responsible_old']
-
-    def __init__(self, *args, **kwargs):
-        self.request = kwargs.pop('request', None)
-        super().__init__(
-            *args,
-            auto_fields=['product', 'project'],
-            **kwargs
-        )
-        self.fields['responsible'].initial = None
-
-        # if self.request:
-        #     data = self.request.session.get('initial_data')
-        #     print('Data loaded from session:', data)  # Отладочный вывод
-        #     if data:
-        #         data = self.request.session.get('initial_data')
-        #         if data:
-        #             initial_fields = data.get('fields', {})
-        #             m2m_fields = data.get('m2m', {})
-        #             # Устанавливаем начальные значения для полей
-        #             for field_name, value in initial_fields.items():
-        #                 if field_name == 'name':
-        #                     continue  # Пропускаем поле 'name'
-        #                 field = self.fields.get(field_name)
-        #                 if field:
-        #                     field.initial = value
-        #             # Устанавливаем начальные значения для ManyToMany полей
-        #             for field_name, value in m2m_fields.items():
-        #                 field = self.fields.get(field_name)
-        #                 if field:
-        #                     field.initial = value
-        #                     print(field, value)
-        #             # Удаляем данные из сессии после использования
-        #             del self.request.session['initial_data']
-
-
-from django.core.exceptions import ValidationError
 
 
 class ModelAccessControlForm(forms.ModelForm):
@@ -584,19 +591,7 @@ class ModelAccessControlForm(forms.ModelForm):
         return instance
 
 
-class PivotTableForm(BaseAutoCompleteForm):
-    # product_name = forms.ModelChoiceField(
-    #     queryset=Products.objects.all(),
-    #     widget=forms.TextInput(attrs={'class': 'rel_field'}),
-    #     label="Наименование",
-    #     required=True
-    # )
-    # responsible = forms.ModelChoiceField(
-    #     queryset=CustomUser.objects.all(),
-    #     widget=forms.TextInput(attrs={'class': 'rel_field'}),
-    #     label="Ответственный",
-    #     required=False
-    # )
+class PivotTableForm(BaseTableForm):
 
     class Meta:
         model = PivotTable

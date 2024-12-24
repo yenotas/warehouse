@@ -1,34 +1,106 @@
-import base64
+import tempfile
 
+from django import forms
 from django.contrib import admin
 from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.forms import modelformset_factory
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.utils.html import escape
-from django.utils.translation import gettext_lazy as _
 import json
 
 from storage.mixins import AccessControlMixin
+from storage.models import CustomUser
 
 
 def save_files_to_session(request, formset):
-    files_data = {}
+    temp_files = {}
     for form in formset.forms:
         for field_name, file in form.files.items():
-            print('save', field_name, file.name, file.content_type)
-            if isinstance(file, InMemoryUploadedFile):
-                file.seek(0)  # Перемещаем указатель в начало
-                file_content_base64 = base64.b64encode(file.read()).decode('utf-8')
-                files_data[field_name] = {
+            if file:
+                temp_file = tempfile.NamedTemporaryFile(delete=False)
+                temp_file.write(file.read())
+                temp_file.close()
+                temp_files[field_name] = {
+                    'path': temp_file.name,
                     'name': file.name,
-                    'content': file_content_base64,
                     'content_type': file.content_type,
                 }
-    request.session['saved_files'] = files_data
+    request.session['saved_files'] = temp_files
 
+
+def get_temp_files(request):
+    temp_files = request.session.get('saved_files', {})
+    file_previews = {}
+    for field_name, file_data in temp_files.items():
+        if file_data and file_data['path']:
+            try:
+                with open(file_data['path'], 'rb') as f:
+                    file = InMemoryUploadedFile(
+                        file=ContentFile(f.read()),
+                        field_name=field_name,
+                        name=file_data['name'],
+                        content_type=file_data['content_type'],
+                        size=f.tell(),
+                        charset=None,
+                    )
+                request.FILES[field_name] = file
+                file_previews[field_name] = file_data['path']
+            except FileNotFoundError:
+                pass
+    return file_previews
+
+
+def clear_temp_files(request):
+    temp_files = request.session.pop('saved_files', {})
+    for file_data in temp_files.values():
+        try:
+            if file_data and file_data['path']:
+                default_storage.delete(file_data['path'])
+        except Exception as e:
+            print(f"Ошибка удаления файла {file_data['path']}: {e}")
+
+
+def view_formset_content(fset):
+    for form in fset:
+        print(f'Form ID: {form.instance.id}')
+        print(f'Form Data: {form.cleaned_data}')
+
+
+def handle_related_field_error(form, field_name, error):
+    """
+    Обрабатывает ошибки, связанные с полями, указанными в related_fields.
+    """
+    related_info = form.get_related_model_info(field_name)
+    if not related_info:
+        return
+
+    model_name = related_info.get('model')
+    group_key = related_info.get('filter')
+    if model_name == "CustomUser" and group_key:
+        # Извлекаем имя пользователя из ошибки
+        user_name = error.split("'")[1]
+        first_name, last_name = user_name.split()[0], user_name.split()[1]
+        filter_dict = {'manager': 'Менеджеры', 'engineer': 'Инженеры'}
+        group_name = filter_dict.get(group_key)
+
+        if group_name:
+            qs = CustomUser.objects.filter(
+                groups__name=group_name,
+                first_name__iexact=first_name,
+                last_name__iexact=last_name
+            )
+            if qs.exists():
+                user = qs.first()
+                hidden_field_name = f"{field_name}_id"
+                form.cleaned_data[hidden_field_name] = user.id
+                form.data = form.data.copy()
+                form.data[f"id_{form.prefix}-{hidden_field_name}"] = user.id
+            else:
+                raise forms.ValidationError(f"Пользователь {user_name} не найден.")
 
 
 class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
@@ -45,6 +117,7 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
         qs = super().get_queryset(request)
         return qs.distinct()
 
+    # Функция для создания класса formset
     def get_formset_class(self, request, extra=1):
         return modelformset_factory(
             self.model,
@@ -61,14 +134,15 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
             print(formset.errors)
             print(request.FILES)
             if formset.is_valid():
+                clear_temp_files(request)
                 new_objects = formset.save(commit=False)
                 for new_object in new_objects:
                     self.save_model(request, new_object, formset, change=False)
                 count = len(new_objects)
                 if count == 1:
-                    msg = _('"%(object)s" добавлен.') % {'object': new_objects[0]}
+                    msg = '"%(object)s" добавлен.' % {'object': new_objects[0]}
                 else:
-                    msg = _('Записи добавлены.')
+                    msg = 'Записи добавлены.'
                 self.message_user(request, msg, messages.SUCCESS)
                 return redirect(request.path)
             else:
@@ -82,10 +156,11 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
             formset = formset_class(queryset=self.model.objects.none())
             extra_context['formset'] = formset
 
-        form_fields = list(formset.forms[0].fields.keys()) if formset.forms else []
+        form_fields = list(formset.forms[0].fields.keys()) if formset.forms[0] else []
         extra_context['form_fields_json'] = json.dumps(form_fields)
         extra_context['title'] = ""
         extra_context['button_name'] = "Добавить"
+        extra_context['preview_files'] = get_temp_files(request)
         return super().changelist_view(request, extra_context=extra_context)
 
     def add_view(self, request, form_url='', extra_context=None):
@@ -114,9 +189,9 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
                     return self.response_add(request, new_objects[-1])
                 else:
                     if count == 1:
-                        msg = _('"%(object)s" добавлен!') % {'object': new_objects[0]}
+                        msg = '"%(object)s" добавлен!' % {'object': new_objects[0]}
                     else:
-                        msg = _('Записи добавлены!')
+                        msg = 'Записи добавлены!'
                     self.message_user(request, msg, messages.SUCCESS)
 
                     # Редирект на список объектов
@@ -137,7 +212,7 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
             extra_context['title'] = ""
 
         extra_context['button_name'] = "Добавить"
-        form_fields = list(formset.forms[0].fields.keys()) if formset.forms else []
+        form_fields = list(formset.forms[0].fields.keys()) if formset.forms[0] else []
         extra_context['form_fields_json'] = json.dumps(form_fields)
 
         return super().add_view(request, form_url, extra_context=extra_context)
@@ -168,7 +243,7 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
                     """)
                 else:
                     # Обычный редирект на список объектов
-                    msg = _('Запись обновлена.')
+                    msg = 'Запись обновлена.'
                     self.message_user(request, msg, messages.SUCCESS)
                     return redirect(
                         'admin:%s_%s_changelist' % (self.model._meta.app_label, self.model._meta.model_name))
@@ -179,6 +254,7 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
         else:
             # Создаём formset только для редактируемого объекта
             formset = formset_class(queryset=queryset)
+            view_formset_content(formset)
             extra_context['formset'] = formset
 
         extra_context['is_popup'] = is_popup
@@ -186,30 +262,8 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
         if not is_popup:
             extra_context['title'] = ""
         extra_context['button_name'] = "Сохранить"
-        form_fields = list(formset.forms[0].fields.keys()) if formset.forms else []
+        print('formset', list(formset.forms))
+        form_fields = list(formset.forms[0].fields.keys()) if formset.forms[0] else []
         extra_context['form_fields_json'] = json.dumps(form_fields)
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
-
-    def get_form(self, request, obj=None, **kwargs):
-        print('get_form')
-        # Восстановление файлов из сессии
-        files_data = request.session.get('saved_files', {})
-        if files_data:
-            for field_name, file_data in files_data.items():
-                print('field_name', field_name, file_data['name'])
-                if file_data['content']:  # Убедимся, что данные есть
-                    file_content = base64.b64decode(file_data['content'].encode('utf-8'))
-                    file = InMemoryUploadedFile(
-                        file=ContentFile(file_content),
-                        field_name=field_name,
-                        name=file_data['name'],
-                        content_type=file_data['content_type'],
-                        size=len(file_content),
-                        charset=None,
-                    )
-                    # Добавляем в request.FILES
-                    request.FILES[field_name] = file
-
-        return super().get_form(request, obj, **kwargs)
-
 

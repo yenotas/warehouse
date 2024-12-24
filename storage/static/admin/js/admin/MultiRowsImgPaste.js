@@ -89,7 +89,7 @@ class ImageCell {
 
     handlePaste(event) {
         var items = (event.originalEvent.clipboardData || event.clipboardData).items;
-
+        console.log('Вставка перехвачена MultiRowsImgPaste');
         for (var i = 0; i < items.length; i++) {
             var item = items[i];
             if (item.kind === 'file') {

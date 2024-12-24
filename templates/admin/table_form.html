@@ -16,7 +16,7 @@
             <tbody>
                 {% for form in formset %}
                     <tr>
-                    {% for field in form.visible_fields %}
+                    {% for field in form %}
                         {% include "admin/table_rows.html" %}
                     {% endfor %}
                     </tr>
@@ -32,7 +32,7 @@
         </table>
         <div class="submit-row">
             <input type="submit" value={{ button_name }} class="default under_table" />
-            <input type="button" onclick="document.getElementById('input_form').reset();" class="second under_table" value="Сбросить">
+            <input type="reset" onclick="resetForm();" class="second under_table" value="Сбросить">
             <div id="errors_viewer"></div>
             <div class="error-row">
                 {{ form.non_field_errors }}

@@ -44,13 +44,13 @@ class PivotTableAdmin(ManageAdmins):
             )
         return qs
 
-    def get_readonly_fields(self, request, obj=None):
-        readonly_fields = super().get_readonly_fields(request, obj)
-        if obj and obj.order:
-            # Блокируем поля, если уже существует заказ
-            readonly_fields += ['product_name', 'request_quantity', 'project_code', 'delivery_location',
-                                'deadline_delivery_date']
-        return readonly_fields
+    # def get_readonly_fields(self, request, obj=None):
+    #     readonly_fields = super().get_readonly_fields(request, obj)
+    #     if obj and obj.order:
+    #         # Блокируем поля, если уже существует заказ
+    #         readonly_fields += ['product_name', 'request_quantity', 'project_code', 'delivery_location',
+    #                             'deadline_delivery_date']
+    #     return readonly_fields
 
     class Media:
         js = ('admin/js/admin/AddPivotPosition.js',)  # Подключаем дополнительные скрипты для автозаполнения

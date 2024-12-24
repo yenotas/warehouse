@@ -21,11 +21,13 @@ class AutocompleteView(View):
         term = request.GET.get('term', '')
         model_name = request.GET.get('model', '')
         field_name = request.GET.get('field', '')
+        data_filter = request.GET.get('data_filter', '')
+        filter_field = request.GET.get('filter_field', '')
         app_label = 'storage'
 
-        print(model_name, field_name, term)
+        print('AutocompleteView', model_name, field_name, term)
 
-        if not model_name or not field_name:
+        if not model_name and not (field_name or data_filter):
             return JsonResponse([], safe=False)
 
         # Получаем модель
@@ -43,16 +45,31 @@ class AutocompleteView(View):
             results = [
                 {
                     'id': obj.id,
-                    'label': obj.product.name,  # Используем имя товара
+                    'label': obj.product.name,
                     'value': obj.product.name
                 }
                 for obj in qs
             ]
             return JsonResponse(results, safe=False)
 
+        if model_name == "customuser":
+            print('filter custom user:', data_filter)
+            if data_filter:
+                qs = model.objects.filter(groups__name=data_filter)
+            else:
+                qs = model.objects.all()
+            results = [
+                {
+                    'id': obj.pk,
+                    'label': f"{obj.first_name} {obj.last_name}",
+                    'value': f"{obj.first_name} {obj.last_name}"
+                } for obj in qs
+            ]
+            return JsonResponse(results, safe=False)
+
         # Общая обработка для других моделей
         filter_kwargs = {f'{field_name}__icontains': term}
-        qs = model.objects.filter(**filter_kwargs)[:20]
+        qs = model.objects.filter(**filter_kwargs)[:10]
 
         results = [
             {

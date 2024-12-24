@@ -42,7 +42,6 @@ django.jQuery(document).ready(function($) {
         elem.trigger('change');
         $('#' + hiddenFieldId ).trigger('change');
         win.close();
-        console.log('dismiss: hidden id='+hiddenFieldId, 'order id='+newId, 'input elem id='+textFieldId, 'value='+newRepr);
     }
 
     $('.auto_complete').each(function() {
@@ -50,7 +49,10 @@ django.jQuery(document).ready(function($) {
         var id = fieldElement.attr('id');
         var fieldName = fieldElement.data('field-name');
         var modelName = fieldElement.data('model-name');
+        var dataFilter = fieldElement.data('filter');
+        var filterField = fieldElement.data('filter_field');
         var isRelField = fieldElement.hasClass('rel_field');
+        console.log('fieldName =', fieldName, ' modelName =', modelName, ' dataFilter =', dataFilter, ' filterField =', filterField);
         var hiddenFieldName = null;
 
         if (isRelField) {
@@ -100,7 +102,9 @@ django.jQuery(document).ready(function($) {
                     data: {
                         term: term,
                         model: modelName,
-                        field: fieldName
+                        field: fieldName,
+                        data_filter: dataFilter,
+                        filter_field: filterField
                     },
                     success: function(data) {
                         response($.map(data, function(item) {

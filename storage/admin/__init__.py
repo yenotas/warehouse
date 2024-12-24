@@ -35,7 +35,7 @@ class ProductsAdmin(TableModelAdmin):
     form = ProductsForm
     # change_form_template = 'admin/table_view.html'
 
-    list_display = ['id', 'name', 'product_sku', 'packaging_unit', 'supplier', 'product_link', 'product_image_tag']
+    list_display = ['name', 'product_sku', 'packaging_unit', 'supplier', 'product_link', 'product_image_tag']
     # 'display_categories' пока не выводим
     search_fields = ['name', 'product_sku']  # 'categories' пока не выводим
     ordering = ['-id']
@@ -90,13 +90,6 @@ class ProjectsAdmin(TableModelAdmin):
     list_filter = ['creation_date', 'name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name',
                    'detail_code']
 
-    # def formfield_for_foreignkey(self, db_field, request, **kwargs):
-    #     if db_field.name == 'manager':
-    #         kwargs['queryset'] = CustomUser.objects.filter(groups__name='Менеджеры')
-    #     elif db_field.name == 'engineer':
-    #         kwargs['queryset'] = CustomUser.objects.filter(groups__name='Инженеры')
-    #     return super().formfield_for_foreignkey(db_field, request, **kwargs)
-
     def save_model(self, request, obj, form, change):
         if not change:
             obj.manager = request.user
@@ -105,9 +98,9 @@ class ProjectsAdmin(TableModelAdmin):
 
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
-        if not obj:  # Только при создании нового объекта
-            form.base_fields['manager'].initial = None
-            form.base_fields['engineer'].initial = None
+        # if not obj:  # Только при создании нового объекта
+        #     form.base_fields['manager'].initial = None
+        #     form.base_fields['engineer'].initial = None
         # form.base_fields['name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name',
         #                  'detail_code'].required = True
         return form
@@ -133,8 +126,9 @@ class ProductRequestAdmin(TableModelAdmin):
 
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
-        if not obj:
-            form.base_fields['responsible'].initial = None
+        if obj is None and request.user.has_perm('storage.change_responsible'):
+            form.base_fields['responsible'].initial = request.user
+
         return form
 
 
@@ -163,7 +157,7 @@ class OrdersAdmin(TableModelAdmin):
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
         if not obj:  # Только при создании нового объекта
-            form.base_fields['manager'].initial = None
+            form.base_fields['manager'].initial = request.user
         return form
 
 
@@ -193,4 +187,5 @@ print('\n\n')
 for model, model_admin in admin_site._registry.items():
     opts = model._meta
     print('%s:%s_%s_change' % (admin_site.name, opts.app_label, opts.model_name))
+
 
