@@ -41,6 +41,10 @@ class CustomUser(AbstractUser):
         verbose_name = "пользователя"
         verbose_name_plural = "Пользователи"
 
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}" if self.first_name and self.last_name else ""
+
     def __str__(self):
         return f"{self.first_name} {self.last_name}" if self.first_name and self.last_name else f"User {self.pk}"
 

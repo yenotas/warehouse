@@ -3,6 +3,8 @@ from collections import OrderedDict
 from django.contrib.admin.widgets import AdminDateWidget
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from django.db.models import ForeignKey, ManyToManyField
+from django.forms import CharField
+
 from .models import *
 from django.contrib.contenttypes.models import ContentType
 from django import forms
@@ -13,7 +15,6 @@ from django.db.models import QuerySet
 
 
 from django.db.models import Value, TextField
-from django.db.models.functions import Cast
 from django.contrib.postgres.search import TrigramSimilarity
 
 
@@ -41,7 +42,7 @@ def trigram_search(query, model_or_queryset, search_field, threshold=0.3):
     # Выполняем триграммный поиск
     result = (
         queryset.annotate(
-            similarity=TrigramSimilarity(search_field, Value(query))
+            similarity=TrigramSimilarity(search_field, query)
         )
         .filter(similarity__gte=threshold)
         .order_by('-similarity')
@@ -174,11 +175,9 @@ class BaseTableForm(forms.ModelForm):
                 if rel_model_name == 'CustomUser' and not rel_id:
                     print('Поиск пользователя по имени и фамилии')
                     # Queryset для поля full_name
-                    queryset = related_model.objects.annotate(
-                        full_name=Concat('first_name', Value(' '), 'last_name', output_field=models.CharField())
-                    )
+                    queryset = related_model.objects.all()
                     print(queryset)
-                    # Триграммный поиск по аннотированному полю
+                    # Триграммный поиск по полю full_name
                     rel_id, true_name = trigram_search(rel_name, queryset, 'full_name')
                     if rel_id:
                         cleaned_data[id_field] = rel_id
