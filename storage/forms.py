@@ -41,7 +41,7 @@ def trigram_search(query, model_or_queryset, search_field, threshold=0.3):
     # Выполняем триграммный поиск
     result = (
         queryset.annotate(
-            similarity=TrigramSimilarity(search_field, query)
+            similarity=TrigramSimilarity(search_field, Value(query))
         )
         .filter(similarity__gte=threshold)
         .order_by('-similarity')
@@ -107,7 +107,7 @@ class BaseTableForm(forms.ModelForm):
                 )
                 # Если форма создаётся для редактирования
                 if self.instance.pk:
-                    related_object = getattr(self.instance, field, None)
+                    related_object = getattr(self.instance, field_name, None)
                     if related_object:
                         self.fields[id_field_name].initial = related_object.id
                         self.fields[name_field_name].initial = getattr(related_object, rel_field_name, "")
@@ -175,10 +175,9 @@ class BaseTableForm(forms.ModelForm):
                     print('Поиск пользователя по имени и фамилии')
                     # Queryset для поля full_name
                     queryset = related_model.objects.annotate(
-                        full_name=Concat('first_name', Value(' '), 'last_name')
+                        full_name=Concat('first_name', Value(' '), 'last_name', output_field=models.CharField())
                     )
                     print(queryset)
-                    print(trigram_search("Дэвид Вебб", queryset, queryset.objects.get('full_name')))
                     # Триграммный поиск по аннотированному полю
                     rel_id, true_name = trigram_search(rel_name, queryset, 'full_name')
                     if rel_id:
@@ -190,8 +189,6 @@ class BaseTableForm(forms.ModelForm):
                             f"Откройте форму для добавления '{related_model._meta.verbose_name}' (двойной клик)"
                         )
                         continue
-                else:
-                    rel_id, true_name = trigram_search(rel_name, related_model, rel_field)
 
                 related_object = None
 
@@ -207,7 +204,7 @@ class BaseTableForm(forms.ModelForm):
                                 print("Такое имя есть")
                                 related_object = existing_object  # Используем существующую запись
                             else:
-                                # Создаём новую запись (если это разрешено)
+                                # Создаем новую запись (если это разрешено)
                                 if not getattr(related_model, 'relate_creating', False):
                                     self.add_error(
                                         name_field,
@@ -219,7 +216,7 @@ class BaseTableForm(forms.ModelForm):
                         print(id_field, f"Запись с ID {rel_id} не найдена.")
 
                 if not related_object and rel_name and getattr(related_model, 'relate_creating', False):
-                    # Если указан только name, создаём новую запись
+                    # Если указан только name, создаем новую запись
                     related_object = related_model.objects.create(**{rel_field_name: rel_name})
 
                 # Связываем объект с cleaned_data

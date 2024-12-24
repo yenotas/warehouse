@@ -64,12 +64,6 @@ def clear_temp_files(request):
             print(f"Ошибка удаления файла {file_data['path']}: {e}")
 
 
-def view_formset_content(fset):
-    for form in fset:
-        print(f'Form ID: {form.instance.id}')
-        print(f'Form Data: {form.cleaned_data}')
-
-
 def handle_related_field_error(form, field_name, error):
     """
     Обрабатывает ошибки, связанные с полями, указанными в related_fields.
@@ -254,7 +248,6 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
         else:
             # Создаём formset только для редактируемого объекта
             formset = formset_class(queryset=queryset)
-            view_formset_content(formset)
             extra_context['formset'] = formset
 
         extra_context['is_popup'] = is_popup
