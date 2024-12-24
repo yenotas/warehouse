@@ -1,9 +1,14 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+dotenv_path = Path(BASE_DIR) / '.env'
+load_dotenv(dotenv_path)
 
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-mc#l1nji3%blsk*zr!krvux$b3e#jycdnsxo%5a!4kc8va-226')
+SECRET_KEY = os.getenv('SECRET_KEY')
+
+print('SECRET_KEY', SECRET_KEY)
 
 DEBUG = True
 
@@ -17,8 +22,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'storage',
-    'dal',
-    'dal_select2',
+    # 'dal',
+    # 'dal_select2',
 ]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
