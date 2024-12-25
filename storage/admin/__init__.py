@@ -91,18 +91,16 @@ class ProjectsAdmin(TableModelAdmin):
                    'detail_code']
 
     def save_model(self, request, obj, form, change):
+        print()
         if not change:
-            obj.manager = request.user
-            obj.engineer = request.user
+            if not obj.manager:
+                obj.manager = request.user
+            if not obj.engineer:
+                obj.engineer = request.user
         super().save_model(request, obj, form, change)
 
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
-        # if not obj:  # Только при создании нового объекта
-        #     form.base_fields['manager'].initial = None
-        #     form.base_fields['engineer'].initial = None
-        # form.base_fields['name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name',
-        #                  'detail_code'].required = True
         return form
 
 
@@ -118,9 +116,8 @@ class ProductRequestAdmin(TableModelAdmin):
     ordering = ['id', 'request_date', 'product', 'project']
     list_filter = ['request_date', 'product', 'project']
 
-
     def save_model(self, request, obj, form, change):
-        if not change:
+        if not change and not obj.responsible:
             obj.responsible = request.user
         super().save_model(request, obj, form, change)
 
@@ -150,7 +147,7 @@ class OrdersAdmin(TableModelAdmin):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def save_model(self, request, obj, form, change):
-        if not change:  # Только при создании нового объекта
+        if not change and not obj.manager:  # Только при создании нового объекта
             obj.manager = request.user
         super().save_model(request, obj, form, change)
 

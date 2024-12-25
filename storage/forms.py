@@ -78,6 +78,7 @@ class BaseTableForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.unique_fields = kwargs.pop('unique_fields', [])
         self.auto_fields = kwargs.pop('auto_fields', [])
+        self.required_fields = kwargs.pop('required_fields', [])
         super().__init__(*args, **kwargs)
 
         # Обработка полей модели для автозаполнения
@@ -175,12 +176,32 @@ class BaseTableForm(forms.ModelForm):
 
                     existing_record = model_class.objects.filter(**filter_args).first()
                     if existing_record:
-                        self.add_error(field_name, f"{field_value}: Такая запись уже существует!")
+                        self.add_error(field_name, f"{field_value} - Такая запись уже существует!\n")
 
             print('unique_fields resume:', filter_args)
 
-        if self.related_fields:
+        # Проверка заполнения
+        if self.required_fields:
+            print('required_fields:', self.required_fields)
+            model_class = self._meta.model
+            filter_args = {}
+
+            for field_name in self.fields:
+                if field_name in self.required_fields:
+                    print('required_field', field_name)
+                    field_value = cleaned_data.get(field_name)
+
+                    if not field_value:
+                        filter_args[field_name] = ''
+                        self.add_error(field_name, f"Обязательное поле!\n")
+
+            print('required_fields resume:', filter_args)
+
+        if self.related_fields:  # or self.auto_fields:
             # Обработка связанных полей
+            # model_name = self._meta.model._meta.model_name.lower()
+            # for f in self.auto_fields:
+            #     self.related_fields[f] = {'model': model_name, 'field': f}
             for rel_field, rel_info in self.related_fields.items():
                 print('Проверка rel_info', rel_info)
                 rel_model_name = rel_info['model']
@@ -189,13 +210,10 @@ class BaseTableForm(forms.ModelForm):
 
                 id_field = f"{rel_field}_id"
                 name_field = f"{rel_field}_name"
-                print('Проверяем поля', rel_field, id_field, name_field)
-
-                # Получаем модель
                 try:
                     related_model = apps.get_model('storage', rel_model_name)
                 except LookupError:
-                    raise ValidationError(f"Модель {rel_model_name} не найдена.")
+                    raise ValidationError(f"Модель {rel_model_name} не найдена. ")
 
                 rel_id = cleaned_data.get(id_field, None)
                 rel_text = cleaned_data.get(name_field, '').strip()
@@ -230,10 +248,10 @@ class BaseTableForm(forms.ModelForm):
                             cleaned_data[rel_field] = related_object
                             cleaned_data[id_field] = related_object.id
                             cleaned_data[name_field] = rel_text
-                        else:
+                        elif rel_text != '':
                             self.add_error(
                                 name_field,
-                                f"Откройте форму добавления (двойной клик) для '{related_model._meta.verbose_name}'."
+                                f"Откройте форму добавления (двойной клик) для '{related_model._meta.verbose_name}'.\n"
                             )
                             continue
 
@@ -306,6 +324,8 @@ class ProjectsForm(BaseTableForm):
         self.request = kwargs.pop('request', None)
         super().__init__(*args,
                          unique_fields=['detail_code'],
+                         required_fields=['name', 'detail_full_name', 'manager', 'engineer', 'project_code',
+                                          'detail_name', 'detail_code'],
                          auto_fields=['manager', 'engineer', 'name', 'project_code', 'detail_name', 'detail_name',
                                       'detail_full_name'],
                          **kwargs)
