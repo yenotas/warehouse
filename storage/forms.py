@@ -72,89 +72,91 @@ class BaseTableForm(forms.ModelForm):
     related_fields = {}
     model_name = None
 
-    def get_fields_relations(self, field_name):
-        return self.related_fields.get(field_name, {})
-
     def __init__(self, *args, **kwargs):
         self.unique_fields = kwargs.pop('unique_fields', [])
         self.auto_fields = kwargs.pop('auto_fields', [])
         self.required_fields = kwargs.pop('required_fields', [])
         super().__init__(*args, **kwargs)
 
-        # Обработка полей модели для автозаполнения
+        # Суммирую поля для автозаполнения
         if self.related_fields:
             self.auto_fields = list(set(self.auto_fields + [field for field in list(self.related_fields.keys())]))
         print('Все поля автозаполнения:', self.auto_fields)
 
+        current_model_name = self._meta.model._meta.model_name.lower()
+
         for field_name in self.auto_fields:
-            field = self.fields.get(field_name)
+
+            isRelField = ''
+
+            # Все автозаполняемые поля делаю связанными
+            if field_name not in self.related_fields:
+                self.related_fields[field_name] = {'model': current_model_name, 'field': field_name}
+                print('Added ', field_name, self.related_fields[field_name])
+            else:
+                isRelField = 'rel_field'  # css класс - маркирующий только поля, связанные с другими моделями
 
             # Обработка связанных полей
-            if self.related_fields and field_name in self.related_fields:
 
-                rel_info = self.get_fields_relations(field_name)
-                print('related_field:', field_name, 'INFO:', rel_info)
+            rel_info = self.related_fields.get(field_name, {})
+            print('related_field:', field_name, 'INFO:', rel_info)
 
-                rel_model_name = rel_info['model']
-                rel_field_name = rel_info.get('field', '__str__')
-                rel_filter = rel_info.get('filter', None)
-                rel_filter_field = rel_info.get('filter_field', None)
+            rel_model_name = rel_info['model']
+            rel_field_name = rel_info.get('field', '__str__')
+            rel_filter = rel_info.get('filter', None)
+            rel_filter_field = rel_info.get('filter_field', None)
 
-                id_field_name = f"{field_name}_id"
-                name_field_name = f"{field_name}_name"
-                print('Создаем', id_field_name, name_field_name)
+            id_field_name = f"{field_name}_id"
+            name_field_name = f"{field_name}_name"
+            print('Создаем', id_field_name, name_field_name)
 
-                # Скрытое поле для ID
-                self.fields[id_field_name] = forms.IntegerField(widget=forms.HiddenInput(), required=False)
-                # Текстовое поле для имени
-                self.fields[name_field_name] = forms.CharField(
-                    required=False,
-                    label=self._meta.model._meta.get_field(field_name).verbose_name,
-                    widget=forms.TextInput(attrs={
-                        'class': 'auto_complete rel_field',
-                        'data-field-name': rel_field_name.lower(),
-                        'data-model-name': rel_model_name.lower(),
-                        'data-filter': rel_filter,
-                        'data-filter-field': rel_filter_field,
-                        'required': False,
-                    })
-                )
-                # Если форма создаётся для редактирования
-                if self.instance.pk:
-                    related_object = getattr(self.instance, field_name, None)
-                    if related_object:
-                        self.fields[id_field_name].initial = related_object.id
-                        self.fields[name_field_name].initial = getattr(related_object, rel_field_name, "")
-                # Убираем исходное связанное поле
-                if field_name in self.fields:
-                    del self.fields[field_name]
-
-            # Обработка несвязанных полей
-            else:
-                self.model_name = self._meta.model._meta.model_name.lower()
-                field.widget.attrs.update({
-                    'data-field-name': field_name.lower(),
-                    'data-model-name': self.model_name.lower(),
-                    'class': field.widget.attrs.get('class', '') + ' auto_complete',
+            # Скрытое поле для ID
+            self.fields[id_field_name] = forms.IntegerField(widget=forms.HiddenInput(), required=False)
+            # Текстовое поле для имени
+            self.fields[name_field_name] = forms.CharField(
+                required=False,
+                label=self._meta.model._meta.get_field(field_name).verbose_name,
+                widget=forms.TextInput(attrs={
+                    'class': f'auto_complete{" "+isRelField}',
+                    'data-field-name': rel_field_name.lower(),
+                    'data-model-name': rel_model_name.lower(),
+                    'data-filter': rel_filter,
+                    'data-filter-field': rel_filter_field,
                     'required': False,
                 })
+            )
+            # Если форма создаётся для редактирования
+            if self.instance.pk:
+                related_object = getattr(self.instance, field_name, None)
+                if related_object:
+                    self.fields[id_field_name].initial = related_object.id
+                    self.fields[name_field_name].initial = getattr(related_object, rel_field_name, "")
+
+            # Убираю исходное связанное поле
+            if field_name in self.fields:
+                del self.fields[field_name]
+
+            # else:
+            #     # Обработка несвязанных полей
+            #     self.model_name = self._meta.model._meta.model_name.lower()
+            #     field.widget.attrs.update({
+            #         'data-field-name': field_name.lower(),
+            #         'data-model-name': self.model_name.lower(),
+            #         'class': field.widget.attrs.get('class', '') + ' auto_complete',
+            #         'required': False,
+            #     })
 
         # Переупорядочиваем поля в соответствии с атрибутом fields
         new_order = []
         print("Meta fields:", getattr(self._meta, 'fields', None))
 
         for field_name in self._meta.fields:
-            if field_name in self.fields:
-                new_order.append(field_name)
-            elif field_name in self.related_fields:
+            if field_name in self.related_fields:
                 # Заменяем связанное поле на его новые поля
                 id_field_name = f"{field_name}_id"
                 name_field_name = f"{field_name}_name"
                 new_order.extend([name_field_name, id_field_name])
-
-        # Добавляем остальные поля, которые могли быть добавлены (например, 'id')
-        for field_name in self.fields.keys():
-            if field_name not in new_order:
+            else:
                 new_order.append(field_name)
 
         # Создаём новый OrderedDict с полями в нужном порядке
@@ -197,11 +199,8 @@ class BaseTableForm(forms.ModelForm):
 
             print('required_fields resume:', filter_args)
 
-        if self.related_fields:  # or self.auto_fields:
+        if self.related_fields:
             # Обработка связанных полей
-            # model_name = self._meta.model._meta.model_name.lower()
-            # for f in self.auto_fields:
-            #     self.related_fields[f] = {'model': model_name, 'field': f}
             for rel_field, rel_info in self.related_fields.items():
                 print('Проверка rel_info', rel_info)
                 rel_model_name = rel_info['model']
@@ -209,7 +208,7 @@ class BaseTableForm(forms.ModelForm):
                 rel_filter = rel_info.get('filter', None)
 
                 id_field = f"{rel_field}_id"
-                name_field = f"{rel_field}_name"
+                name_field = f"{rel_field}_name" if rel_field in self.related_fields else rel_field
                 try:
                     related_model = apps.get_model('storage', rel_model_name)
                 except LookupError:
@@ -217,7 +216,11 @@ class BaseTableForm(forms.ModelForm):
 
                 rel_id = cleaned_data.get(id_field, None)
                 rel_text = cleaned_data.get(name_field, '').strip()
-                print(f"Модель {rel_model_name} ищем {rel_text}")
+
+                if not rel_text and rel_field not in self.required_fields:
+                    continue
+
+                print(f"Модель {rel_model_name}, поле {name_field}, ищем {rel_text}")
 
                 if rel_id:
                     # Если ID уже существует, сохраняем его и связанный текст
@@ -272,9 +275,9 @@ class ProductsForm(BaseTableForm):
         super().__init__(
             *args,
             auto_fields=['name', 'supplier'],
+            required_fields=['name'],
             **kwargs
         )
-        self.fields['name'].widget.attrs.update({'required': 'required'})
         self.fields['product_image'].widget.attrs.update({'class': 'product_image'})
 
         # Если есть экземпляр объекта, передаем ID поставщика в атрибуты виджета
@@ -397,8 +400,9 @@ class ProductRequestForm(BaseTableForm):
 
     related_fields = {
         'product': {'model': 'Products', 'field': 'name'},
-        'project': {'model': 'Projects', 'field': 'name'},
-        'responsible': {'model': 'CustomUser', 'filter': 'ПДО'}
+        'project': {'model': 'Projects', 'field': 'detail_code'},
+        'responsible': {'model': 'CustomUser', 'filter': 'ПДО'},
+        'manager': {'model': 'CustomUser', 'filter': 'ПДО'}
         }
 
     class Meta:
@@ -409,7 +413,7 @@ class ProductRequestForm(BaseTableForm):
         self.request = kwargs.pop('request', None)
         super().__init__(
             *args,
-            auto_fields=['product', 'project', 'responsible'],
+            auto_fields=['product', 'project', 'responsible', 'manager'],
             **kwargs
         )
         # self.fields['responsible'].initial = self.request.user
@@ -449,8 +453,8 @@ class SuppliersForm(BaseTableForm):
         super().__init__(*args,
                           unique_fields=['name'],
                           auto_fields=['name'],
+                          required_fields=['name'],
                           **kwargs)
-        self.fields['name'].widget.attrs.update({'required': 'required'})
 
 
 class DepartmentsForm(BaseTableForm):

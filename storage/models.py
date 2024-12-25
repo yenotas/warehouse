@@ -135,7 +135,7 @@ class Projects(models.Model):
         verbose_name_plural = "Проекты"
 
     def __str__(self):
-        return self.name or ""
+        return self.detail_code or ""
 
 
 class ProductRequest(models.Model):
@@ -158,6 +158,8 @@ class ProductRequest(models.Model):
     delivery_address = models.CharField(blank=True, null=True, verbose_name="Адрес")
     deadline_delivery_date = models.DateField(blank=True, null=True, verbose_name="Требуемая дата поставки")
     request_accepted = models.BooleanField(default=False)
+    manager = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True,
+                                    verbose_name="Закупщик", related_name="manager_set")
 
     class Meta:
         verbose_name = "заявку на закуп"
@@ -177,16 +179,16 @@ class Orders(models.Model):
     manager_old = models.CharField(max_length=255, blank=True, null=True)
     accounted_in_1c = models.BooleanField(blank=True, null=True, verbose_name="Учтено в 1С")
     invoice_number = models.CharField(max_length=100, blank=True, null=True, verbose_name="Номер счета")
-    delivery_status = models.CharField(max_length=50, verbose_name="Статус заказа", choices=[
+    delivery_status = models.CharField(max_length=50, blank=True, null=True, verbose_name="Статус заказа", choices=[(None, ''),
         ('Ожидаем', 'Ожидаем'), ('Доставлено', 'Доставлено'), ('Склад', 'Склад'), ('Неполная', 'Неполная'),
         ('Частичный возврат', 'Частичный возврат'), ('Полный возврат', 'Полный возврат'), ('Отмена', 'Отмена'),
     ])
-    documents = models.CharField(max_length=50, verbose_name="Документы", choices=[
-        ('Нет', 'Нет'), ('УПД/СФ', 'УПД/СФ'), ('TTH/TH/AKT', 'TTH/TH/AKT'), ('ИП', 'ИП')
-    ], default=('Нет', 'Нет'))
-    document_flow = models.CharField(max_length=50, verbose_name="Документооборот", choices=[
-        ('Нет', 'Нет'), ('ИП', 'ИП'), ('ЭДО', 'ЭДО'), ('Бумага', 'Бумага')
-    ], default=('Нет', 'Нет'))
+    documents = models.CharField(max_length=50, verbose_name="Документы", blank=True, null=True, choices=[
+        (None, ''), ('Нет', 'Нет'), ('УПД/СФ', 'УПД/СФ'), ('TTH/TH/AKT', 'TTH/TH/AKT'), ('ИП', 'ИП')
+    ])
+    document_flow = models.CharField(max_length=50, verbose_name="Документооборот", blank=True, null=True, choices=[
+        (None, ''), ('Нет', 'Нет'), ('ИП', 'ИП'), ('ЭДО', 'ЭДО'), ('Бумага', 'Бумага')
+    ])
     waiting_date = models.DateField(blank=True, null=True, verbose_name="Ожидаемая дата поставки")
     order_accepted = models.BooleanField(default=False)
 

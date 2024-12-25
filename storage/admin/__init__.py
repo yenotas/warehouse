@@ -86,17 +86,23 @@ class ProjectsAdmin(TableModelAdmin):
     list_display = ['id', 'creation_date', 'name', 'detail_full_name', 'manager', 'engineer', 'project_code',
                     'detail_name', 'detail_code']
     search_fields = ['name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name', 'detail_code']
-    ordering = ['name']
+    ordering = ['-id']
     list_filter = ['creation_date', 'name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name',
                    'detail_code']
 
     def save_model(self, request, obj, form, change):
-        print()
+        # Добавляем отладочную информацию
+        print(f"Before save: manager={obj.manager}, engineer={obj.engineer}")
+
         if not change:
             if not obj.manager:
                 obj.manager = request.user
             if not obj.engineer:
                 obj.engineer = request.user
+
+        # Отладочная информация после возможных изменений
+        print(f"After save: manager={obj.manager}, engineer={obj.engineer}")
+
         super().save_model(request, obj, form, change)
 
     def get_form(self, request, obj=None, **kwargs):
@@ -113,8 +119,10 @@ class ProductRequestAdmin(TableModelAdmin):
     list_display = ['id', 'request_date', 'product', 'request_about', 'request_quantity', 'project', 'responsible',
                     'delivery_location', 'delivery_address', 'deadline_delivery_date']
     search_fields = ['product__name', 'project__project_code']
-    ordering = ['id', 'request_date', 'product', 'project']
-    list_filter = ['request_date', 'product', 'project']
+    ordering = ['-id']
+    list_filter = ['request_date', 'product', 'project', 'manager']
+    fields = ['product', 'request_about', 'request_quantity', 'project', 'responsible',
+                    'delivery_location', 'delivery_address', 'deadline_delivery_date', 'manager']
 
     def save_model(self, request, obj, form, change):
         if not change and not obj.responsible:

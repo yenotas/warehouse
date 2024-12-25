@@ -98,7 +98,7 @@ function resetForm() {
     document.getElementById('id_form-INITIAL_FORMS').value = '0';
 
     // Найти tbody и все строки в нем
-    const tbody = document.querySelector('table.results tbody');
+    const tbody = document.querySelector('table.table-row-form tbody');
     const rows = tbody.querySelectorAll('tr');
 
     // Удалить все строки, кроме первой
@@ -111,13 +111,17 @@ function resetForm() {
     // Очистить все input и select в первой строке
     const firstRowInputs = rows[0].querySelectorAll('input, select');
     firstRowInputs.forEach(input => {
+        console.log(input.tagName, input.type, input.value, '-> сброс!' )
         if (input.tagName === 'INPUT') {
-            if(!['hidden', 'submit', 'reset'].includes(input.type)){
-                 input.value = ''; // Сбросить файлы
+            if(!['submit', 'reset'].includes(input.type)){
+                 input.value = '';
+                 input.dispatchEvent(new Event('change'));
             }
         } else if (input.tagName === 'SELECT') {
             input.selectedIndex = 0; // Выбрать первый пункт
+            input.dispatchEvent(new Event('change'));
         }
+
     });
 
     // Убрать ошибки валидации, если они есть
