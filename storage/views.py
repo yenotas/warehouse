@@ -4,6 +4,7 @@ from django.contrib import messages
 # from dal import autocomplete
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db.models import Count
 from django.http import JsonResponse, HttpResponseRedirect
 from django.contrib.contenttypes.models import ContentType
 from django.views.decorators.csrf import csrf_exempt
@@ -55,9 +56,9 @@ class AutocompleteView(View):
         if model_name == "customuser":
             print('filter custom user:', data_filter)
             if data_filter:
-                qs = model.objects.filter(groups__name=data_filter)
+                qs = model.objects.filter(groups__name=data_filter).distinct()
             else:
-                qs = model.objects.all()
+                qs = model.objects.all().distinct()
             results = [
                 {
                     'id': obj.pk,

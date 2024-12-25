@@ -41,9 +41,9 @@ class CustomUser(AbstractUser):
         verbose_name = "пользователя"
         verbose_name_plural = "Пользователи"
 
-    @property
-    def full_name(self):
-        return f"{self.first_name} {self.last_name}" if self.first_name and self.last_name else ""
+    # @property
+    # def full_name(self):
+    #     return f"{self.first_name} {self.last_name}" if self.first_name and self.last_name else ""
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}" if self.first_name and self.last_name else f"User {self.pk}"
@@ -66,7 +66,7 @@ class Suppliers(models.Model):
         verbose_name_plural = "Поставщики"
 
     def __str__(self):
-        return self.name or "-"
+        return self.name or ""
 
 
 class Categories(models.Model):
@@ -78,7 +78,7 @@ class Categories(models.Model):
         verbose_name_plural = "Категории, признаки, свойства"
 
     def __str__(self):
-        return self.name or "-"
+        return self.name or ""
 
 
 class Products(models.Model):
@@ -109,33 +109,33 @@ class Products(models.Model):
                 reverse('myadmin:storage_products_change', args=[self.pk]),
                 self.product_image.url
             )
-        return '-'
+        return ""
 
     product_image_tag.short_description = 'Фото товара'
 
     def __str__(self):
-        return self.name or "-"
+        return self.name or ""
 
 
 class Projects(models.Model):
     creation_date = models.DateField(auto_now_add=True, verbose_name="Дата записи")
-    name = models.CharField(max_length=255, blank=False, default='-', verbose_name="Проект")
-    detail_full_name = models.CharField(max_length=255, blank=True, default='-', verbose_name="Полное название изделия")
+    name = models.CharField(max_length=255, blank=False, default="", verbose_name="Проект")
+    detail_full_name = models.CharField(max_length=255, blank=True, default="", verbose_name="Полное название изделия")
     manager = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True, verbose_name="Менеджер")
     manager_old = models.CharField(max_length=255, blank=True, null=True)
     engineer = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, related_name='projects_engineer_set',
                                  blank=True, null=True, verbose_name="Инженер")
     engineer_old = models.CharField(max_length=255, blank=True, null=True)
-    project_code = models.CharField(max_length=100, blank=True, default='-', verbose_name="Шифр проекта")
-    detail_name = models.CharField(max_length=255, blank=True, default='-', verbose_name="Изделие")
-    detail_code = models.CharField(max_length=100, blank=True, default='-', verbose_name="Шифр изделия")
+    project_code = models.CharField(max_length=100, blank=True, default="", verbose_name="Шифр проекта")
+    detail_name = models.CharField(max_length=255, blank=True, default="", verbose_name="Изделие")
+    detail_code = models.CharField(max_length=100, blank=True, default="", verbose_name="Шифр изделия")
 
     class Meta:
         verbose_name = "проект"
         verbose_name_plural = "Проекты"
 
     def __str__(self):
-        return self.name or "-"
+        return self.name or ""
 
 
 class ProductRequest(models.Model):
@@ -164,7 +164,7 @@ class ProductRequest(models.Model):
         verbose_name_plural = "Заявки на закуп"
 
     def __str__(self):
-        return f"Заявка {self.id} на {self.product.name}" or "-"
+        return f"Заявка {self.id} на {self.product.name}" or ""
 
 
 class Orders(models.Model):
@@ -195,7 +195,7 @@ class Orders(models.Model):
         verbose_name_plural = "Заказы по заявкам"
 
     def __str__(self):
-        return f"По заявке №{self.product_request}" or "-"
+        return f"По заявке №{self.product_request}" or ""
 
 
 class ProductMovies(models.Model):
@@ -236,7 +236,7 @@ class StorageCells(models.Model):
         verbose_name_plural = "Адресные ячейки"
 
     def __str__(self):
-        return self.name or "-"
+        return self.name or ""
 
 
 class ModelAccessControl(models.Model):
@@ -311,7 +311,7 @@ class PivotTable(models.Model):
     def product_image_tag(self):
         if self.product_image:
             return format_html('<img src="{}" width="50" height="50" />'.format(self.product_image.url))
-        return '-'
+        return ""
     product_image_tag.short_description = 'Фото товара'
 
     def save(self, *args, **kwargs):

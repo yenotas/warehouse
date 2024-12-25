@@ -87,8 +87,8 @@ django.jQuery(document).ready(function($) {
                 const win_name = isEdit ? "change_"+id : "add_"+id
                 const popupWindow = window.open(url, win_name, 'width=1200,height=300,resizable=yes,scrollbars=yes');
                 if (popupWindow) {
-                        popupWindow.focus();
-                    }
+                    popupWindow.focus();
+                }
             });
         }
 
@@ -107,7 +107,13 @@ django.jQuery(document).ready(function($) {
                         filter_field: filterField
                     },
                     success: function(data) {
-                        response($.map(data, function(item) {
+                        let uniqueItems = data;
+                        if (!isRelField) {
+                            uniqueItems = data.filter((item, index, self) =>
+                                index === self.findIndex((t) => (t.value === item.value))
+                            );
+                        }
+                        response($.map(uniqueItems, function(item) {
                             return {
                                 label: item.label,
                                 value: item.value,
@@ -138,4 +144,5 @@ django.jQuery(document).ready(function($) {
         });
 
     });
+
 });

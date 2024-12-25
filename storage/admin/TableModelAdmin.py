@@ -125,7 +125,7 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
             formset_class = self.get_formset_class(request)
             formset = formset_class(request.POST, request.FILES, queryset=self.model.objects.none())
             print('ИНФО!')
-            print(formset.errors)
+            # print(formset.errors)
             print(request.FILES)
             if formset.is_valid():
                 clear_temp_files(request)
@@ -150,7 +150,7 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
             formset = formset_class(queryset=self.model.objects.none())
             extra_context['formset'] = formset
 
-        form_fields = list(formset.forms[0].fields.keys()) if formset.forms[0] else []
+        form_fields = list(formset.forms[0].fields.keys()) if formset.forms else []
         extra_context['form_fields_json'] = json.dumps(form_fields)
         extra_context['title'] = ""
         extra_context['button_name'] = "Добавить"

@@ -18,42 +18,54 @@ from django.db.models import Value, TextField
 from django.contrib.postgres.search import TrigramSimilarity
 
 
-def trigram_search(query, model_or_queryset, search_field, threshold=0.3):
-    """
-    Универсальная функция триграммного поиска.
+def trigram_search(query, queryset, search_field):
+    # Создаем аннотацию с триграммным сходством
+    queryset = queryset.annotate(
+        similarity=TrigramSimilarity(search_field, query)
+    ).filter(similarity__gt=0.3).order_by('-similarity')  # Порог сходства можно настроить
 
-    :param query: строка запроса для поиска (например, "Иван Иванов").
-    :param model_or_queryset: модель или QuerySet для поиска.
-    :param search_field: поле, в котором выполняется поиск.
-    :param threshold: порог схожести для поиска (по умолчанию 0.3).
-    :return: tuple (id записи, найденный текст) или None, если ничего не найдено.
-    """
-    if not query or not model_or_queryset or not search_field:
-        raise ValueError("Все параметры (query, model_or_queryset, search_field) обязательны.")
-
-    # Если передана модель, получаем QuerySet
-    if isinstance(model_or_queryset, type) and hasattr(model_or_queryset, 'objects'):
-        queryset = model_or_queryset.objects.all()
-    elif isinstance(model_or_queryset, QuerySet):
-        queryset = model_or_queryset
-    else:
-        raise ValueError("model_or_queryset должен быть либо моделью, либо QuerySet.")
-
-    # Выполняем триграммный поиск
-    result = (
-        queryset.annotate(
-            similarity=TrigramSimilarity(search_field, Value(query, output_field=CharField()))
-        )
-        .filter(similarity__gte=threshold)
-        .order_by('-similarity')
-        .values_list('id', search_field, 'similarity')
-        .first()
-    )
-
-    if result:
-        record_id, record_text, similarity = result
-        return record_id, record_text
+    # Если есть совпадения, возвращаем id и имя
+    if queryset.exists():
+        best_match = queryset.first()
+        return best_match.id, getattr(best_match, search_field)
     return None, None
+
+# def trigram_search(query, model_or_queryset, search_field, threshold=0.3):
+#     """
+#     Универсальная функция триграммного поиска.
+#
+#     :param query: строка запроса для поиска (например, "Иван Иванов").
+#     :param model_or_queryset: модель или QuerySet для поиска.
+#     :param search_field: поле, в котором выполняется поиск.
+#     :param threshold: порог схожести для поиска (по умолчанию 0.3).
+#     :return: tuple (id записи, найденный текст) или None, если ничего не найдено.
+#     """
+#     if not query or not model_or_queryset or not search_field:
+#         raise ValueError("Все параметры (query, model_or_queryset, search_field) обязательны.")
+#
+#     # Если передана модель, получаем QuerySet
+#     if isinstance(model_or_queryset, type) and hasattr(model_or_queryset, 'objects'):
+#         queryset = model_or_queryset.objects.all()
+#     elif isinstance(model_or_queryset, QuerySet):
+#         queryset = model_or_queryset
+#     else:
+#         raise ValueError("model_or_queryset должен быть либо моделью, либо QuerySet.")
+#
+#     # Выполняем триграммный поиск
+#     result = (
+#         queryset.annotate(
+#             similarity=TrigramSimilarity(search_field, query)
+#         )
+#         .filter(similarity__gte=threshold)
+#         .order_by('-similarity')
+#         .values_list('id', search_field, 'similarity')
+#         .first()
+#     )
+#
+#     if result:
+#         record_id, record_text, similarity = result
+#         return record_id, record_text
+#     return None, None
 
 
 class BaseTableForm(forms.ModelForm):
@@ -150,6 +162,23 @@ class BaseTableForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
 
+        # Проверка уникальности
+        if self.unique_fields and not self.instance.pk:
+            model_class = self._meta.model
+            filter_args = {}
+
+            for field_name in self.fields:
+                if field_name in self.unique_fields:
+                    print('unique_field', field_name)
+                    field_value = cleaned_data.get(field_name)
+                    filter_args[field_name] = field_value
+
+                    existing_record = model_class.objects.filter(**filter_args).first()
+                    if existing_record:
+                        self.add_error(field_name, f"{field_value}: Такая запись уже существует!")
+
+            print('unique_fields resume:', filter_args)
+
         if self.related_fields:
             # Обработка связанных полей
             for rel_field, rel_info in self.related_fields.items():
@@ -169,79 +198,44 @@ class BaseTableForm(forms.ModelForm):
                     raise ValidationError(f"Модель {rel_model_name} не найдена.")
 
                 rel_id = cleaned_data.get(id_field, None)
-                rel_name = cleaned_data.get(name_field, '').strip()
-                print(f"Модель {rel_model_name} ищем {rel_name}")
-
-                if rel_model_name == 'CustomUser' and not rel_id:
-                    print('Поиск пользователя по имени и фамилии')
-                    # Queryset для поля full_name
-                    queryset = related_model.objects.annotate(
-                        full_name=Concat('first_name', Value(' '), 'last_name', output_field=CharField())
-                    )
-                    # print(queryset)
-                    # Триграммный поиск по полю full_name
-                    rel_id, true_name = trigram_search(rel_name, queryset, 'full_name')
-                    if rel_id:
-                        cleaned_data[id_field] = rel_id
-                        print(f"Имя {true_name} id {rel_id}")
-                    else:
-                        self.add_error(
-                            name_field,
-                            f"Откройте форму для добавления '{related_model._meta.verbose_name}' (двойной клик)"
-                        )
-                        continue
-
-                related_object = None
+                rel_text = cleaned_data.get(name_field, '').strip()
+                print(f"Модель {rel_model_name} ищем {rel_text}")
 
                 if rel_id:
-                    # Если указан ID, проверяем, существует ли запись
-                    related_object = related_model.objects.filter(id=rel_id).first()
-                    if related_object:
-                        # Если имя не совпадает
-                        if getattr(related_object, rel_field_name) != rel_name:
-                            # Проверяем, существует ли запись с таким именем
-                            existing_object = related_model.objects.filter(**{rel_field_name: rel_name}).first()
-                            if existing_object:
-                                print("Такое имя есть")
-                                related_object = existing_object  # Используем существующую запись
-                            else:
-                                # Создаем новую запись (если это разрешено)
-                                if not getattr(related_model, 'relate_creating', False):
-                                    self.add_error(
-                                        name_field,
-                                        f"Откройте форму добавления (двойной клик) для '{related_model._meta.verbose_name}'."
-                                    )
-                                    continue
-                                related_object = related_model.objects.create(**{rel_field_name: rel_name})
-                    else:
-                        print(id_field, f"Запись с ID {rel_id} не найдена.")
-
-                if not related_object and rel_name and getattr(related_model, 'relate_creating', False):
-                    # Если указан только name, создаем новую запись
-                    related_object = related_model.objects.create(**{rel_field_name: rel_name})
-
-                # Связываем объект с cleaned_data
-                if related_object:
-                    cleaned_data[rel_field] = related_object
+                    # Если ID уже существует, сохраняем его и связанный текст
+                    cleaned_data[id_field] = rel_id
+                    cleaned_data[name_field] = rel_text
                 else:
-                    self.add_error(name_field, 'Это поле необходимо заполнить.')
-
-        # Проверка уникальности
-        if self.unique_fields and not self.instance.pk:
-            model_class = self._meta.model
-            filter_args = {}
-
-            for field_name in self.fields:
-                if field_name in self.unique_fields:
-                    print('unique_field', field_name)
-                    if field_name + "_name" in self.related_fields:
-                        filter_args[field_name.replace('_name', '')] = cleaned_data.get(field_name + "_name")
+                    if rel_model_name == 'CustomUser':
+                        queryset = related_model.objects.annotate(
+                            full_name=Concat('first_name', Value(' '), 'last_name')
+                        ).all()
+                        search_field = 'full_name'
                     else:
-                        filter_args[field_name] = cleaned_data.get(field_name)
-            print('unique_fields', filter_args)
+                        queryset = related_model.objects.all()
+                        search_field = rel_field_name
 
-            if model_class.objects.filter(**filter_args).exists():
-                raise ValidationError("Такая запись уже существует!")
+                    rel_id, true_value = trigram_search(rel_text, queryset, search_field)
+                    if rel_id:
+                        print(f"НАЙДЕНО! {true_value} id {rel_id}")
+                        cleaned_data[id_field] = rel_id
+                        cleaned_data[name_field] = true_value
+                        related_object = related_model.objects.filter(id=rel_id).first()
+                        cleaned_data[rel_field] = related_object
+                    else:
+                        # Создаем новую запись (если это разрешено)
+                        if getattr(related_model, 'relate_creating', False):
+                            related_object = related_model.objects.create(**{rel_field_name: rel_text})
+                            # Сохраняем объект в cleaned_data
+                            cleaned_data[rel_field] = related_object
+                            cleaned_data[id_field] = related_object.id
+                            cleaned_data[name_field] = rel_text
+                        else:
+                            self.add_error(
+                                name_field,
+                                f"Откройте форму добавления (двойной клик) для '{related_model._meta.verbose_name}'."
+                            )
+                            continue
 
         return cleaned_data
 
@@ -312,7 +306,8 @@ class ProjectsForm(BaseTableForm):
         self.request = kwargs.pop('request', None)
         super().__init__(*args,
                          unique_fields=['detail_code'],
-                         auto_fields=['manager', 'engineer', 'name', 'project_code', 'detail_name', 'detail_name', 'detail_full_name'],
+                         auto_fields=['manager', 'engineer', 'name', 'project_code', 'detail_name', 'detail_name',
+                                      'detail_full_name'],
                          **kwargs)
         max_detail_code = Projects.objects.all().aggregate(models.Max('detail_code'))['detail_code__max']
 
@@ -327,13 +322,13 @@ class ProjectsForm(BaseTableForm):
 
         self.fields['detail_code'].initial = new_detail_code
 
-    def clean_name(self):
-        name = self.cleaned_data.get('name')
-        if Projects.objects.filter(name=name).exists():
-            raise forms.ValidationError('Проект с таким именем уже существует.')
-        if name == '':
-            raise forms.ValidationError('Поле должно быть заполнено!')
-        return name
+    # def clean_detail_code(self):
+    #     detail_code = self.cleaned_data.get('name')
+    #     if Projects.objects.filter(detail_code=detail_code).exists():
+    #         raise forms.ValidationError('Проект с таким кодом уже существует.')
+    #     if detail_code == '':
+    #         raise forms.ValidationError('Поле должно быть заполнено!')
+    #     return detail_code
 
 
 class OrdersForm(BaseTableForm):
