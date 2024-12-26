@@ -96,7 +96,6 @@ class BaseTableForm(forms.ModelForm):
                 isRelField = ' rel_field'  # css класс - маркирующий только поля, связанные с другими моделями
 
             # Обработка связанных полей
-
             rel_info = self.related_fields.get(field_name, {})
             print('related_field:', field_name, 'INFO:', rel_info)
 
@@ -125,7 +124,7 @@ class BaseTableForm(forms.ModelForm):
                 })
             )
 
-            # Убираю исходное связанное поле
+            # Убираю исходное связанное поле, если оно автозаполняемое
             if field_name in self.fields:
                 del self.fields[field_name]
 
@@ -144,6 +143,9 @@ class BaseTableForm(forms.ModelForm):
 
         # Создаём новый OrderedDict с полями в нужном порядке
         self.fields = OrderedDict((f, self.fields[f]) for f in new_order if f in self.fields)
+
+        # Отладочная информация
+        print("Поля формы после переименования:", list(self.fields.keys()))
 
     def clean(self):
         cleaned_data = super().clean()
@@ -182,7 +184,7 @@ class BaseTableForm(forms.ModelForm):
 
             print('required_fields resume:', filter_args)
 
-        if self.related_fields:
+        if self.auto_fields:
             # Обработка связанных полей
             print('все поля на обработку', self.related_fields.items())
             for rel_field, rel_info in self.related_fields.items():
@@ -243,7 +245,18 @@ class BaseTableForm(forms.ModelForm):
                             continue
             print('Обход связанных полей успешно завершен!')
 
+        print('Поля из формсета:')
+        for field_name in self.fields:
+            print(field_name)
+
         return cleaned_data
+
+    def update_instance(self):
+        """Обновляет инстанс модели данными из формы."""
+        for field_name in self.related_fields:
+            id_field_name = f"{field_name}_id"
+            if id_field_name in self.cleaned_data:
+                setattr(self.instance, field_name, self.cleaned_data[id_field_name])
 
 
 class ProductsForm(BaseTableForm):

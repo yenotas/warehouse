@@ -5,7 +5,7 @@ from django.contrib import admin
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import InMemoryUploadedFile
-from django.forms import modelformset_factory
+from django.forms import modelformset_factory, BaseModelFormSet
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect
 from django.contrib import messages
@@ -113,11 +113,30 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
         return qs.distinct()
 
     # Функция для создания класса formset
+    # def get_formset_class(self, request, extra=1):
+    #     return modelformset_factory(
+    #         self.model,
+    #         form=self.get_form(request),
+    #         extra=extra,
+    #     )
+
     def get_formset_class(self, request, extra=1):
+        class BaseTableFormSet(BaseModelFormSet):
+            def construct_instance(self, form, **kwargs):
+                # Call the super method to create the instance
+                instance = super().construct_instance(form, **kwargs)
+                # Update the instance with data from the new fields
+                for field_name in self.form.related_fields:
+                    id_field_name = f"{field_name}_id"
+                    if id_field_name in form.cleaned_data:
+                        setattr(instance, field_name, form.cleaned_data)
+                return instance
+
         return modelformset_factory(
             self.model,
             form=self.get_form(request),
             extra=extra,
+            formset=BaseTableFormSet  # Use the custom formset class
         )
 
     def changelist_view(self, request, extra_context=None):
@@ -126,13 +145,19 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
             formset_class = self.get_formset_class(request)
             formset = formset_class(request.POST, request.FILES, queryset=self.model.objects.none())
             print('ИНФО!')
-            # print(formset.errors)
+            print(formset.errors)
             print('Файлы в сессии:', request.FILES)
+            print('Формсет поля:', [form.fields.keys() for form in formset.forms])
             if formset.is_valid():
+
+                # print('Обновляю формсет')
+                # for form in formset.forms:
+                #     form.update_instance()  # Обновляем инстансы моделей перед сохранением
+
                 clear_temp_files(request)
-                print('сохраняю формсет')
                 new_objects = formset.save(commit=False)
-                print('формсет сохранен')
+
+                print('Сохраняю формсет')
                 for new_object in new_objects:
                     self.save_model(request, new_object, formset, change=False)
                 count = len(new_objects)
@@ -145,6 +170,7 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
             else:
                 # Сохраняем файлы в сессию
                 print('no valid set!')
+                print('Formset errors:', formset.errors)
                 save_files_to_session(request, formset)
                 extra_context['formset'] = formset
 
