@@ -245,18 +245,40 @@ class BaseTableForm(forms.ModelForm):
                             continue
             print('Обход связанных полей успешно завершен!')
 
-        print('Поля из формсета:')
-        for field_name in self.fields:
-            print(field_name)
+        for field_name in self.cleaned_data:
+            # Handle renamed fields
+            if field_name.endswith('_id'):
+                original_field_name = field_name[:-3]
+            elif field_name.endswith('_name'):
+                original_field_name = field_name[:-5]
+            else:
+                original_field_name = field_name
+
+            if hasattr(self.instance, original_field_name):
+                setattr(self.instance, original_field_name, self.cleaned_data[field_name])
 
         return cleaned_data
 
-    def update_instance(self):
-        """Обновляет инстанс модели данными из формы."""
-        for field_name in self.related_fields:
-            id_field_name = f"{field_name}_id"
-            if id_field_name in self.cleaned_data:
-                setattr(self.instance, field_name, self.cleaned_data[id_field_name])
+    # def update_instance(self):
+    #     """Обновляет инстанс модели данными из формы."""
+    #     for field_name in self.related_fields:
+    #         id_field_name = f"{field_name}_id"
+    #         if id_field_name in self.cleaned_data:
+    #             setattr(self.instance, field_name, self.cleaned_data[id_field_name])
+
+    # def construct_instance(self):
+    #     for field_name in self.cleaned_data:
+    #         # Handle renamed fields
+    #         if field_name.endswith('_id'):
+    #             original_field_name = field_name[:-3]
+    #         elif field_name.endswith('_name'):
+    #             original_field_name = field_name[:-5]
+    #         else:
+    #             original_field_name = field_name
+    #
+    #         if hasattr(self.instance, original_field_name):
+    #             setattr(self.instance, original_field_name, self.cleaned_data[field_name])
+    #     return self.instance
 
 
 class ProductsForm(BaseTableForm):
