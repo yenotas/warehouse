@@ -87,14 +87,13 @@ class BaseTableForm(forms.ModelForm):
 
         for field_name in self.auto_fields:
 
-            isRelField = ''
-
             # Все автозаполняемые поля делаю связанными
             if field_name not in self.related_fields:
                 self.related_fields[field_name] = {'model': current_model_name, 'field': field_name}
                 print('Added ', field_name, self.related_fields[field_name])
+                isRelField = ''
             else:
-                isRelField = 'rel_field'  # css класс - маркирующий только поля, связанные с другими моделями
+                isRelField = ' rel_field'  # css класс - маркирующий только поля, связанные с другими моделями
 
             # Обработка связанных полей
 
@@ -117,7 +116,7 @@ class BaseTableForm(forms.ModelForm):
                 required=False,
                 label=self._meta.model._meta.get_field(field_name).verbose_name,
                 widget=forms.TextInput(attrs={
-                    'class': f'auto_complete{" "+isRelField}',
+                    'class': f'auto_complete{isRelField}',
                     'data-field-name': rel_field_name.lower(),
                     'data-model-name': rel_model_name.lower(),
                     'data-filter': rel_filter,
@@ -125,26 +124,10 @@ class BaseTableForm(forms.ModelForm):
                     'required': False,
                 })
             )
-            # Если форма создаётся для редактирования
-            if self.instance.pk:
-                related_object = getattr(self.instance, field_name, None)
-                if related_object:
-                    self.fields[id_field_name].initial = related_object.id
-                    self.fields[name_field_name].initial = getattr(related_object, rel_field_name, "")
 
             # Убираю исходное связанное поле
             if field_name in self.fields:
                 del self.fields[field_name]
-
-            # else:
-            #     # Обработка несвязанных полей
-            #     self.model_name = self._meta.model._meta.model_name.lower()
-            #     field.widget.attrs.update({
-            #         'data-field-name': field_name.lower(),
-            #         'data-model-name': self.model_name.lower(),
-            #         'class': field.widget.attrs.get('class', '') + ' auto_complete',
-            #         'required': False,
-            #     })
 
         # Переупорядочиваем поля в соответствии с атрибутом fields
         new_order = []
@@ -195,12 +178,13 @@ class BaseTableForm(forms.ModelForm):
 
                     if not field_value:
                         filter_args[field_name] = ''
-                        self.add_error(field_name, f"Обязательное поле!\n")
+                        self.add_error(field_name, f"Обязательное поле! \n")
 
             print('required_fields resume:', filter_args)
 
         if self.related_fields:
             # Обработка связанных полей
+            print('все поля на обработку', self.related_fields.items())
             for rel_field, rel_info in self.related_fields.items():
                 print('Проверка rel_info', rel_info)
                 rel_model_name = rel_info['model']
@@ -254,9 +238,10 @@ class BaseTableForm(forms.ModelForm):
                         elif rel_text != '':
                             self.add_error(
                                 name_field,
-                                f"Откройте форму добавления (двойной клик) для '{related_model._meta.verbose_name}'.\n"
+                                f"Откройте форму добавления (двойной клик) для '{related_model._meta.verbose_name}'. \n"
                             )
                             continue
+            print('Обход связанных полей успешно завершен!')
 
         return cleaned_data
 

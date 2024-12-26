@@ -55,6 +55,7 @@ def get_temp_files(request):
 
 
 def clear_temp_files(request):
+    print("очистка файлов")
     temp_files = request.session.pop('saved_files', {})
     for file_data in temp_files.values():
         try:
@@ -126,10 +127,12 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
             formset = formset_class(request.POST, request.FILES, queryset=self.model.objects.none())
             print('ИНФО!')
             # print(formset.errors)
-            print(request.FILES)
+            print('Файлы в сессии:', request.FILES)
             if formset.is_valid():
                 clear_temp_files(request)
+                print('сохраняю формсет')
                 new_objects = formset.save(commit=False)
+                print('формсет сохранен')
                 for new_object in new_objects:
                     self.save_model(request, new_object, formset, change=False)
                 count = len(new_objects)

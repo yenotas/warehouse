@@ -84,7 +84,7 @@ class ImageCell {
     initEvents() {
         this.imagePasteArea.on('paste', this.handlePaste.bind(this));
         this.removeImageButton.on('click', this.handleRemove.bind(this));
-        this.imagePreviewContainer.on('dblclick', this.handleDoubleClick.bind(this));
+        this.imagePasteArea.on('dblclick', this.handleDoubleClick.bind(this));
     }
 
     handlePaste(event) {
@@ -103,7 +103,7 @@ class ImageCell {
                 getImageFromHTML(item, (file) => {
                     if (file) {
                         this.insertImage(file);
-                        console.log('Изображение вставлено из HTML-кода');
+                        console.log('Изображение вставлено из HTML');
                     }
                 });
             }

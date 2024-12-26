@@ -52,7 +52,6 @@ django.jQuery(document).ready(function($) {
         var dataFilter = fieldElement.data('filter');
         var filterField = fieldElement.data('filter_field');
         var isRelField = fieldElement.hasClass('rel_field');
-        // var canCropped = fieldName
         console.log('fieldName =', fieldName, ' modelName =', modelName, ' dataFilter =', dataFilter, ' filterField =', filterField);
         var hiddenFieldName = null;
 
