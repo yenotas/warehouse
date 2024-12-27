@@ -5,7 +5,8 @@ from ..forms import PivotTableForm
 
 class PivotTableAdmin(ManageAdmins):
     form = PivotTableForm
-    fields = ('product_name', 'product_link', 'request_about', 'packaging_unit', 'request_quantity',
+    fields = (
+        'product_name', 'product_link', 'request_about', 'packaging_unit', 'request_quantity',
         'project_code', 'detail_name', 'detail_code', 'request_date',
         'responsible', 'delivery_location', 'deadline_delivery_date', 'waiting_date', 'has_on_storage',
         'supplier', 'invoice_number', 'delivery_status', 'not_delivered_pcs',

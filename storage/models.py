@@ -5,18 +5,6 @@ from django.db import models
 from django.contrib.contenttypes.models import ContentType
 
 
-class ModelColors(models.Model):
-    name = models.CharField(max_length=50, verbose_name="Таблица")
-    color = models.CharField(max_length=6, verbose_name="Цвет заголовка #XXXXXX")
-
-    class Meta:
-        verbose_name = "цвет заголовка"
-        verbose_name_plural = "Цвета моделей"
-
-    def __str__(self):
-        return self.name
-
-
 class Departments(models.Model):
     name = models.CharField(max_length=50, verbose_name="Отдел/Цех", blank=False, unique=True)
     relate_creating = True
@@ -40,10 +28,6 @@ class CustomUser(AbstractUser):
     class Meta:
         verbose_name = "пользователя"
         verbose_name_plural = "Пользователи"
-
-    # @property
-    # def full_name(self):
-    #     return f"{self.first_name} {self.last_name}" if self.first_name and self.last_name else ""
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}" if self.first_name and self.last_name else f"User {self.pk}"
@@ -128,7 +112,7 @@ class Projects(models.Model):
     engineer_old = models.CharField(max_length=255, blank=True, null=True)
     project_code = models.CharField(max_length=100, blank=True, default="", verbose_name="Шифр проекта")
     detail_name = models.CharField(max_length=255, blank=True, default="", verbose_name="Изделие")
-    detail_code = models.CharField(max_length=100, blank=True, default="", verbose_name="Шифр изделия")
+    detail_code = models.CharField(max_length=100, blank=False, verbose_name="Шифр изделия")
 
     class Meta:
         verbose_name = "проект"
@@ -137,11 +121,26 @@ class Projects(models.Model):
     def __str__(self):
         return self.detail_code or ""
 
+    def save(self, *args, **kwargs):
+        if not self.detail_code:
+            prefix = 'АРХ'
+            detail_codes = Projects.objects.filter(detail_code__startswith=prefix).values_list('detail_code', flat=True)
+            numbers = [int(code.replace(prefix, '')) for code in detail_codes if code.startswith(prefix)]
+            if numbers:
+                max_number = max(numbers)
+                new_number = max_number + 1
+            else:
+                new_number = 1
+
+            self.detail_code = f"{prefix}{new_number}"
+        super().save(*args, **kwargs)
+
 
 class ProductRequest(models.Model):
+
     request_date = models.DateField(auto_now_add=True, verbose_name="Дата запроса")
-    project = models.ForeignKey(Projects, on_delete=models.SET_NULL, null=True, verbose_name="Проект",
-                                default=1, related_name="name_set")
+    project = models.ForeignKey(Projects, on_delete=models.SET_NULL, null=True, verbose_name="Шифр изделия",
+                                default=Projects.objects.first(), related_name="detail_code_set")
     project_old = models.CharField(max_length=255, blank=True, null=True)
     product = models.ForeignKey(Products, on_delete=models.SET_NULL, null=True, verbose_name="Наименование",
                                 default=1, related_name="product_set")
