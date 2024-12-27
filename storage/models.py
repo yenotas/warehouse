@@ -184,7 +184,8 @@ class Orders(models.Model):
         ('Частичный возврат', 'Частичный возврат'), ('Полный возврат', 'Полный возврат'), ('Отмена', 'Отмена'),
     ])
     documents = models.CharField(max_length=50, verbose_name="Документы", blank=True, null=True, choices=[
-        (None, ''), ('Нет', 'Нет'), ('УПД/СФ', 'УПД/СФ'), ('TTH/TH/AKT', 'TTH/TH/AKT'), ('ИП', 'ИП')
+        (None, ''),
+        ('Нет', 'Нет'), ('УПД/СФ', 'УПД/СФ'), ('TTH/TH/AKT', 'TTH/TH/AKT'), ('ИП', 'ИП')
     ])
     document_flow = models.CharField(max_length=50, verbose_name="Документооборот", blank=True, null=True, choices=[
         (None, ''), ('Нет', 'Нет'), ('ИП', 'ИП'), ('ЭДО', 'ЭДО'), ('Бумага', 'Бумага')

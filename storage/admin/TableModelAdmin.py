@@ -124,14 +124,10 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
         if request.method == 'POST':
             formset_class = self.get_formset_class(request)
             formset = formset_class(request.POST, request.FILES, queryset=self.model.objects.none())
-            print('changelist_view ИНФО:')
-            print('Файлы в сессии:', request.FILES)
-            print('Формсет поля:', [form.fields.keys() for form in formset.forms])
 
             if formset.is_valid():
                 clear_temp_files(request)
                 new_objects = formset.save(commit=False)
-                print('Сохраняю формсет')
                 for new_object in new_objects:
                     self.save_model(request, new_object, formset, change=False)
                 count = len(new_objects)
@@ -143,7 +139,6 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
                 return redirect(request.path)
             else:
                 # Сохраняем файлы в сессию
-                print('no valid set!')
                 print('Formset errors:', formset.errors)
                 save_files_to_session(request, formset)
                 extra_context['formset'] = formset

@@ -27,12 +27,12 @@ window.dismissChangeRelatedObjectPopup = function (win, objId, newRepr) {
 
 django.jQuery(document).ready(function($) {
 
-    function windowname_to_id(name) {
+    function window_name_to_id(name) {
         return name.replace(/^(change|add|delete)_/, '');
     }
 
     window.dismissAddRelatedObjectPopup = function(win, newId, newRepr) {
-        var textFieldId = windowname_to_id(win.name);
+        var textFieldId = window_name_to_id(win.name);
         var elem = $('#' + textFieldId);
         // для текстового поля
         elem.val(newRepr);
@@ -43,6 +43,16 @@ django.jQuery(document).ready(function($) {
         $('#' + hiddenFieldId ).trigger('change');
         win.close();
     }
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            const activeElement = document.activeElement;
+            if (activeElement.tagName === 'INPUT' && activeElement.type === 'text') {
+                activeElement.value = '';
+                $(activeElement).autocomplete('search', '');
+            }
+        }
+    });
 
     $('.auto_complete').each(function() {
         var fieldElement = $(this);

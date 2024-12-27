@@ -1,6 +1,7 @@
 window.initErrorHandling = function () {
     console.log('Инициализация обработки ошибок');
     django.jQuery(document).ready(function ($) {
+
         // Обработка ошибок, присутствующих при загрузке страницы
         $('.error-field').each(function () {
             var errorField = $(this);
@@ -91,6 +92,9 @@ window.initFilePreviews = function () {
 document.addEventListener('DOMContentLoaded', function () {
     initErrorHandling();
 });
+
+
+
 
 function resetForm() {
     // Установить TOTAL_FORMS в 1
