@@ -148,6 +148,20 @@ header, nav {
 
 .error-field {display: none;}
 
+select[multiple] {
+    height: auto;
+    min-height: 360px;
+}
+
+.calendar caption, .calendarbox h2 {
+    margin: 0;
+    text-align: center;
+    border-top: none;
+    font-weight: 700;
+    font-size: 0.75rem;
+    color: #333;
+    background: #c4dce8;
+}
 
 .table-row-form th, .t_row th{
     height: 30px;

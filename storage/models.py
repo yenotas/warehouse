@@ -72,7 +72,7 @@ class Products(models.Model):
         ('п.м', 'п.м'), ('кг', 'кг'), ('л', 'л'), ('мл', 'мл')
     ], default=('шт', 'шт'))
     product_sku = models.CharField(max_length=100, blank=True, null=True, verbose_name="SKU / Артикул")
-    product_link = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ссылка")
+    product_url = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ссылка")
     supplier = models.ForeignKey(Suppliers, on_delete=models.SET_NULL, blank=False, null=True, verbose_name="Поставщик")
     supplier_old = models.CharField(max_length=255, blank=True, null=True)
     categories = models.ManyToManyField(Categories, blank=True, verbose_name="Категория / признак",
@@ -139,11 +139,11 @@ class Projects(models.Model):
 class ProductRequest(models.Model):
 
     request_date = models.DateField(auto_now_add=True, verbose_name="Дата запроса")
-    project = models.ForeignKey(Projects, on_delete=models.SET_NULL, null=True, verbose_name="Шифр изделия",
-                                default=Projects.objects.first(), related_name="detail_code_set")
+    project_link = models.ForeignKey(Projects, on_delete=models.SET_NULL, null=True, verbose_name="Шифр изделия",
+                                     default=1, related_name="detail_code_set")
     project_old = models.CharField(max_length=255, blank=True, null=True)
-    product = models.ForeignKey(Products, on_delete=models.SET_NULL, null=True, verbose_name="Наименование",
-                                default=1, related_name="product_set")
+    product_link = models.ForeignKey(Products, on_delete=models.SET_NULL, null=True, verbose_name="Наименование",
+                                     default=1, related_name="product_set")
     product_old = models.CharField(max_length=255, blank=True, null=True)
     request_about = models.CharField(blank=True, null=True, verbose_name="Комментарий")
     request_quantity = models.PositiveIntegerField(blank=True, null=True, verbose_name="Количество", default=1)
@@ -165,7 +165,7 @@ class ProductRequest(models.Model):
         verbose_name_plural = "Заявки на закуп"
 
     def __str__(self):
-        return f"Заявка {self.id} на {self.product.name}" or ""
+        return f"Заявка {self.id} на {self.product_link.name}" or ""
 
 
 class Orders(models.Model):
@@ -202,16 +202,16 @@ class Orders(models.Model):
 
 class ProductMovies(models.Model):
     record_date = models.DateField(auto_now_add=True, verbose_name="Дата записи")
-    product = models.ForeignKey(Products, on_delete=models.SET_NULL, null=True, verbose_name="Наименование",
-                                default=1, related_name="product_mov_set")
+    product_link = models.ForeignKey(Products, on_delete=models.SET_NULL, null=True, verbose_name="Наименование",
+                                     default=1, related_name="product_mov_set")
     product_old = models.CharField(max_length=255, blank=True, null=True)
     process_type = models.CharField(max_length=50, choices=[
         ('warehouse', 'Прием на склад'), ('distribute', 'Выдача со склада'),
         ('return', 'Возврат на склад'), ('sup_return', 'Возврат поставщику'),
         ('move', 'Перемещение из ячейки')
     ], verbose_name="Тип перемещения", default=('none', 'Выбрать'))
-    return_to_supplier_reason = models.CharField(max_length=50, choices=[
-        ('Несоответствие заказу', 'Несоответствие заказу'), ('Дефекты материалов', 'Дефекты материалов'),
+    return_to_supplier_reason = models.CharField(max_length=50, blank=True, null=True, choices=[
+        (None, ''), ('Несоответствие заказу', 'Несоответствие заказу'), ('Дефекты материалов', 'Дефекты материалов'),
         ('Дефекты изделий', 'Дефекты изделий'), ('Излишек', 'Излишек'),
         ('Нарушение сроков поставки', 'Нарушение сроков поставки')
     ], default=('none', 'Выбрать'), verbose_name="Причина")
@@ -265,7 +265,7 @@ class PivotTable(models.Model):
     order = models.ForeignKey(Orders, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Заказ')
     product_movie = models.ForeignKey(ProductMovies, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Перемещение по складу')
 
-    product_name = models.ForeignKey(Products, on_delete=models.SET_NULL, blank=True, null=True, verbose_name="Наименование товара")
+    product_link = models.ForeignKey(Products, on_delete=models.SET_NULL, blank=True, null=True, verbose_name="Наименование товара")
     request_about = models.CharField(max_length=255, blank=True, null=True, verbose_name="Комментарий")
     responsible = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True, verbose_name="Ответственный")
     invoice_number = models.CharField(max_length=100, blank=True, null=True, verbose_name="Номер счета")
@@ -295,7 +295,7 @@ class PivotTable(models.Model):
     sku = models.CharField(max_length=100, blank=True, null=True, verbose_name="Артикул")
     product_image = models.ImageField(upload_to="images/%Y/%m/%d/", blank=True, null=True, verbose_name="Фото товара")
     supplier = models.CharField(max_length=255, blank=True, null=True, verbose_name="Поставщик")
-    product_link = models.URLField(blank=True, null=True, verbose_name="Ссылка на сайт")
+    product_url = models.URLField(blank=True, null=True, verbose_name="Ссылка на сайт")
     packaging_unit = models.CharField(max_length=10, blank=True, null=True, verbose_name="Единицы измерения")
     has_on_storage = models.PositiveIntegerField(blank=True, null=True, verbose_name="Остаток на складе")
     has_on_storage_near = models.PositiveIntegerField(blank=True, null=True, verbose_name="Остаток на складе по аналогам")

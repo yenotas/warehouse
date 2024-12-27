@@ -1,6 +1,7 @@
 import tempfile
 
 from django import forms
+from django.apps import apps
 from django.contrib import admin
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
@@ -104,6 +105,26 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
     change_form_template = 'admin/table_change.html'
     ordering = ['-id']
 
+    def _process_related_fields(self, formset):
+        print("Обработка related fields перед сохранением")
+        for form in formset:
+            if hasattr(form, 'related_fields'):
+                for field_name, field_info in form.related_fields.items():
+                    id_field = f"{field_name}_id"
+                    if id_field in form.cleaned_data:
+                        # Получаем модель по имени
+                        model = apps.get_model('storage', field_info['model'])
+                        # Получаем объект по ID
+                        try:
+                            related_obj = model.objects.get(pk=form.cleaned_data[id_field])
+                            # Устанавливаем значение в оригинальное поле
+                            form.cleaned_data[field_name] = related_obj
+                        except model.DoesNotExist:
+                            pass
+                    # Удаляем временные поля из cleaned_data
+                    form.cleaned_data.pop(id_field, None)
+                    form.cleaned_data.pop(f"{field_name}_name", None)
+
     def get_admin_form(self, request, form):
         from django.contrib.admin.helpers import AdminForm
         return AdminForm(form, list(self.get_fieldsets(request)), {})
@@ -127,6 +148,7 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
 
             if formset.is_valid():
                 clear_temp_files(request)
+                self._process_related_fields(formset)
                 new_objects = formset.save(commit=False)
                 for new_object in new_objects:
                     self.save_model(request, new_object, formset, change=False)
@@ -163,13 +185,10 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
         if request.method == 'POST':
             formset = formset_class(request.POST, request.FILES, queryset=self.model.objects.none())
             print('ИНФО!')
-            print(formset.errors)
             print(request.FILES)
             if formset.is_valid():
-                # Создаем новые объекты, но не сохраняем их сразу
+                self._process_related_fields(formset)
                 new_objects = formset.save(commit=False)
-
-                # Сохраняем каждый объект и вызываем дополнительные методы, если нужно
                 for new_object in new_objects:
                     self.save_model(request, new_object, formset,
                                     change=False)  # Применение кастомной логики сохранения
@@ -205,6 +224,7 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
 
         extra_context['button_name'] = "Добавить"
         form_fields = list(formset.forms[0].fields.keys()) if formset.forms[0] else []
+        print('ПОЛЯ В ШАБЛОН:', form_fields)
         extra_context['form_fields_json'] = json.dumps(form_fields)
 
         return super().add_view(request, form_url, extra_context=extra_context)
@@ -222,6 +242,7 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
         if request.method == 'POST':
             formset = formset_class(request.POST, request.FILES, queryset=queryset)
             if formset.is_valid():
+                self._process_related_fields(formset)
                 updated_objects = formset.save(commit=False)
                 for updated_object in updated_objects:
                     self.save_model(request, updated_object, formset, change=True)

@@ -35,7 +35,7 @@ class ProductsAdmin(TableModelAdmin):
     form = ProductsForm
     # change_form_template = 'admin/table_view.html'
 
-    list_display = ['name', 'product_sku', 'packaging_unit', 'supplier', 'product_link', 'product_image_tag']
+    list_display = ['name', 'product_sku', 'packaging_unit', 'supplier', 'product_url', 'product_image_tag']
     # 'display_categories' пока не выводим
     search_fields = ['name', 'product_sku']  # 'categories' пока не выводим
     ordering = ['-id']
@@ -116,13 +116,11 @@ admin_site.register(Projects, ProjectsAdmin)
 class ProductRequestAdmin(TableModelAdmin):
     form = ProductRequestForm
     tabled_add = True
-    list_display = ['id', 'request_date', 'product', 'request_about', 'request_quantity', 'project', 'responsible',
-                    'delivery_location', 'delivery_address', 'deadline_delivery_date']
+    list_display = ['id', 'request_date', 'product_link', 'request_about', 'request_quantity', 'project_link',
+                    'responsible', 'delivery_location', 'delivery_address', 'deadline_delivery_date']
     search_fields = ['product__name', 'project__project_code']
     ordering = ['-id']
-    list_filter = ['request_date', 'product', 'project', 'manager']
-    fields = ['product', 'request_about', 'request_quantity', 'project', 'responsible',
-                    'delivery_location', 'delivery_address', 'deadline_delivery_date', 'manager']
+    list_filter = ['request_date', 'product_link', 'project_link', 'manager']
 
     def save_model(self, request, obj, form, change):
         if not change and not obj.responsible:
@@ -172,11 +170,11 @@ admin_site.register(Orders, OrdersAdmin)
 class ProductMoviesAdmin(TableModelAdmin):
     form = ProductMoviesForm
     tabled_add = True
-    list_display = ['id', 'record_date', 'product', 'process_type', 'return_to_supplier_reason', 'movie_quantity', 'new_cell',
+    list_display = ['id', 'record_date', 'product_link', 'process_type', 'return_to_supplier_reason', 'movie_quantity', 'new_cell',
                     'reason']
-    search_fields = ['product', 'process_type', 'new_cell']
-    list_filter = ['product', 'process_type', 'new_cell']
-    ordering = ['id', 'product', 'process_type', 'new_cell']
+    search_fields = ['product_link', 'process_type', 'new_cell']
+    list_filter = ['product_link', 'process_type', 'new_cell']
+    ordering = ['id', 'product_link', 'process_type', 'new_cell']
 
     class Media:
         js = ('admin/js/admin/ChangeProductMovies.js',)

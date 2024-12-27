@@ -8,6 +8,8 @@ from ..forms import CustomUserChangeForm, CustomUserCreationForm
 class CustomUserAdmin(UserAdmin, ManageAdmins):
     form = CustomUserChangeForm
     add_form = CustomUserCreationForm
+    add_form_template = 'admin/add_form.html'
+    change_form_template = 'admin/add_form.html'
     list_display = ('full_name_display', 'username_display', 'department_display', 'email', 'groups_display')
 
     fieldsets = (

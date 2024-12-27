@@ -5,17 +5,12 @@
     <script src="{% static 'admin/js/jquery.init.js' %}"></script>
     <script src="{% static 'admin/js/core.js' %}"></script>
     <script src="{% static 'admin/js/admin/RelatedObjectLookups.js' %}"></script>
-    <script src="{% static 'admin/js/admin/AutoFields.js' %}"></script>
     <script src="{% static 'admin/js/admin/FormHandlers.js' %}"></script>
-    <script src="{% static 'admin/js/admin/MultiRowsImgPaste.js' %}"></script>
-    <script src="{% static 'admin/js/admin/datePicker.js' %}"></script>
-
     {{ form.media }}
-
+    {{ media.js }}
 {% endblock %}
 {% block content %}
-<script type="text/javascript">
-    var formFields = {{ form_fields_json|safe }};
-</script>
-{% include "admin/table_form.html" %}
+{{ form }}
+{{ block.super }}
 {% endblock %}
+

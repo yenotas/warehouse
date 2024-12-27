@@ -6,13 +6,13 @@ from ..forms import PivotTableForm
 class PivotTableAdmin(ManageAdmins):
     form = PivotTableForm
     fields = (
-        'product_name', 'product_link', 'request_about', 'packaging_unit', 'request_quantity',
+        'product_link', 'product_url', 'request_about', 'packaging_unit', 'request_quantity',
         'project_code', 'detail_name', 'detail_code', 'request_date',
         'responsible', 'delivery_location', 'deadline_delivery_date', 'waiting_date', 'has_on_storage',
         'supplier', 'invoice_number', 'delivery_status', 'not_delivered_pcs',
         'document_flow', 'documents', 'accounted_in_1c', 'supply_date', 'supply_quantity', 'storage_cell',)
     list_display = (
-        'product_name', 'product_link', 'request_about', 'packaging_unit', 'request_quantity',
+        'product_link', 'product_url', 'request_about', 'packaging_unit', 'request_quantity',
         'project_code', 'detail_name', 'detail_code', 'product_image_tag', 'request_date',
         'responsible', 'delivery_location', 'deadline_delivery_date', 'waiting_date', 'has_on_storage',
         'order_complete', 'supplier', 'invoice_number', 'delivery_status', 'not_delivered_pcs',
@@ -22,9 +22,8 @@ class PivotTableAdmin(ManageAdmins):
         'request_about', 'invoice_number', 'waiting_date', 'delivery_status', 'document_flow',
         'documents', 'accounted_in_1c'
     )
-    autocomplete_fields = ['product_name']
-    search_fields = ['product_name__name']
-    list_filter = ('order__delivery_status', 'product_request__project__project_code')
+    search_fields = ['product_link__name']
+    list_filter = ('order__delivery_status', 'product_request__project_link__project_code')
     ordering = ('id',)
 
     def order_complete(self, obj):

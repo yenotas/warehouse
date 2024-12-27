@@ -2,6 +2,94 @@ window.initErrorHandling = function () {
     console.log('Инициализация обработки ошибок');
     django.jQuery(document).ready(function ($) {
 
+        const $password_sha = $('#id_password');
+        if ($password_sha.length) {
+            const $firstP = $password_sha.find('p').first();
+            if ($firstP.length) {
+                $firstP.css('display', 'none');
+            }
+        }
+
+        const $appTable = $('#content-main');
+        if ($appTable.length) {
+          const $headers = $appTable.find('th');
+          $headers.each(function() { const $th = $(this);
+              const $link = $th.find('a');
+              if ($link.length) { $th.css('cursor', 'pointer'); // Устанавливаем курсор как указатель
+                  $th.addClass('custom_list_apps');
+                  $th.on('click', function() { window.location.href = $link.attr('href'); });
+              }
+          });
+        }
+
+        const $appTableNav = $('#nav-sidebar');
+        if ($appTableNav.length) {
+            const $headers = $appTableNav.find('th');
+            $headers.each(function() { const $th = $(this);
+                const $link = $th.find('a');
+                if ($link.length) { $th.on('click', function() { window.location.href = $link.attr('href'); }); }
+            });
+        }
+
+
+        // Функция для переключения состояния поля Причина возврата поставщику
+        function toggleSupplierReason(row) {
+            var processTypeSelect = $(row).find('select[name$="-process_type"]');
+            var returnToSupplierReasonSelect = $(row).find('select[name$="-return_to_supplier_reason"]');
+            var selectedValue = processTypeSelect.val();
+
+            if (selectedValue === 'sup_return') {
+                returnToSupplierReasonSelect.prop('disabled', false);
+                returnToSupplierReasonSelect.css('background', '');
+
+            } else {
+                returnToSupplierReasonSelect.prop('disabled', true);
+                returnToSupplierReasonSelect.css('background', '#eee');
+
+            }
+        }
+        // Функция для переключения состояния поля Адрес доставки
+        function toggleDeliveryAddress(row) {
+            var deliveryLocationSelect = $(row).find('select[name$="-delivery_location"]');
+            var deliveryAddressField = $(row).find('input[name$="-delivery_address"]');
+            var selectedValue = deliveryLocationSelect.val();
+
+            if (['Монтаж', 'Подрядчик', 'Заказчик'].includes(selectedValue)) {
+                deliveryAddressField.prop('disabled', false);
+                deliveryAddressField.css('background', ''); // Возвращает стандартный цвет фона
+            } else {
+                deliveryAddressField.prop('disabled', true);
+                deliveryAddressField.css('background', '#eee'); // Меняет цвет фона на серый
+            }
+        }
+
+        function applyToggleToAllRows() {
+            var rows = $('.results tbody tr');
+            rows.each(function() {
+                toggleSupplierReason(this);
+                $(this).find('select[name$="-process_type"]').change(function() {
+                    toggleSupplierReason(this.closest('tr'));
+                });
+                toggleDeliveryAddress(this);
+                $(this).find('select[name$="-delivery_location"]').change(function() {
+                    toggleDeliveryAddress(this.closest('tr'));
+                });
+            });
+        }
+
+        applyToggleToAllRows();
+        // Применение функции к новым строкам, добавленным в formset
+        $(document).on('formset:added', function(event, $row, formsetName) {
+            toggleSupplierReason($row);
+            $row.find('select[name$="-process_type"]').change(function() {
+                toggleSupplierReason(this.closest('tr'));
+            });
+            toggleDeliveryAddress($row);
+            $row.find('select[name$="-delivery_location"]').change(function() {
+                toggleDeliveryAddress(this.closest('tr'));
+            });
+        });
+
         // Обработка ошибок, присутствующих при загрузке страницы
         $('.error-field').each(function () {
             var errorField = $(this);

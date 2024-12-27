@@ -1,4 +1,18 @@
 django.jQuery(document).ready(function($) {
+
+    // Ищем блок с id "id_groups"
+    const groupsContainer = document.getElementById('id_groups');
+    console.log('ACCESS CONTROL');
+    if (groupsContainer) {
+        const checkboxes = groupsContainer.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            const label = checkbox.parentElement.textContent.trim();
+            if (label.toLowerCase().includes('администраторы')) {
+                checkbox.checked = true;
+            }
+        });
+    }
+
     const fieldsToDisableContainer = $('#id_fields_to_disable');
     const modelId = $('#id_model_name').val();
     const ruleId = window.location.pathname.includes('change')
@@ -7,7 +21,7 @@ django.jQuery(document).ready(function($) {
 
     // Если форма открыта в режиме изменения
     if (ruleId && modelId) {
-        // console.log('ruleId', ruleId);
+         console.log('ruleId', ruleId);
 
         // Получаем сохраненные поля
         fetch(`/get-saved-fields/?rule_id=${encodeURIComponent(ruleId)}`)
@@ -15,7 +29,7 @@ django.jQuery(document).ready(function($) {
             .then(data => {
                 const savedFields = data['fields_to_disable'] || [];
                 fetchFieldsForModel(modelId, savedFields);
-                // console.log('get-saved-fields', savedFields);
+                 console.log('get-saved-fields', savedFields);
             })
             .catch(error => console.error('Ошибка при загрузке полей:', error));
 
@@ -45,7 +59,7 @@ django.jQuery(document).ready(function($) {
                 .then(data => {
                     if (data.fields && data.fields.length > 0) {
                         data.fields.forEach(field => {
-                            if (field.name !== "id") {
+                            if (field.name !== "id" && !field.name.endsWith("_old")) {
                                 const checkbox = $(`
                                     <div class="flex-container checkbox-row">
                                         <input type="checkbox" id="field_${field.name}" name="fields_to_disable" value="${field.name}">
@@ -53,11 +67,18 @@ django.jQuery(document).ready(function($) {
                                     </div>
                                 `);
                                 fieldsToDisableContainer.append(checkbox);
+                            } else if (field.name.endsWith("_old")) {
+                                const oldCheckbox = $(`
+                                    <div class="flex-container checkbox-row" style="display: none;">
+                                        <input type="checkbox" id="field_${field.name}" name="fields_to_disable" value="${field.name}" checked>
+                                    </div>
+                                `);
+                                fieldsToDisableContainer.append(oldCheckbox);
                             }
                         });
 
                         // Отмечаем сохраненные поля как выбранные
-                        // console.log('savedFields', savedFields);
+                         console.log('savedFields', savedFields);
 
                         if (typeof savedFields === 'string') {
                             try {

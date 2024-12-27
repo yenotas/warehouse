@@ -50,6 +50,8 @@ class RestrictedPermissionAdmin(admin.ModelAdmin):
 # Админская модель для ModelAccessControl
 class ModelAccessControlAdmin(admin.ModelAdmin):
     form = ModelAccessControlForm
+    add_form_template = 'admin/add_form.html'
+    change_form_template = 'admin/add_form.html'
     list_display = ['get_verbose_model_name', 'display_groups', 'get_disabled_fields_list']
 
     def get_verbose_model_name(self, obj):

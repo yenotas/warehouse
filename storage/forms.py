@@ -2,7 +2,7 @@ import json
 from collections import OrderedDict
 from django.contrib.admin.widgets import AdminDateWidget
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
-from django.db.models import ForeignKey, ManyToManyField
+from django.db.models import ForeignKey, ManyToManyField, F
 from django.forms import CharField
 
 from .models import *
@@ -125,6 +125,7 @@ class BaseTableForm(forms.ModelForm):
                 # Убираем исходное связанное поле
                 if field_name in self.fields:
                     del self.fields[field_name]
+                    # self.fields[field_name] = forms.CharField(widget=forms.HiddenInput(), required=False)
 
             # Обработка несвязанных полей
             else:
@@ -226,6 +227,11 @@ class BaseTableForm(forms.ModelForm):
                             full_name=Concat('first_name', Value(' '), 'last_name')
                         ).all()
                         search_field = 'full_name'
+                    elif rel_model_name == 'ProductRequest':
+                        queryset = related_model.objects.annotate(
+                            product=F('product_link__name')
+                        ).all()
+                        search_field = 'product'
                     else:
                         queryset = related_model.objects.all()
                         search_field = rel_field_name
@@ -260,7 +266,7 @@ class ProductsForm(BaseTableForm):
 
     class Meta:
         model = Products
-        fields = ['name', 'product_sku', 'packaging_unit', 'supplier', 'product_link', 'product_image']
+        fields = ['name', 'product_sku', 'packaging_unit', 'supplier', 'product_url', 'product_image']
         exclude = ['near_products', 'supplier_old', 'categories']
 
     def __init__(self, *args, **kwargs):
@@ -352,7 +358,7 @@ class OrdersForm(BaseTableForm):
 
     related_fields = {
         'manager': {'model': 'CustomUser', 'filter': 'Менеджеры'},
-        'product_request': {'model': 'ProductRequest', 'field': 'product', 'filter_field': 'request_accepted'}
+        'product_request': {'model': 'ProductRequest', 'field': 'product_link'}
     }
 
     class Meta:
@@ -367,12 +373,13 @@ class OrdersForm(BaseTableForm):
             auto_fields=['manager', 'product_request'],
             **kwargs
         )
+        # self.fields['product_request'] = forms.CharField(widget=forms.HiddenInput(), required=False)
 
 
 class ProductMoviesForm(BaseTableForm):
 
     related_fields = {
-        'product': {'model': 'Products', 'field': 'name'},
+        'product_link': {'model': 'Products', 'field': 'name'},
         'new_cell': {'model': 'StorageCells', 'field': 'name'}
     }
 
@@ -385,7 +392,7 @@ class ProductMoviesForm(BaseTableForm):
         self.request = kwargs.pop('request', None)
         super().__init__(
             *args,
-            auto_fields=['product', 'new_cell'],
+            auto_fields=['product_link', 'new_cell'],
             **kwargs
         )
 
@@ -393,23 +400,26 @@ class ProductMoviesForm(BaseTableForm):
 class ProductRequestForm(BaseTableForm):
 
     related_fields = {
-        'product': {'model': 'Products', 'field': 'name'},
-        'project': {'model': 'Projects', 'field': 'detail_code'},
+        'product_link': {'model': 'Products', 'field': 'name'},
+        'project_link': {'model': 'Projects', 'field': 'detail_code'},
         'responsible': {'model': 'CustomUser', 'filter': 'ПДО'},
         'manager': {'model': 'CustomUser', 'filter': 'ПДО'}
         }
 
     class Meta:
         model = ProductRequest
+        fields = '__all__'
         exclude = ['request_date', 'project_old', 'product_old', 'responsible_old', 'request_accepted']
 
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request', None)
         super().__init__(
             *args,
-            auto_fields=['product', 'project', 'responsible', 'manager'],
+            auto_fields=['product_link', 'project_link', 'responsible', 'manager'],
             **kwargs
         )
+        self.fields['project_link'] = forms.CharField(widget=forms.HiddenInput(), required=False)
+        self.fields['product_link'] = forms.CharField(widget=forms.HiddenInput(), required=False)
         # self.fields['responsible'].initial = self.request.user
 
         # if self.request:
@@ -494,7 +504,8 @@ class CustomUserChangeForm(UserChangeForm, BaseTableForm):
 
         if admin_group in groups:
             # Проверяем, состоит ли текущий пользователь в группе "Администраторы"
-            if not (self.request and self.request.user.groups.filter(name='Администраторы').exists()):
+            if not ((self.request and self.request.user.groups.filter(name='Администраторы').exists()) or
+                    self.request.user.is_superuser):
                 raise ValidationError("Вы не можете добавлять пользователей в группу 'Администраторы'.")
 
         return groups
@@ -607,7 +618,7 @@ class PivotTableForm(BaseTableForm):
     class Meta:
         model = PivotTable
         fields = [
-            'product_name',
+            'product_link',
             'request_about',
             'responsible',
             'invoice_number',
@@ -630,7 +641,7 @@ class PivotTableForm(BaseTableForm):
         if self.instance:
             # Инициализируем поля значениями из связанных моделей
             if self.instance.product_request and self.instance.product_request.product:
-                self.fields['product_name'].initial = self.instance.product_request.product
+                self.fields['product_link'].initial = self.instance.product_request.product
             if self.instance.product_request:
                 self.fields['request_about'].initial = self.request_about or self.instance.product_request.request_about
                 self.fields['responsible'].initial = self.responsible or self.instance.product_request.responsible
@@ -645,11 +656,11 @@ class PivotTableForm(BaseTableForm):
     def save(self, commit=True):
         instance = super(PivotTableForm, self).save(commit=False)
         # Обработка создания product_request
-        if not instance.product_request and self.cleaned_data.get('product_name'):
-            product = self.cleaned_data['product_name']
+        if not instance.product_request and self.cleaned_data.get('product_link'):
+            product_link = self.cleaned_data['product_link']
             responsible = self.cleaned_data.get('responsible')
             product_request = ProductRequest.objects.create(
-                product=product,
+                product_link=product_link,
                 responsible=responsible,
                 request_about=self.cleaned_data.get('request_about'),
             )
