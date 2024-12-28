@@ -2,9 +2,6 @@
 {% load static %}
 {% block extrahead %}
     {{ block.super }}
-    <script src="{% static 'admin/js/jquery.init.js' %}"></script>
-    <script src="{% static 'admin/js/core.js' %}"></script>
-    <script src="{% static 'admin/js/admin/RelatedObjectLookups.js' %}"></script>
     <script src="{% static 'admin/js/admin/AutoFields.js' %}"></script>
     {% if not is_popup %}
         <script src="{% static 'admin/js/admin/ProductsBatchPaste.js' %}"></script>
@@ -12,13 +9,20 @@
     <script src="{% static 'admin/js/admin/FormHandlers.js' %}"></script>
     <script src="{% static 'admin/js/admin/MultiRowsImgPaste.js' %}"></script>
     <script src="{% static 'admin/js/admin/ToggleFields.js' %}"></script>
-    <script src="{% static 'admin/js/admin/datePicker.js' %}"></script>
-
     {{ form.media }}
 {% endblock %}
 {% block content %}
 <script type="text/javascript">
-  var formFields = {{ form_fields_json|safe }};
+    var formFields = {{ form_fields_json|safe }};
+    var filePreviews = {% if file_previews %} {{ file_previews|safe }} {% else %} {} {% endif %};
+    if (filePreviews) {
+        Object.keys(filePreviews).forEach(function(fieldName) {
+            const previewPath = filePreviews[fieldName];
+            // Логика отображения превью файлов
+            console.log(`Превью файла для ${fieldName}: ${previewPath}`);
+        });
+    }
 </script>
+<input type="hidden" id="tmp" class="add">
 {% include "admin/table_form.html" %}
 {% endblock %}

@@ -223,8 +223,8 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
             extra_context['title'] = ""
 
         extra_context['button_name'] = "Добавить"
+        extra_context['preview_files'] = get_temp_files(request)
         form_fields = list(formset.forms[0].fields.keys()) if formset.forms[0] else []
-        print('ПОЛЯ В ШАБЛОН:', form_fields)
         extra_context['form_fields_json'] = json.dumps(form_fields)
 
         return super().add_view(request, form_url, extra_context=extra_context)

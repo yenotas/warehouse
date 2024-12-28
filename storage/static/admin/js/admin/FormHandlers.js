@@ -10,12 +10,13 @@ window.initErrorHandling = function () {
             }
         }
 
-        const $appTable = $('#content-main');
+        // Открытие строки для редактирования в форме
+        const $appTable = $('#result_list');
         if ($appTable.length) {
           const $headers = $appTable.find('th');
           $headers.each(function() { const $th = $(this);
               const $link = $th.find('a');
-              if ($link.length) { $th.css('cursor', 'pointer'); // Устанавливаем курсор как указатель
+              if ($link.length) { $th.css('cursor', 'pointer');
                   $th.addClass('custom_list_apps');
                   $th.on('click', function() { window.location.href = $link.attr('href'); });
               }
@@ -97,15 +98,12 @@ window.initErrorHandling = function () {
             var errorList = errorField.find('ul.errorlist li');
             var errorMessage = errorList.length ? errorList.text() : '';
 
-            // Получаем индекс ячейки в строке таблицы
             var cell = errorField.closest('td');
-            var cellIndex = cell.index(); // Индекс ячейки в строке
+            var cellIndex = cell.index();
 
-            // Получаем соответствующий заголовок из <th>
             var table = cell.closest('table');
             var caption = table.find('thead tr th').eq(cellIndex).text().trim();
 
-            // Если ошибка найдена, отображаем её
             if (errorMessage) {
                 console.log('Обнаружена ошибка:', caption, errorMessage);
                 cell.css('border-bottom', '3px solid #ba2121');
@@ -120,7 +118,7 @@ window.initErrorHandling = function () {
         $('input[type="file"]').each(function () {
             var fileInput = $(this);
 
-            // Проверяем, есть ли загруженный файл
+            // есть ли загруженный файл
             if (fileInput[0].files.length > 0) {
                 var file = fileInput[0].files[0];
                 var reader = new FileReader();
@@ -180,8 +178,6 @@ window.initFilePreviews = function () {
 document.addEventListener('DOMContentLoaded', function () {
     initErrorHandling();
 });
-
-
 
 
 function resetForm() {

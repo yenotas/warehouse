@@ -78,6 +78,7 @@ class ImageCell {
         this.imagePasteArea = img_cell.find('.image_paste_area');
         this.imagePasteAreaBG = img_cell.find('.image_paste_area_bg');
         this.productImageInput = img_cell.find('.product_image');
+        this.imageChange = img_cell.find('input[type="checkbox"]');
         this.initEvents();
     }
 
@@ -85,6 +86,7 @@ class ImageCell {
         this.imagePasteArea.on('paste', this.handlePaste.bind(this));
         this.removeImageButton.on('click', this.handleRemove.bind(this));
         this.imagePasteArea.on('dblclick', this.handleDoubleClick.bind(this));
+        this.productImageInput.on('change', this.handleFileSelect.bind(this));
     }
 
     handlePaste(event) {
@@ -121,10 +123,22 @@ class ImageCell {
         this.productImageInput.val('');
         this.imagePasteAreaBG.show();
         this.imagePasteArea.show();
+        if (this.imageChange && this.imageChange.length) {
+            this.imageChange.prop('checked', true);
+            this.imageChange.trigger('change');
+        }
     }
 
     handleDoubleClick(event) {
         this.productImageInput.click();
+    }
+
+    handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (file) {
+            this.insertImage(file);
+            console.log('Изображение выбрано из диалогового окна');
+        }
     }
 
     insertImage(file) {
@@ -138,6 +152,10 @@ class ImageCell {
             this.imagePasteArea.hide();
             this.removeImageButton.show();
         });
+        if (this.imageChange && this.imageChange.length) {
+            this.imageChange.prop('checked', false);
+            this.imageChange.trigger('change');
+        }
     }
 }
 

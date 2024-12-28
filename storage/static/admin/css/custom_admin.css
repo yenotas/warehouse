@@ -153,6 +153,32 @@ select[multiple] {
     min-height: 360px;
 }
 
+.calendarbox {
+    z-index: 1000;
+    border: 1px solid #aaa;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+    background: #fff;
+}
+
+.cal-nav {
+    display: inline-flex;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.cal-prev, .cal-next {
+    cursor: pointer;
+    text-decoration: none;
+    font-size: 1.5em;
+    padding-left:5px;
+    padding-right:5px;
+}
+
+.cal-month-label {
+    font-weight: bold;
+    font-size: 1.2em;
+}
+
 .calendar caption, .calendarbox h2 {
     margin: 0;
     text-align: center;
@@ -212,6 +238,9 @@ select[multiple] {
 
 .remove_image_button{
     margin-top: -3px;
+    position: absolute;
+    z-index: 10;
+    right: 0;
 }
 
 .related-widget-wrapper {

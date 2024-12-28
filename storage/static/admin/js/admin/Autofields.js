@@ -49,7 +49,10 @@ django.jQuery(document).ready(function($) {
             const activeElement = document.activeElement;
             if (activeElement.tagName === 'INPUT' && activeElement.type === 'text') {
                 activeElement.value = '';
-                $(activeElement).autocomplete('search', '');
+                if ($(activeElement).hasClass('auto_complete')) {
+                    $(activeElement).blur();
+                    setTimeout(function() { activeElement.focus(); }, 10)
+                }
             }
         }
     });
@@ -62,7 +65,7 @@ django.jQuery(document).ready(function($) {
         var dataFilter = fieldElement.data('filter');
         var filterField = fieldElement.data('filter_field');
         var isRelField = fieldElement.hasClass('rel_field');
-        console.log('fieldName =', fieldName, ' modelName =', modelName, ' dataFilter =', dataFilter, ' filterField =', filterField);
+        // console.log('fieldName =', fieldName, ' modelName =', modelName, ' dataFilter =', dataFilter, ' filterField =', filterField);
         var hiddenFieldName = null;
 
         if (isRelField) {
