@@ -81,7 +81,7 @@ class BaseTableForm(forms.ModelForm):
         # Объединение полей модели для автозаполнения
         if self.related_fields:
             self.auto_fields = list(set(self.auto_fields + [field for field in list(self.related_fields.keys())]))
-        print('Все поля автозаполнения:', self.auto_fields)
+        # print('Все поля автозаполнения:', self.auto_fields)
 
         for field_name in self.auto_fields:
             field = self.fields.get(field_name)
@@ -139,7 +139,7 @@ class BaseTableForm(forms.ModelForm):
 
         # Переупорядочиваем поля в соответствии с атрибутом fields
         new_order = []
-        print("Meta fields:", getattr(self._meta, 'fields', None))
+        # print("Meta fields:", getattr(self._meta, 'fields', None))
 
         for field_name in self._meta.fields:
             if field_name in self.related_fields:
@@ -154,7 +154,7 @@ class BaseTableForm(forms.ModelForm):
         self.fields = OrderedDict((f, self.fields[f]) for f in new_order if f in self.fields)
 
         # Отладочная информация
-        print("Поля формы после переименования:", list(self.fields.keys()))
+        # print("Поля формы после переименования:", list(self.fields.keys()))
 
     def clean(self):
         cleaned_data = super().clean()

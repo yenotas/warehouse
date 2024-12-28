@@ -1,38 +1,88 @@
 window.initErrorHandling = function () {
-    console.log('Инициализация обработки ошибок и хелперов');
+    console.log('Инициализация обработки ошибок и хелпер');
 
     django.jQuery(document).ready(function ($) {
 
-        // Функция загрузки данных записи в форму
-        function loadRecordData(recordId) {
-            $.get(`/admin/storage/modelname/${recordId}/change/`, function(data) {
-                // Парсинг и установка значений полей формы
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(data, 'text/html');
-                const form = doc.querySelector('form');
 
-                $(form).find('input, select, textarea').each(function() {
-                    const field = $(`[name="${this.name}"]`);
-                    if (field.length) {
-                        field.val($(this).val());
+    // Функция загрузки данных записи в форму
+    function loadRecordData(link) {
+        $.get(link, function(data) {
+            // Логирование полученных данных
+            // console.log('Полученные данные:', data);
+
+            // Парсинг и установка значений полей формы
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(data, 'text/html');
+            const form = $('#input_form');
+            const tr = form.find('tbody tr').first();
+
+            // Обрабатываем input, select и textarea
+            tr.find('input, select, textarea').each(function() {
+                const name = $(this).attr('name');
+                const field = $(`[name="${name}"]`);
+                const element = doc.querySelector(`[name="${name}"]`);
+                console.log('Найденный элемент:', element, element.value);
+
+                if (element && !name.includes('product_image')) {
+                    const value = element.value;
+                    $(this).val(value);
+                    $(this).trigger('change');
+                    console.log("Имя/знач", name, value);
+                }
+                // Обновление превью изображений
+                const imgContainer = $(this).closest('td').find('.image_preview_container');
+                const imagePreview = imgContainer.find('.image_preview');
+                const removeButton = imgContainer.closest('td').find('.remove_image_button');
+
+
+                // Обновление превью изображений
+                if (name.includes('product_image')) {
+                    const imgContainer = $(this).closest('td').find('.image_preview_container');
+                    const imagePreview = imgContainer.find('.image_preview');
+                    const removeButton = imgContainer.closest('td').find('.remove_image_button');
+                    const imageUrl = element.dataset.previewUrl || element.src;
+
+                    if (imageUrl) {
+                        imagePreview.attr('src', imageUrl);
+                        imagePreview.show();
+                        removeButton.show();
+                    } else {
+                        imagePreview.hide();
+                        removeButton.hide();
                     }
-                });
-
-                // Обновление превью изображений и других элементов
-                initializeAutoCompleteFields();
-                $('.img_cell').each(function() {
-                    initializeCell($(this));
-                });
+                }
             });
-        }
 
-        // Обработчик клика по строке таблицы
-        $('.results tr').on('click', function() {
-            const recordId = $(this).data('id');
-            if (recordId) {
-                loadRecordData(recordId);
+            // Обновление превью изображений и других элементов
+            initializeAutoCompleteFields();
+            $('.img_cell').each(function() {
+                initializeCell($(this));
+            });
+        });
+    }
+
+    // Открытие строки для редактирования в форме
+    const appTable = $('#result_list');
+    if (appTable.length) {
+        var headers = appTable.find('th');
+        headers.each(function() {
+            const th = $(this);
+            const link = th.find('a');
+            const url = link.attr('href');
+            link.attr('href', '#');
+            if (link.length) {
+                th.css('cursor', 'pointer');
+                th.addClass('custom_list_apps');
+                th.on('click', function() {
+                    console.log(url);
+                    loadRecordData(url);
+                });
             }
         });
+    }
+
+
+
 
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
@@ -57,19 +107,6 @@ window.initErrorHandling = function () {
             if ($firstP.length) {
                 $firstP.css('display', 'none');
             }
-        }
-
-        // Открытие строки для редактирования в форме
-        const $appTable = $('#result_list');
-        if ($appTable.length) {
-          const $headers = $appTable.find('th');
-          $headers.each(function() { const $th = $(this);
-              const $link = $th.find('a');
-              if ($link.length) { $th.css('cursor', 'pointer');
-                  $th.addClass('custom_list_apps');
-                  $th.on('click', function() { window.location.href = $link.attr('href'); });
-              }
-          });
         }
 
         const $appTableNav = $('#nav-sidebar');

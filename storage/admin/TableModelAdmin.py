@@ -101,9 +101,19 @@ def handle_related_field_error(form, field_name, error):
 
 class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
     change_list_template = 'admin/table_view.html'
-    add_form_template = 'admin/table_add.html'
     change_form_template = 'admin/table_change.html'
+    add_form_template = 'admin/table_add.html'
+    is_popup = False
     ordering = ['-id']
+
+    def save_model(self, request, obj, form, change):
+        print(f"Начало сохранения модели: {obj}")
+        for field_name in request.FILES:
+            file = request.FILES[field_name]
+            print(f"Сохранение файла {file.name} для поля {field_name}")
+            setattr(obj, field_name, file)
+        print(f"Конец сохранения модели: {obj}")
+        super().save_model(request, obj, form, change)
 
     def _process_related_fields(self, formset):
         for form in formset:
@@ -139,8 +149,10 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
         extra_context = extra_context or {}
         formset_class = self.get_formset_class(request)
         formset = formset_class(request.POST or None, request.FILES or None, queryset=self.model.objects.none())
-
         if request.method == 'POST':
+            self.is_popup = '_popup' in request.GET or '_popup' in request.POST
+            print('changelist_view popup:', self.is_popup)
+            extra_context['is_popup'] = self.is_popup
             if formset.is_valid():
                 clear_temp_files(request)
                 self._process_related_fields(formset)
@@ -158,17 +170,64 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
         form_fields = list(formset.forms[0].fields.keys()) if formset.forms else []
         extra_context['form_fields_json'] = json.dumps(form_fields)
         extra_context['title'] = ""
-        extra_context['button_name'] = "Добавить"
+        extra_context['button_name'] = "Сохранить"
         extra_context['preview_files'] = get_temp_files(request)
+        extra_context['model_name'] = self.model._meta.model_name
+        extra_context['app_label'] = self.model._meta.app_label
         return super().changelist_view(request, extra_context=extra_context)
 
     def add_view(self, request, form_url='', extra_context=None):
-        return self.changelist_view(request, extra_context)
+        extra_context = extra_context or {}
+        is_popup = '_popup' in request.GET or '_popup' in request.POST
+        formset_class = self.get_formset_class(request)
+
+        if request.method == 'POST':
+            formset = formset_class(request.POST, request.FILES, queryset=self.model.objects.none())
+            print('ИНФО!')
+            print(request.FILES)
+            if formset.is_valid():
+                self._process_related_fields(formset)
+                new_objects = formset.save(commit=False)
+                for new_object in new_objects:
+                    self.save_model(request, new_object, formset, change=False)
+                    new_object.save()
+
+                count = len(new_objects)
+                if is_popup:
+                    return self.response_add(request, new_objects[-1])
+                else:
+                    if count == 1:
+                        msg = '\"%(object)s\" добавлен!' % {'object': new_objects[0]}
+                    else:
+                        msg = 'Записи добавлены!'
+                    self.message_user(request, msg, messages.SUCCESS)
+
+                    return redirect(request.path)
+            else:
+                print('no valid set!')
+                save_files_to_session(request, formset)
+                extra_context['formset'] = formset
+        else:
+            formset = formset_class(queryset=self.model.objects.none())
+            extra_context['formset'] = formset
+
+        extra_context['is_popup'] = is_popup
+        if not is_popup:
+            extra_context['title'] = ""
+
+        extra_context['button_name'] = "Добавить"
+        form_fields = list(formset.forms[0].fields.keys()) if formset.forms[0] else []
+        print('Поля В ШАБЛОН:', form_fields)
+        extra_context['form_fields_json'] = json.dumps(form_fields)
+
+        return super().add_view(request, form_url, extra_context=extra_context)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
         extra_context = extra_context or {}
         is_popup = '_popup' in request.GET or '_popup' in request.POST
+
         queryset = self.model.objects.filter(pk=object_id)
+
         formset_class = self.get_formset_class(request, extra=0)
 
         if request.method == 'POST':
@@ -178,9 +237,17 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
                 updated_objects = formset.save(commit=False)
                 for updated_object in updated_objects:
                     self.save_model(request, updated_object, formset, change=True)
-                msg = 'Запись обновлена.'
-                self.message_user(request, msg, messages.SUCCESS)
-                return redirect('admin:%s_%s_changelist' % (self.model._meta.app_label, self.model._meta.model_name))
+                if is_popup:
+                    obj_repr = escape(str(updated_objects[0]))
+                    return HttpResponse(f"""
+                        <script type="text/javascript">
+                            opener.dismissChangeRelatedObjectPopup(window, "{updated_objects[0].pk}", "{obj_repr}");
+                        </script>
+                    """)
+                else:
+                    msg = 'Запись обновлена.'
+                    self.message_user(request, msg, messages.SUCCESS)
+                    return redirect(request.path)
             else:
                 save_files_to_session(request, formset)
                 extra_context['formset'] = formset
@@ -190,8 +257,12 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
 
         extra_context['is_popup'] = is_popup
         extra_context['subtitle'] = ""
-        extra_context['title'] = ""
+        if not is_popup:
+            extra_context['title'] = ""
         extra_context['button_name'] = "Сохранить"
+        print('formset', list(formset.forms))
         form_fields = list(formset.forms[0].fields.keys()) if formset.forms[0] else []
         extra_context['form_fields_json'] = json.dumps(form_fields)
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
+
+

@@ -17,13 +17,24 @@ admin_site.register(Group, RestrictedGroupAdmin)
 admin_site.register(Permission, RestrictedPermissionAdmin)
 admin_site.register(ModelAccessControl, ModelAccessControlAdmin)
 admin_site.register(CustomUser, CustomUserAdmin)
+from django.contrib.auth.models import Group
+
+
+# class CustomGroupAdmin(ManageAdmins):
+#     class Meta:
+#         verbose_name = "Группу"
+#         verbose_name_plural = "Группы"
+#
+#
+# admin_site.unregister(Group)
+# admin_site.register(Group, CustomGroupAdmin)
 
 
 class SuppliersAdmin(TableModelAdmin):
     form = SuppliersForm
     change_list_template = "admin/table_view.html"
     add_form_template = "admin/table_add.html"
-    list_display = ['name', 'inn', 'ogrn', 'address', 'contact_person', 'website', 'email', 'phone', 'tg']
+    list_display = ['id', 'name', 'inn', 'ogrn', 'address', 'contact_person', 'website', 'email', 'phone', 'tg']
     search_fields = ['name', 'inn', 'ogrn', 'address', 'contact_person', 'website']
     list_filter = ['name']
 
@@ -35,7 +46,7 @@ class ProductsAdmin(TableModelAdmin):
     form = ProductsForm
     # change_form_template = 'admin/table_view.html'
 
-    list_display = ['name', 'product_sku', 'packaging_unit', 'supplier', 'product_url', 'product_image_tag']
+    list_display = ['id', 'name', 'product_sku', 'packaging_unit', 'supplier', 'product_url', 'product_image_tag']
     # 'display_categories' пока не выводим
     search_fields = ['name', 'product_sku']  # 'categories' пока не выводим
     ordering = ['-id']
