@@ -1,6 +1,55 @@
 window.initErrorHandling = function () {
-    console.log('Инициализация обработки ошибок');
+    console.log('Инициализация обработки ошибок и хелперов');
+
     django.jQuery(document).ready(function ($) {
+
+        // Функция загрузки данных записи в форму
+        function loadRecordData(recordId) {
+            $.get(`/admin/storage/modelname/${recordId}/change/`, function(data) {
+                // Парсинг и установка значений полей формы
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(data, 'text/html');
+                const form = doc.querySelector('form');
+
+                $(form).find('input, select, textarea').each(function() {
+                    const field = $(`[name="${this.name}"]`);
+                    if (field.length) {
+                        field.val($(this).val());
+                    }
+                });
+
+                // Обновление превью изображений и других элементов
+                initializeAutoCompleteFields();
+                $('.img_cell').each(function() {
+                    initializeCell($(this));
+                });
+            });
+        }
+
+        // Обработчик клика по строке таблицы
+        $('.results tr').on('click', function() {
+            const recordId = $(this).data('id');
+            if (recordId) {
+                loadRecordData(recordId);
+            }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const activeElement = document.activeElement;
+                if (activeElement.tagName === 'INPUT' && activeElement.type === 'text') {
+                    activeElement.value = '';
+                    if ($(activeElement).hasClass('auto_complete')) {
+                        $(activeElement).blur();
+                        setTimeout(function() { activeElement.focus(); }, 10)
+                    }
+                }
+            }
+            // if (e.ctrlKey && e.key === 'Delete') {
+            //    e.preventDefault();
+            //    removeFocusedRow();
+            // }
+        });
 
         const $password_sha = $('#id_password');
         if ($password_sha.length) {
@@ -31,7 +80,6 @@ window.initErrorHandling = function () {
                 if ($link.length) { $th.on('click', function() { window.location.href = $link.attr('href'); }); }
             });
         }
-
 
         // Функция для переключения состояния поля Причина возврата поставщику
         function toggleSupplierReason(row) {
@@ -150,6 +198,37 @@ window.initErrorHandling = function () {
             errorField.html(''); // Очистка ошибок
             cell.css('border-bottom', ''); // Сброс подсветки ячейки
         });
+
+
+        // Функция для удаления строки формы из formset
+        function removeFocusedRow() {
+            var focusedElement = $(':focus');
+            var formRow = focusedElement.closest('tr'); // Замените 'tr' на класс строки формы, если у вас другой
+
+            if (formRow.length) {
+                // Установим DELETE поле в True
+                formRow.find('input[type="checkbox"][name$="-DELETE"]').prop('checked', true);
+
+                // Добавим класс скрытия для визуального удаления строки
+                formRow.addClass('hidden'); // Убедитесь, что CSS класс 'hidden' скрывает элемент
+
+                console.log('Row marked for deletion.');
+
+                // Установить фокус на следующей строке, если существует
+                var nextRow = formRow.next('tr');
+                if (nextRow.length) {
+                    nextRow.find('input, select').first().focus();
+                } else {
+                    // Если следующей строки нет, установить фокус на предыдущей строке
+                    var prevRow = formRow.prev('tr');
+                    if (prevRow.length) {
+                        prevRow.find('input, select').first().focus();
+                    }
+                }
+            } else {
+                console.log('No focused form row found.');
+            }
+        }
     });
 };
 
@@ -179,14 +258,14 @@ document.addEventListener('DOMContentLoaded', function () {
     initErrorHandling();
 });
 
-
+// Очистка форм
 function resetForm() {
     // Установить TOTAL_FORMS в 1
     document.getElementById('id_form-TOTAL_FORMS').value = '1';
     document.getElementById('id_form-INITIAL_FORMS').value = '0';
 
     // Найти tbody и все строки в нем
-    const tbody = document.querySelector('table.table-row-form tbody');
+    const tbody = document.querySelector('table.table-rows-form tbody');
     const rows = tbody.querySelectorAll('tr');
 
     // Удалить все строки, кроме первой

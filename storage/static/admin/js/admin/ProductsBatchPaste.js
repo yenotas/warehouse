@@ -89,14 +89,16 @@ django.jQuery(document).ready(function ($) {
     }
 
     async function processFiles(rows, emptyRowsIndex) {
+        var i = 0;
+        var result = await Promise.all(
 
-        return await Promise.all(
             rows
                 .filter((_, rowIndex) => !emptyRowsIndex.includes(rowIndex)) // Убираем ненужные индексы
                 .map(async (row) => {
                     const img = row.querySelector('img');
                     if (img) {
-                        const filename = 'image.png';
+                        const filename = 'image'+i+'.png';
+                        i++;
                         const src = img.getAttribute('src');
                         return src.startsWith('data:image/')
                             ? dataURLtoFile(src, filename)
@@ -105,6 +107,7 @@ django.jQuery(document).ready(function ($) {
                     return null;
                 })
         );
+        return result;
     }
 
     function addEmptyForm() {
@@ -115,6 +118,21 @@ django.jQuery(document).ready(function ($) {
 
         totalForms.val(formIndex + 1);
         var newRow = $('#empty_form').prev(); // Последняя добавленная строка
+
+        // Обновляем имя и id у всех input в новой строке
+        newRow.find('input, select, textarea').each(function() {
+            var name = $(this).attr('name');
+            var id = $(this).attr('id');
+            if (name) {
+                var newName = name.replace('__prefix__', formIndex);
+                $(this).attr('name', newName);
+            }
+            if (id) {
+                var newId = id.replace('__prefix__', formIndex);
+                $(this).attr('id', newId);
+            }
+        });
+
         newRow.find('.img_cell').each(function () {
             initializeCell($(this));
         });
@@ -122,7 +140,7 @@ django.jQuery(document).ready(function ($) {
 
 
     async function populateForm(rowIndex, rowData, file) {
-        var formRow = $(`.table-row-form tbody tr`).eq(rowIndex);
+        var formRow = $(`.table-rows-form tbody tr`).eq(rowIndex);
 
         rowData.forEach((value, colIndex) => {
             const fieldName = `form-${rowIndex}-${fieldNames[colIndex]}`;
@@ -150,6 +168,7 @@ django.jQuery(document).ready(function ($) {
         });
 
         if (file) {
+            console.log('PASTE IMAGE', file.name, rowIndex);
             await insertImageToCell(formRow, file);
         }
     }

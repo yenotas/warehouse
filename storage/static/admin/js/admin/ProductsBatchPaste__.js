@@ -92,7 +92,7 @@ django.jQuery(document).ready(function ($) {
 
 
     function populateForm(rowIndex, rowData, file) {
-        var formRow = $(`.table-row-form tbody tr`).eq(rowIndex);
+        var formRow = $(`.table-rows-form tbody tr`).eq(rowIndex);
         console.log(formRow);
         console.log('заполняем:', rowIndex, rowData, "есть файл", file && true);
         rowData.forEach((value, colIndex) => {

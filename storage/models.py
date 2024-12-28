@@ -165,7 +165,7 @@ class ProductRequest(models.Model):
         verbose_name_plural = "Заявки на закуп"
 
     def __str__(self):
-        return f"Заявка {self.id} на {self.product_link.name}" or ""
+        return f"№{self.id} на {self.product_link}" or ""
 
 
 class Orders(models.Model):
@@ -197,7 +197,7 @@ class Orders(models.Model):
         verbose_name_plural = "Заказы по заявкам"
 
     def __str__(self):
-        return f"По заявке №{self.product_request}" or ""
+        return f"По заявке {self.product_request}" or ""
 
 
 class ProductMovies(models.Model):

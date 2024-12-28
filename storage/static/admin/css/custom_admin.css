@@ -128,15 +128,15 @@ header, nav {
 }
 
 /* Таблица */
-.table-row-form {
+.table-rows-form {
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
 }
 
 /* Заголовки и ячейки */
-.table-row-form th,
-.table-row-form td {
+.table-rows-form th,
+.table-rows-form td {
     min-width: 70px;
     width: 100%;
     word-wrap: break-word;
@@ -189,7 +189,7 @@ select[multiple] {
     background: #c4dce8;
 }
 
-.table-row-form th, .t_row th{
+.table-rows-form th, .t_row th{
     height: 30px;
     align-content: center;
  }
@@ -272,15 +272,15 @@ ul.errorlist li {
     font-size: 0.75rem;
 }
 
-.results.table-row-form th label {
+.table-rows-form th label {
     display: flex;
     flex-direction: column; /* Вертикальное расположение элементов */
     align-items: flex-center; /* Выравнивание по левому краю */
     margin-bottom: 10px; /* Отступ под текстом лейбла */
 }
 
-.results.table-row-form input,
-.results.table-row-form select{
+.table-rows-form input,
+.table-rows-form select{
     min-width: 70px; /* Минимальная ширина столбца */
     width: 100%;  /* Макс ширина по минимальному содержимому */
     height: 50px;
@@ -292,7 +292,7 @@ ul.errorlist li {
 }
 
 /* Заголовки */
-.results.table-row-form th {
+.table-rows-form th {
     background-color: #f2f2f2; /* Цвет фона заголовков */
     padding-left: 10px;
 }
