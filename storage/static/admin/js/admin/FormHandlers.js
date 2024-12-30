@@ -3,59 +3,56 @@ window.initErrorHandling = function () {
 
     django.jQuery(document).ready(function ($) {
 
-
     // Функция загрузки данных записи в форму
     function loadRecordData(link) {
         $.get(link, function(data) {
-            // Логирование полученных данных
-            // console.log('Полученные данные:', data);
-
             // Парсинг и установка значений полей формы
             const parser = new DOMParser();
             const doc = parser.parseFromString(data, 'text/html');
             const form = $('#input_form');
             const tr = form.find('tbody tr').first();
+            $('#form_action').val('edit');
+            $('#submit_btn').val('Сохранить');
 
             // Обрабатываем input, select и textarea
             tr.find('input, select, textarea').each(function() {
                 const name = $(this).attr('name');
                 const field = $(`[name="${name}"]`);
                 const element = doc.querySelector(`[name="${name}"]`);
-                console.log('Найденный элемент:', element, element.value);
+                console.log('Найденный элемент:', element, element ? element.value : null);
 
                 if (element && !name.includes('product_image')) {
                     const value = element.value;
                     $(this).val(value);
                     $(this).trigger('change');
-                    console.log("Имя/знач", name, value);
+                    console.log("Имя/значение:", name, value);
                 }
-                // Обновление превью изображений
-                const imgContainer = $(this).closest('td').find('.image_preview_container');
-                const imagePreview = imgContainer.find('.image_preview');
-                const removeButton = imgContainer.closest('td').find('.remove_image_button');
-
 
                 // Обновление превью изображений
                 if (name.includes('product_image')) {
-                    const imgContainer = $(this).closest('td').find('.image_preview_container');
-                    const imagePreview = imgContainer.find('.image_preview');
-                    const removeButton = imgContainer.closest('td').find('.remove_image_button');
-                    const imageUrl = element.dataset.previewUrl || element.src;
+                    var imgContainer = $(element).closest('td').find('.image_preview_container');
+                    var imagePreview = imgContainer.find('img')[0];
+                    const imageUrl = imagePreview.src;
+                    console.log('URL элемент:', imageUrl);
 
                     if (imageUrl) {
-                        imagePreview.attr('src', imageUrl);
-                        imagePreview.show();
-                        removeButton.show();
-                    } else {
-                        imagePreview.hide();
-                        removeButton.hide();
+                        imgContainer = $(this).closest('td').find('.image_preview_container');
+                        imagePreview = imgContainer.find('img')[0];
+                        imagePreview.src = imageUrl;
+                        const removeButton = $(this).closest('td').find('.remove_image_button');
+                        const bg = $(this).closest('td').find('.image_paste_area_bg');
+                        $(imagePreview).show();
+                        $(removeButton).show();
+                        $(bg).hide();
                     }
                 }
             });
 
+            console.log('тип формы', $('#form_action').val());
+
             // Обновление превью изображений и других элементов
             initializeAutoCompleteFields();
-            $('.img_cell').each(function() {
+            $(this).closest('td').each(function() {
                 initializeCell($(this));
             });
         });

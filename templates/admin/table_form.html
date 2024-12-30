@@ -33,8 +33,9 @@
             </tbody>
         </table>
         <div class="submit-row">
-            <input type="submit" value={{ button_name }} class="default under_table" />
+            <input type="submit" id="submit_btn" value={{ button_name }} class="default under_table" />
             <input type="reset" onclick="resetForm();" class="second under_table" value="Сбросить">
+            <input type="hidden" id="form_action" value="add">
             <div id="errors_viewer"></div>
             <div class="error-row">
                 {{ form.non_field_errors }}
