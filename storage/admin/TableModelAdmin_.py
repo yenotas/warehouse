@@ -237,6 +237,11 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
         extra_context = extra_context or {}
         is_popup = '_popup' in request.GET or '_popup' in request.POST
 
+        if 'form_action' in extra_context:
+            print('\nИзменение из таблицы результатов', extra_context['form_action'])
+        else:
+            print('\nИзменение на странице формы', object_id, form_url)
+
         queryset = self.model.objects.filter(pk=object_id)
 
         formset_class = self.get_formset_class(request, extra=0)

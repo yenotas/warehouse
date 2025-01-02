@@ -12,6 +12,8 @@ django.jQuery(document).ready(function ($) {
 
 
     $('#id_form-0-' + formFields[0]).on('paste', async function (event) {
+
+        $('#form_action').val('add');
         event.preventDefault();
 
         var clipboardData = (event.originalEvent || event).clipboardData || window.clipboardData;

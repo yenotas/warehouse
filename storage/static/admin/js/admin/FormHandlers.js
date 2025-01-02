@@ -5,13 +5,16 @@ window.initErrorHandling = function () {
 
     // Функция загрузки данных записи в форму
     function loadRecordData(link) {
+        const obj_id = link.split('/')[3];
+        console.log('ID', obj_id);
         $.get(link, function(data) {
             // Парсинг и установка значений полей формы
             const parser = new DOMParser();
             const doc = parser.parseFromString(data, 'text/html');
             const form = $('#input_form');
             const tr = form.find('tbody tr').first();
-            $('#form_action').val('edit');
+
+            $('#form_action').val('edit_'+obj_id);
             $('#submit_btn').val('Сохранить');
 
             // Обрабатываем input, select и textarea
@@ -342,4 +345,6 @@ function resetForm() {
     removeButtons.forEach(button => {
         button.style.display = 'none';
     });
+
+    document.getElementById('form_action').value = 'add';
 }
