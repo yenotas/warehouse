@@ -10,6 +10,7 @@ from django.forms import modelformset_factory, BaseModelFormSet
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect
 from django.contrib import messages
+from django.urls import reverse
 from django.utils.html import escape
 import json
 
@@ -140,21 +141,18 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
         formset_class = self.get_formset_class(request)
         formset = formset_class(request.POST or None, request.FILES or None, queryset=self.model.objects.none())
 
-        if 'form_action' in extra_context:
-            print('\nchangelist_view Изменение из таблицы результатов', extra_context['form_action'])
-        else:
-            print('\nИзменение на странице формы')
-
         if request.method == 'POST':
+
             action = request.POST.get('form_action', '')
-            print('тип формы', action)
+            print('changelist_view тип формы', action)
+
             if formset.is_valid():
                 clear_temp_files(request)
                 self._process_related_fields(formset)
                 if 'edit' in action:
-                    object_id = int(action.replace('edit_', ''))
+                    object_id = action.replace('edit_', '')
                     extra_context['form_action'] = action
-                    return self.change_view(request, str(object_id), '', extra_context)
+                    return self.change_view(request, object_id, '', extra_context)
                 else:
                     # Логика для добавления новой записи
                     new_objects = formset.save(commit=False)
@@ -184,49 +182,73 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
         extra_context = extra_context or {}
         is_popup = '_popup' in request.GET or '_popup' in request.POST
 
-        if 'form_action' in extra_context:
-            print('\nИзменение из таблицы результатов', extra_context['form_action'])
-        else:
-            print('\nИзменение на странице формы', object_id, form_url)
+        print('\nchange_view Изменение формы', object_id)
 
-            queryset = self.model.objects.filter(pk=object_id)
+        # Получаем существующую запись по ID
+        try:
+            instance = self.model.objects.get(pk=object_id)
+        except self.model.DoesNotExist:
+            instance = None
+            print(f"Запись с ID {object_id} не найдена.")
 
-            formset_class = self.get_formset_class(request, extra=0)
+        formset_class = self.get_formset_class(request, extra=0)
 
-            if request.method == 'POST':
-                formset = formset_class(request.POST, request.FILES, queryset=queryset)
-                if formset.is_valid():
-                    self._process_related_fields(formset)
-                    updated_objects = formset.save(commit=False)
-                    for updated_object in updated_objects:
-                        self.save_model(request, updated_object, formset, change=True)
-                    if is_popup:
-                        obj_repr = escape(str(updated_objects[0]))
-                        return HttpResponse(f"""
-                            <script type="text/javascript">
-                                opener.dismissChangeRelatedObjectPopup(window, "{updated_objects[0].pk}", "{obj_repr}");
-                            </script>
-                        """)
-                    else:
-                        msg = 'Запись обновлена.'
-                        self.message_user(request, msg, messages.SUCCESS)
-                        return redirect(request.path)
+        if request.method == 'POST':
+            form_action = request.POST.get('form_action', '')
+            print('Тип формы:', form_action)
+
+            # Привязываем форму к существующей записи
+            formset = formset_class(request.POST, request.FILES, queryset=self.model.objects.filter(pk=object_id))
+            print('Форма привязана к существующей записи:', formset.is_bound)
+
+            if formset.is_valid():
+                print('Форма валидна')
+                self._process_related_fields(formset)
+                updated_object = formset.save(commit=False)[0]
+                updated_object.pk = object_id
+                print('Обновленные объекты:', updated_object)
+                if updated_object:  # Проверяем, что объект уже существует
+                    self.save_model(request, updated_object, formset, change=True)
+                    print(f"ОИЗМЕНЕНИЯ объекта с ID {updated_object.pk} СОХРАНЕНЫ.", updated_object)
                 else:
-                    save_files_to_session(request, formset)
-                    extra_context['formset'] = formset
+                    print(f"Объект с ID {updated_object.pk} не найден, создается новый объект.", updated_object)
+                    self.save_model(request, updated_object, formset, change=False)
+                if is_popup:
+                    obj_repr = escape(str(updated_object))
+                    return HttpResponse(f"""
+                        <script type="text/javascript">
+                            opener.dismissChangeRelatedObjectPopup(window, "{updated_object.pk}", "{obj_repr}");
+                        </script>
+                    """)
+                else:
+                    msg = 'Запись обновлена.'
+                    self.message_user(request, msg, messages.SUCCESS)
+                    return redirect(request.path)
             else:
-                formset = formset_class(queryset=queryset)
+                print('Формсет не валиден:', formset.errors)
+                save_files_to_session(request, formset)
                 extra_context['formset'] = formset
+        else:
+            # Привязываем форму к существующей записи для GET-запроса
+            formset = formset_class(queryset=self.model.objects.filter(pk=object_id))
+            extra_context['formset'] = formset
 
-            extra_context['is_popup'] = is_popup
-            extra_context['subtitle'] = ""
-            if not is_popup:
-                extra_context['title'] = ""
-            extra_context['button_name'] = "Сохранить"
-            print('formset', list(formset.forms))
-            form_fields = list(formset.forms[0].fields.keys()) if formset.forms[0] else []
-            extra_context['form_fields_json'] = json.dumps(form_fields)
-            return super().change_view(request, object_id, form_url, extra_context=extra_context)
+        extra_context['is_popup'] = is_popup
+        extra_context['subtitle'] = ""
+        if not is_popup:
+            extra_context['title'] = ""
+        extra_context['button_name'] = "Сохранить"
+        print('formset', list(formset.forms))
+        form_fields = list(formset.forms[0].fields.keys()) if formset.forms else []
+        extra_context['form_fields_json'] = json.dumps(form_fields)
 
-    def add_view(self, request, form_url='', extra_context=None):
-        return self.changelist_view(request, extra_context)
+        response = super().change_view(request, object_id, form_url, extra_context)
+
+        if response is None:
+            response = self.render_change_form(request, None, form_url, extra_context)
+
+        return response
+
+    def get_success_url(self, obj):
+        opts = obj._meta
+        return reverse('admin:%s_%s_changelist' % (opts.app_label, opts.model_name))

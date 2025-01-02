@@ -50,6 +50,17 @@ window.initErrorHandling = function () {
                     }
                 }
             });
+            let idField = form.find('input[name="id"]');
+            if (!idField.length) {
+                idField = $('<input>').attr({
+                    type: 'hidden',
+                    name: 'id',
+                    value: obj_id
+                });
+                form.append(idField);
+            } else {
+                idField.val(obj_id);
+            }
 
             console.log('тип формы', $('#form_action').val());
 

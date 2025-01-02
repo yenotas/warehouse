@@ -267,7 +267,7 @@ class ProductsForm(BaseTableForm):
     class Meta:
         model = Products
         fields = ['name', 'product_sku', 'packaging_unit', 'supplier', 'product_url', 'product_image']
-        exclude = ['near_products', 'supplier_old', 'categories']
+        exclude = ['id', 'near_products', 'supplier_old', 'categories']
 
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request', None)
