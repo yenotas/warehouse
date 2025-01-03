@@ -78,6 +78,7 @@ class BaseTableForm(forms.ModelForm):
         self.required_fields = kwargs.pop('required_fields', [])
         super().__init__(*args, **kwargs)
 
+        print(f"BaseTableForm. Инициализация формы. Instance: {self.instance}, PK: {self.instance.pk if self.instance else 'None'}")
         # Объединение полей модели для автозаполнения
         if self.related_fields:
             self.auto_fields = list(set(self.auto_fields + [field for field in list(self.related_fields.keys())]))
@@ -158,9 +159,10 @@ class BaseTableForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-
+        print(f"Метод clean. Instance: {self.instance}, PK: {self.instance.pk if self.instance else 'None'}")
         # Проверка уникальности
         if self.unique_fields and not self.instance.pk:
+            print('instance', self.instance)
             model_class = self._meta.model
             filter_args = {}
 
@@ -170,8 +172,10 @@ class BaseTableForm(forms.ModelForm):
                     field_value = cleaned_data.get(field_name)
                     filter_args[field_name] = field_value
 
-                    existing_record = model_class.objects.filter(**filter_args).first()
+                    # Проверка уникальности с учетом редактирования
+                    existing_record = model_class.objects.filter(**filter_args).exclude(pk=self.instance.pk).first()
                     if existing_record:
+                        print("Запись уже существует", self.instance.pk, existing_record.pk, existing_record)
                         self.add_error(field_name, f"{field_value} - Такая запись уже существует! | ")
 
         # Проверка заполнения

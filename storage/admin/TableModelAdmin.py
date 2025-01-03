@@ -145,23 +145,22 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
 
             action = request.POST.get('form_action', '')
             print('changelist_view тип формы', action)
+            if 'edit' in action:
+                object_id = action.replace('edit_', '')
+                extra_context['form_action'] = action
+                return self.change_view(request, object_id, '', extra_context)
 
             if formset.is_valid():
                 clear_temp_files(request)
                 self._process_related_fields(formset)
-                if 'edit' in action:
-                    object_id = action.replace('edit_', '')
-                    extra_context['form_action'] = action
-                    return self.change_view(request, object_id, '', extra_context)
-                else:
-                    # Логика для добавления новой записи
-                    new_objects = formset.save(commit=False)
-                    for new_object in new_objects:
-                        self.save_model(request, new_object, formset, change=False)
-                    count = len(new_objects)
-                    msg = 'Записи добавлены.' if count > 1 else '\"%(object)s\" добавлен.' % {'object': new_objects[0]}
-                    self.message_user(request, msg, messages.SUCCESS)
-                    return redirect(request.path)
+                # Добавление новой записи
+                new_objects = formset.save(commit=False)
+                for new_object in new_objects:
+                    self.save_model(request, new_object, formset, change=False)
+                count = len(new_objects)
+                msg = 'Записи добавлены.' if count > 1 else '\"%(object)s\" добавлен.' % {'object': new_objects[0]}
+                self.message_user(request, msg, messages.SUCCESS)
+                return redirect(request.path)
             else:
                 save_files_to_session(request, formset)
 
@@ -187,6 +186,7 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
         # Получаем существующую запись по ID
         try:
             instance = self.model.objects.get(pk=object_id)
+            print(f"Запись с ID {object_id}:", instance)
         except self.model.DoesNotExist:
             instance = None
             print(f"Запись с ID {object_id} не найдена.")
@@ -198,7 +198,8 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
             print('Тип формы:', form_action)
 
             # Привязываем форму к существующей записи
-            formset = formset_class(request.POST, request.FILES, queryset=self.model.objects.filter(pk=object_id))
+            # formset = formset_class(request.POST, request.FILES, queryset=self.model.objects.filter(pk=object_id))
+            formset = formset_class(request.POST, request.FILES, queryset=instance)
             print('Форма привязана к существующей записи:', formset.is_bound)
 
             if formset.is_valid():
@@ -209,7 +210,7 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
                 print('Обновленные объекты:', updated_object)
                 if updated_object:  # Проверяем, что объект уже существует
                     self.save_model(request, updated_object, formset, change=True)
-                    print(f"ОИЗМЕНЕНИЯ объекта с ID {updated_object.pk} СОХРАНЕНЫ.", updated_object)
+                    print(f"ИЗМЕНЕНИЯ объекта с ID {updated_object.pk} СОХРАНЕНЫ.", updated_object)
                 else:
                     print(f"Объект с ID {updated_object.pk} не найден, создается новый объект.", updated_object)
                     self.save_model(request, updated_object, formset, change=False)
@@ -223,7 +224,8 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
                 else:
                     msg = 'Запись обновлена.'
                     self.message_user(request, msg, messages.SUCCESS)
-                    return redirect(request.path)
+                    # return redirect(request.path)
+                    return HttpResponseRedirect(self.get_success_url(updated_object))
             else:
                 print('Формсет не валиден:', formset.errors)
                 save_files_to_session(request, formset)
