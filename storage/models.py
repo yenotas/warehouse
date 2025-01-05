@@ -165,7 +165,10 @@ class ProductRequest(models.Model):
         verbose_name_plural = "Заявки на закуп"
 
     def __str__(self):
-        return f"№{self.id} на {self.product_link}" if product_link else f"№{self.id} - ?"
+        if self.product_link:
+            return f"№{self.id} на {self.product_link}"
+        else:
+            return f"№{self.id} (нет продукта)"
 
 
 class Orders(models.Model):
