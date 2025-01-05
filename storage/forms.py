@@ -387,6 +387,11 @@ class ProductRequestForm(BaseTableForm):
         )
         self.fields['project_link'] = forms.CharField(widget=forms.HiddenInput(), required=False)
         self.fields['product_link'] = forms.CharField(widget=forms.HiddenInput(), required=False)
+        try:
+            product = self.instance.product_link
+        except Products.DoesNotExist:
+            product = None
+        self.fields['product_link'].initial = product
         # self.fields['responsible'].initial = self.request.user
 
         # if self.request:
