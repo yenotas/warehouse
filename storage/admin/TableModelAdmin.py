@@ -129,16 +129,17 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
         qs = super().get_queryset(request)
         return qs.distinct()
 
-    def get_formset_class(self, request, extra=1):
+    def get_formset_class(self, request, extra=0):
+        print('get_formset_class', extra, request)
         return modelformset_factory(
             self.model,
             form=self.get_form(request),
-            extra=extra,
+            extra=extra
         )
 
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
-        formset_class = self.get_formset_class(request)
+        formset_class = self.get_formset_class(request, extra=1)
         formset = formset_class(request.POST or None, request.FILES or None, queryset=self.model.objects.none())
 
         if request.method == 'POST':
@@ -165,7 +166,7 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
                 save_files_to_session(request, formset)
 
         extra_context['formset'] = formset
-        form_fields = list(formset.forms[0].fields.keys()) if formset.forms else []
+        form_fields = list(formset.forms[0].fields.keys()) if formset.forms[0] else []
         extra_context['form_fields_json'] = json.dumps(form_fields)
         extra_context['title'] = ""
         extra_context['button_name'] = "Добавить"

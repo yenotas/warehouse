@@ -30,43 +30,6 @@ def trigram_search(query, queryset, search_field):
         return best_match.id, getattr(best_match, search_field)
     return None, None
 
-# def trigram_search(query, model_or_queryset, search_field, threshold=0.3):
-#     """
-#     Универсальная функция триграммного поиска.
-#
-#     :param query: строка запроса для поиска (например, "Иван Иванов").
-#     :param model_or_queryset: модель или QuerySet для поиска.
-#     :param search_field: поле, в котором выполняется поиск.
-#     :param threshold: порог схожести для поиска (по умолчанию 0.3).
-#     :return: tuple (id записи, найденный текст) или None, если ничего не найдено.
-#     """
-#     if not query or not model_or_queryset or not search_field:
-#         raise ValueError("Все параметры (query, model_or_queryset, search_field) обязательны.")
-#
-#     # Если передана модель, получаем QuerySet
-#     if isinstance(model_or_queryset, type) and hasattr(model_or_queryset, 'objects'):
-#         queryset = model_or_queryset.objects.all()
-#     elif isinstance(model_or_queryset, QuerySet):
-#         queryset = model_or_queryset
-#     else:
-#         raise ValueError("model_or_queryset должен быть либо моделью, либо QuerySet.")
-#
-#     # Выполняем триграммный поиск
-#     result = (
-#         queryset.annotate(
-#             similarity=TrigramSimilarity(search_field, query)
-#         )
-#         .filter(similarity__gte=threshold)
-#         .order_by('-similarity')
-#         .values_list('id', search_field, 'similarity')
-#         .first()
-#     )
-#
-#     if result:
-#         record_id, record_text, similarity = result
-#         return record_id, record_text
-#     return None, None
-
 
 class BaseTableForm(forms.ModelForm):
     related_fields = {}
@@ -160,23 +123,23 @@ class BaseTableForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         print(f"Метод clean. Instance: {self.instance}, PK: {self.instance.pk if self.instance else 'None'}")
-        # Проверка уникальности
-        if self.unique_fields and not self.instance.pk:
-            print('instance', self.instance)
-            model_class = self._meta.model
-            filter_args = {}
-
-            for field_name in self.fields:
-                if field_name in self.unique_fields:
-                    print('unique_field', field_name)
-                    field_value = cleaned_data.get(field_name)
-                    filter_args[field_name] = field_value
-
-                    # Проверка уникальности с учетом редактирования
-                    existing_record = model_class.objects.filter(**filter_args).exclude(pk=self.instance.pk).first()
-                    if existing_record:
-                        print("Запись уже существует", self.instance.pk, existing_record.pk, existing_record)
-                        self.add_error(field_name, f"{field_value} - Такая запись уже существует! | ")
+        # Проверка уникальности - временно отменяю: непонятные глюк множественного перечитывания instance.
+        # if self.unique_fields and not self.instance.pk:
+        #     print('instance', self.instance)
+        #     model_class = self._meta.model
+        #     filter_args = {}
+        #
+        #     for field_name in self.fields:
+        #         if field_name in self.unique_fields:
+        #             print('unique_field', field_name)
+        #             field_value = cleaned_data.get(field_name)
+        #             filter_args[field_name] = field_value
+        #
+        #             # Проверка уникальности с учетом редактирования
+        #             existing_record = model_class.objects.filter(**filter_args).exclude(pk=self.instance.pk).first()
+        #             if existing_record:
+        #                 print("Запись уже существует", self.instance.pk, existing_record.pk, existing_record)
+        #                 self.add_error(field_name, f"{field_value} - Такая запись уже существует! | ")
 
         # Проверка заполнения
         if self.required_fields:

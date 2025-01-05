@@ -3,96 +3,94 @@ window.initErrorHandling = function () {
 
     django.jQuery(document).ready(function ($) {
 
-    // Функция загрузки данных записи в форму
-    function loadRecordData(link) {
-        const obj_id = link.split('/')[3];
-        console.log('ID', obj_id);
-        $.get(link, function(data) {
-            // Парсинг и установка значений полей формы
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(data, 'text/html');
-            const form = $('#input_form');
-            const tr = form.find('tbody tr').first();
+        // Функция загрузки данных записи в форму
+        function loadRecordData(link) {
+            const obj_id = link.split('/')[3];
+            console.log('ID', obj_id);
+            $.get(link, function(data) {
+                // Парсинг и установка значений полей формы
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(data, 'text/html');
+                const form = $('#input_form');
+                const tr = form.find('tbody tr').first();
 
-            $('#form_action').val('edit_'+obj_id);
-            $('#submit_btn').val('Сохранить');
+                $('#form_action').val('edit_'+obj_id);
+                $('#submit_btn').val('Сохранить');
 
-            // Обрабатываем input, select и textarea
-            tr.find('input, select, textarea').each(function() {
-                const name = $(this).attr('name');
-                const field = $(`[name="${name}"]`);
-                const element = doc.querySelector(`[name="${name}"]`);
-                console.log('Найденный элемент:', element, element ? element.value : null);
+                // Обрабатываем input, select и textarea
+                tr.find('input, select, textarea').each(function() {
+                    const name = $(this).attr('name');
+                    const field = $(`[name="${name}"]`);
+                    const element = doc.querySelector(`[name="${name}"]`);
+                    console.log('Найденный элемент:', element, element ? element.value : null);
 
-                if (element && !name.includes('product_image')) {
-                    const value = element.value;
-                    $(this).val(value);
-                    $(this).trigger('change');
-                    console.log("Имя/значение:", name, value);
-                }
-
-                // Обновление превью изображений
-                if (name.includes('product_image')) {
-                    var imgContainer = $(element).closest('td').find('.image_preview_container');
-                    var imagePreview = imgContainer.find('img')[0];
-                    const imageUrl = imagePreview.src;
-                    console.log('URL элемент:', imageUrl);
-
-                    if (imageUrl) {
-                        imgContainer = $(this).closest('td').find('.image_preview_container');
-                        imagePreview = imgContainer.find('img')[0];
-                        imagePreview.src = imageUrl;
-                        const removeButton = $(this).closest('td').find('.remove_image_button');
-                        const bg = $(this).closest('td').find('.image_paste_area_bg');
-                        $(imagePreview).show();
-                        $(removeButton).show();
-                        $(bg).hide();
+                    if (element && !name.includes('product_image')) {
+                        const value = element.value;
+                        $(this).val(value);
+                        $(this).trigger('change');
+                        console.log("Имя/значение:", name, value);
                     }
+
+                    // Обновление превью изображений
+                    if (name.includes('product_image')) {
+                        var imgContainer = $(element).closest('td').find('.image_preview_container');
+                        var imagePreview = imgContainer.find('img')[0];
+                        const imageUrl = imagePreview.src;
+                        console.log('URL элемент:', imageUrl);
+
+                        if (imageUrl) {
+                            imgContainer = $(this).closest('td').find('.image_preview_container');
+                            imagePreview = imgContainer.find('img')[0];
+                            imagePreview.src = imageUrl;
+                            const removeButton = $(this).closest('td').find('.remove_image_button');
+                            const bg = $(this).closest('td').find('.image_paste_area_bg');
+                            $(imagePreview).show();
+                            $(removeButton).show();
+                            $(bg).hide();
+                        }
+                    }
+                });
+                let idField = form.find('input[name="id"]');
+                if (!idField.length) {
+                    idField = $('<input>').attr({
+                        type: 'hidden',
+                        name: 'id',
+                        value: obj_id
+                    });
+                    form.append(idField);
+                } else {
+                    idField.val(obj_id);
+                }
+
+                console.log('тип формы', $('#form_action').val());
+
+                // Обновление превью изображений и других элементов
+                initializeAutoCompleteFields();
+                $(this).closest('td').each(function() {
+                    initializeCell($(this));
+                });
+            });
+        }
+
+        // Открытие строки для редактирования в форме
+        const appTable = $('#result_list');
+        if (appTable.length) {
+            var headers = appTable.find('th');
+            headers.each(function() {
+                const th = $(this);
+                const link = th.find('a');
+                const url = link.attr('href');
+                link.attr('href', '#');
+                if (link.length) {
+                    th.css('cursor', 'pointer');
+                    th.addClass('custom_list_apps');
+                    th.on('click', function() {
+                        console.log(url);
+                        loadRecordData(url);
+                    });
                 }
             });
-            let idField = form.find('input[name="id"]');
-            if (!idField.length) {
-                idField = $('<input>').attr({
-                    type: 'hidden',
-                    name: 'id',
-                    value: obj_id
-                });
-                form.append(idField);
-            } else {
-                idField.val(obj_id);
-            }
-
-            console.log('тип формы', $('#form_action').val());
-
-            // Обновление превью изображений и других элементов
-            initializeAutoCompleteFields();
-            $(this).closest('td').each(function() {
-                initializeCell($(this));
-            });
-        });
-    }
-
-    // Открытие строки для редактирования в форме
-    const appTable = $('#result_list');
-    if (appTable.length) {
-        var headers = appTable.find('th');
-        headers.each(function() {
-            const th = $(this);
-            const link = th.find('a');
-            const url = link.attr('href');
-            link.attr('href', '#');
-            if (link.length) {
-                th.css('cursor', 'pointer');
-                th.addClass('custom_list_apps');
-                th.on('click', function() {
-                    console.log(url);
-                    loadRecordData(url);
-                });
-            }
-        });
-    }
-
-
+        }
 
 
         document.addEventListener('keydown', function(e) {
@@ -172,6 +170,7 @@ window.initErrorHandling = function () {
                     toggleDeliveryAddress(this.closest('tr'));
                 });
             });
+             console.log('Toggle applied');
         }
 
         applyToggleToAllRows();
