@@ -1,4 +1,3 @@
-
 from .outer_modules import (UserAdmin, Concat, Value, CharField, messages, _, PermissionDenied, AdminPasswordChangeForm, redirect,
                             TemplateResponse)
 from .ManageAdmins import ManageAdmins

@@ -1,4 +1,5 @@
-from storage.admin.outer_modules import admin, redirect
+from django.contrib import admin
+from django.shortcuts import redirect
 from storage.mixins import AccessControlMixin
 
 

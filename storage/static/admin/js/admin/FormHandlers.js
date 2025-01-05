@@ -316,9 +316,9 @@ function resetForm() {
     const tbody = document.querySelector('table.table-rows-form tbody');
     const rows = tbody.querySelectorAll('tr');
 
-    // Удалить все строки, кроме первой
+    // Удалить все строки, кроме первой и строки с ID #empty_form
     rows.forEach((row, index) => {
-        if (index > 0) {
+        if (index > 0 && row.id !== 'empty_form') {
             tbody.removeChild(row);
         }
     });
@@ -345,17 +345,23 @@ function resetForm() {
         field.textContent = '';
     });
 
-    // Удалить превью изображений, если есть
+    // Удалить превью изображений, если есть и восстановить поля вставки
     const imagePreviews = document.querySelectorAll('.image_preview');
     imagePreviews.forEach(img => {
         img.src = '#';
         img.style.display = 'none';
     });
-
     const removeButtons = document.querySelectorAll('.remove_image_button');
     removeButtons.forEach(button => {
         button.style.display = 'none';
     });
-
+    var imagePasteArea = document.querySelectorAll('.image_paste_area_bg');
+    imagePasteArea.forEach(button => {
+        button.style.display = 'block';
+    });
+    imagePasteArea = document.querySelectorAll('.image_paste_area');
+    imagePasteArea.forEach(button => {
+        button.style.display = 'block';
+    });
     document.getElementById('form_action').value = 'add';
 }

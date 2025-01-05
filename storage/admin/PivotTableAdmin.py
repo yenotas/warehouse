@@ -1,9 +1,9 @@
+from .TableModelAdmin import TableModelAdmin
 from .outer_modules import Q
-from .ManageAdmins import ManageAdmins
 from ..forms import PivotTableForm
 
 
-class PivotTableAdmin(ManageAdmins):
+class PivotTableAdmin(TableModelAdmin):
     form = PivotTableForm
     fields = (
         'product_link', 'product_url', 'request_about', 'packaging_unit', 'request_quantity',

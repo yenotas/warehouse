@@ -49,15 +49,46 @@ django.jQuery(document).ready(function ($) {
         var files = await processFiles(Array.from(htmlTable), emptyRowsIndex);
 
         var startRowIndex = $(this).closest('tr').index();
-
+        var startColIndex = $(this).index();
 
         // Пропускаем первые ячейки с числом, если целевая ячейка текстовая
         if (isNumber(textTable[0][0]) && isTextField($(this).find('input, textarea'))) {
             textTable = textTable.map(row => row.slice(1));
         }
 
+        // Найти данные справа от начальной ячейки вставки
+        const existingRowData = [];
+        let existingImage = null;
+        $(this).closest('tr').find('td').each(function(index) {
+            const input = $(this).find('input, textarea, select');
+            if (input.length && index >= startColIndex) {
+                existingRowData.push(input.val() || '');
+            }
+            const imageInput = $(this).find('input.product_image');
+            if (imageInput.length && imageInput[0].files.length > 0 && !existingImage) {
+                existingImage = imageInput[0].files[0];
+                console.log(`Найдено изображение: ${existingImage.name}`);
+            }
+        });
+
+        // Если изображение найдено, заменяем весь массив files на него
+        if (existingImage) {
+            files = files.map(() => existingImage);
+        }
+
+        console.log('Существующие данные:', existingRowData);
+
+        // Расширяем каждую строку textTable данными справа
+        textTable = textTable.map(row => {
+            return row.map((cell, index) => {
+                // Если есть данные в existingRowData, используем их вместо cell
+                return existingRowData[index] ? existingRowData[index] : cell;
+            });
+        });
+
+        // Заполняем формы
         await Promise.all(textTable.map(async (row, i) => {
-            await populateForm(startRowIndex + i, row, files[i]);
+            await populateForm(startRowIndex + i, row, startColIndex, files[i]);
         }));
     });
 
@@ -135,7 +166,7 @@ django.jQuery(document).ready(function ($) {
         });
     }
 
-    async function populateForm(rowIndex, rowData, file) {
+    async function populateForm(rowIndex, rowData, startColIndex, file) {
         var formRow = $(`.table-rows-form tbody tr`).eq(rowIndex);
         var existingData = {};
 
@@ -145,12 +176,14 @@ django.jQuery(document).ready(function ($) {
             var nameMatch = name.match(/form-\d+-\d+/);
             if (nameMatch) {
                 var colIndex = parseInt(nameMatch[0].split('-')[2]);
-                existingData[colIndex] = $(element).val();
+                if (colIndex >= startColIndex) {
+                    existingData[colIndex] = $(element).val();
+                }
             }
         });
 
         rowData.forEach((value, colIndex) => {
-            const fieldName = `form-${rowIndex}-${fieldNames[colIndex]}`;
+            const fieldName = `form-${rowIndex}-${fieldNames[startColIndex + colIndex]}`;
             const field = formRow.find(`[name="${fieldName}"]`);
             console.log('PASTE field', `[name="${fieldName}"]`);
             console.log(value, field.length, field.attr('type'));
@@ -169,15 +202,6 @@ django.jQuery(document).ready(function ($) {
                         console.warn(`Значение "${value}" не найдено в опциях select для поля ${fieldName}`);
                     }
                 }
-            }
-        });
-
-        // Переносим существующие данные вниз
-        Object.keys(existingData).forEach(colIndex => {
-            const fieldName = `form-${rowIndex + 1}-${fieldNames[colIndex]}`;
-            const field = $(`.table-rows-form tbody tr`).eq(rowIndex + 1).find(`[name="${fieldName}"]`);
-            if (field.length) {
-                field.val(existingData[colIndex]);
             }
         });
 

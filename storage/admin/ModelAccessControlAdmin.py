@@ -1,7 +1,8 @@
 from django.utils.safestring import mark_safe
 import json
-from .outer_modules import admin, ContentType, DefaultGroupAdmin
+from .outer_modules import ContentType, DefaultGroupAdmin
 from ..forms import ModelAccessControlForm
+from django.contrib import admin
 
 
 class RestrictedGroupAdmin(DefaultGroupAdmin):

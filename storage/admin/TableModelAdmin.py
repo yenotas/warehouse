@@ -3,6 +3,7 @@ import tempfile
 from django import forms
 from django.apps import apps
 from django.contrib import admin
+from django.contrib.postgres.search import TrigramSimilarity
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import InMemoryUploadedFile
@@ -106,6 +107,25 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
     change_form_template = 'admin/table_change.html'
     ordering = ['-id']
 
+    def reget_search_results(self, request, queryset, search_term):
+        """
+        Переопределяем стандартный поиск в админке.
+        """
+        if search_term:  # Если есть поисковый запрос
+            # Ищем совпадения по каждому полю в `search_fields` и объединяем их в общий queryset
+            querysets = []
+            for field in self.search_fields:
+                filtered_queryset = queryset.annotate(
+                    similarity=TrigramSimilarity(field, search_term)
+                ).filter(similarity__gt=0.3).order_by('-similarity')
+                querysets.append(filtered_queryset)
+
+            # Объединяем результаты поиска
+            queryset = querysets[0].union(*querysets[1:]) if querysets else queryset
+
+        # Возвращаем изменённый queryset и флаг наличия фильтрации
+        return queryset, bool(search_term)
+
     def _process_related_fields(self, formset):
         for form in formset:
             if hasattr(form, 'related_fields'):
@@ -120,10 +140,6 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
                             pass
                     form.cleaned_data.pop(id_field, None)
                     form.cleaned_data.pop(f"{field_name}_name", None)
-
-    def get_admin_form(self, request, form):
-        from django.contrib.admin.helpers import AdminForm
-        return AdminForm(form, list(self.get_fieldsets(request)), {})
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
