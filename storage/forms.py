@@ -394,6 +394,7 @@ class ProductRequestForm(BaseTableForm):
         self.fields['product_link'].initial = product
         # self.fields['responsible'].initial = self.request.user
 
+
         # if self.request:
         #     data = self.request.session.get('initial_data')
         #     print('Data loaded from session:', data)  # Отладочный вывод

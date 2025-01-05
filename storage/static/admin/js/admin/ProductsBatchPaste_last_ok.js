@@ -10,32 +10,41 @@ django.jQuery(document).ready(function ($) {
     });
     console.log('fieldNames:', fieldNames);
 
-    // Обработчик события вставки на таблицу
-    $('.table-rows-form').on('paste', 'td', async function (event) {
+
+    $('#id_form-0-' + formFields[0]).on('paste', async function (event) {
+
         $('#form_action').val('add');
         event.preventDefault();
 
         var clipboardData = (event.originalEvent || event).clipboardData || window.clipboardData;
+
         var pastedText = clipboardData.getData('Text');
         if (!pastedText.includes("\t") && !pastedText.includes("\n")) {
             console.log('Text', pastedText);
-            $(this).find('input, textarea').val(pastedText);
+            $('#id_form-0-' + formFields[0]).val(pastedText);
             return;
         }
-
         var rows = pastedText.split(/\r?\n/);
         var dataRows = rows.map(row => row.trim().split('\t'));
 
+        // var maxElements = Math.max(...dataRows.map(row => row.length));
+        // Найти строки без текста и запомнить их индексы
         var emptyRowsIndex = dataRows.map((row, index) => row.every(cell => cell === '') ? index : -1).filter(index => index !== -1);
+
+        // Удаление пустых строк
         var textTable = dataRows.filter((row, index) => !emptyRowsIndex.includes(index));
         console.log('Матрица:', textTable);
 
+        // Парсим HTML
         var pastedHTML = clipboardData.getData('text/html');
         var parser = new DOMParser();
         var html = parser.parseFromString(pastedHTML, 'text/html');
+
+        // Извлекаем строки из таблицы
         var htmlTable = html.querySelectorAll('table tr');
         console.log('htmlTable:', Array.from(htmlTable));
 
+        // Проверяем количество форм и добавляем недостающие
         var existingForms = parseInt(totalForms.val());
         var formsToAdd = Math.max(0, textTable.length - existingForms);
 
@@ -44,20 +53,14 @@ django.jQuery(document).ready(function ($) {
             console.log('добавил форму:', i+1);
         }
 
+        // Перезапоминаем новые строки для отображения ошибок
         initErrorHandling();
 
+        // Собираем файлы
         var files = await processFiles(Array.from(htmlTable), emptyRowsIndex);
-
-        var startRowIndex = $(this).closest('tr').index();
-
-
-        // Пропускаем первые ячейки с числом, если целевая ячейка текстовая
-        if (isNumber(textTable[0][0]) && isTextField($(this).find('input, textarea'))) {
-            textTable = textTable.map(row => row.slice(1));
-        }
-
-        await Promise.all(textTable.map(async (row, i) => {
-            await populateForm(startRowIndex + i, row, files[i]);
+        // Заполняем строки формы
+        await Promise.all(textTable.map(async (row, i) => { // Ожидаем завершения всех промисов
+            await populateForm(i, row, files[i]); // Ожидаем завершения populateForm
         }));
     });
 
@@ -90,8 +93,9 @@ django.jQuery(document).ready(function ($) {
     async function processFiles(rows, emptyRowsIndex) {
         var i = 0;
         var result = await Promise.all(
+
             rows
-                .filter((_, rowIndex) => !emptyRowsIndex.includes(rowIndex))
+                .filter((_, rowIndex) => !emptyRowsIndex.includes(rowIndex)) // Убираем ненужные индексы
                 .map(async (row) => {
                     const img = row.querySelector('img');
                     if (img) {
@@ -117,6 +121,7 @@ django.jQuery(document).ready(function ($) {
         totalForms.val(formIndex + 1);
         var newRow = $('#empty_form').prev(); // Последняя добавленная строка
 
+        // Обновляем имя и id у всех input в новой строке
         newRow.find('input, select, textarea').each(function() {
             var name = $(this).attr('name');
             var id = $(this).attr('id');
@@ -135,19 +140,9 @@ django.jQuery(document).ready(function ($) {
         });
     }
 
+
     async function populateForm(rowIndex, rowData, file) {
         var formRow = $(`.table-rows-form tbody tr`).eq(rowIndex);
-        var existingData = {};
-
-        // Сохраняем существующие данные справа от вставки
-        formRow.find('input, textarea, select').each((index, element) => {
-            var name = $(element).attr('name');
-            var nameMatch = name.match(/form-\d+-\d+/);
-            if (nameMatch) {
-                var colIndex = parseInt(nameMatch[0].split('-')[2]);
-                existingData[colIndex] = $(element).val();
-            }
-        });
 
         rowData.forEach((value, colIndex) => {
             const fieldName = `form-${rowIndex}-${fieldNames[colIndex]}`;
@@ -157,27 +152,20 @@ django.jQuery(document).ready(function ($) {
 
             if (field.length) {
                 if (field.attr('type') === 'text' || field.is('textarea')) {
+                    // Для текстовых полей
                     field.val(value);
                 } else if (field.is('select')) {
+                    // Для полей select
                     var optionToSelect = field.find('option').filter(function () {
                         return $(this).text().trim() === value.trim();
                     });
                     if (optionToSelect.length) {
                         console.log('PASTE select field', `[name="${fieldName}"]`);
-                        field.val(optionToSelect.val()).change();
+                        field.val(optionToSelect.val()).change(); // Устанавливаем значение и вызываем событие изменения
                     } else {
                         console.warn(`Значение "${value}" не найдено в опциях select для поля ${fieldName}`);
                     }
                 }
-            }
-        });
-
-        // Переносим существующие данные вниз
-        Object.keys(existingData).forEach(colIndex => {
-            const fieldName = `form-${rowIndex + 1}-${fieldNames[colIndex]}`;
-            const field = $(`.table-rows-form tbody tr`).eq(rowIndex + 1).find(`[name="${fieldName}"]`);
-            if (field.length) {
-                field.val(existingData[colIndex]);
             }
         });
 
@@ -193,13 +181,5 @@ django.jQuery(document).ready(function ($) {
             var imageCell = new ImageCell(imgCell);
             await imageCell.insertImage(file);
         }
-    }
-
-    function isNumber(value) {
-        return !isNaN(value) && !isNaN(parseFloat(value));
-    }
-
-    function isTextField(element) {
-        return element.is('input[type="text"]') || element.is('textarea');
     }
 });

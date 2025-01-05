@@ -202,6 +202,10 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
             # formset = formset_class(request.POST, request.FILES, queryset=self.model.objects.filter(pk=object_id))
             formset = formset_class(request.POST, request.FILES, queryset=instance)
             print('Форма привязана к существующей записи:', formset.is_bound)
+            for i, form in enumerate(formset.forms):
+                if hasattr(form.instance, 'request_date'):
+                    form.instance.request_date = instance.request_date
+                    print('установка даты для формы', i, '-->', instance.request_date)
 
             if formset.is_valid():
                 print('Форма валидна')

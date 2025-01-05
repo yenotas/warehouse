@@ -148,6 +148,7 @@ window.initErrorHandling = function () {
             var deliveryLocationSelect = $(row).find('select[name$="-delivery_location"]');
             var deliveryAddressField = $(row).find('input[name$="-delivery_address"]');
             var selectedValue = deliveryLocationSelect.val();
+            console.log('selectedValue', selectedValue);
 
             if (['Монтаж', 'Подрядчик', 'Заказчик'].includes(selectedValue)) {
                 deliveryAddressField.prop('disabled', false);
@@ -159,7 +160,7 @@ window.initErrorHandling = function () {
         }
 
         function applyToggleToAllRows() {
-            var rows = $('.results tbody tr');
+            var rows = $('.table-rows-form tbody tr');
             rows.each(function() {
                 toggleSupplierReason(this);
                 $(this).find('select[name$="-process_type"]').change(function() {
