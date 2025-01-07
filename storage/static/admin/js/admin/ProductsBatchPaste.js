@@ -12,20 +12,38 @@ django.jQuery(document).ready(function ($) {
 
     // Обработчик события вставки на таблицу
     $('.table-rows-form').on('paste', 'td', async function (event) {
-        $('#form_action').val('add');
-        event.preventDefault();
 
         var clipboardData = (event.originalEvent || event).clipboardData || window.clipboardData;
         var pastedText = clipboardData.getData('Text');
-        if (!pastedText.includes("\t") && !pastedText.includes("\n")) {
-            console.log('Text', pastedText);
-            $(this).find('input, textarea').val(pastedText);
-            return;
+
+        // Обработка текстов с переносом на другую строку, заключенных в кавычки
+        var rows = [];
+        var tempRow = "";
+        var inQuotes = false;
+        pastedText.split("").forEach(char => {
+            if (char === '"') {
+                inQuotes = !inQuotes;
+                return;
+            }
+            if (char === "\n" && !inQuotes) {
+                rows.push(tempRow.trim());
+                tempRow = "";
+            } else if (!(char === "\n" && inQuotes)) {
+                tempRow += char;
+            }
+        });
+        if (tempRow) {
+            rows.push(tempRow.trim());
         }
 
-        var rows = pastedText.split(/\r?\n/);
         var dataRows = rows.map(row => row.trim().split('\t'));
 
+        if ((rows.length == 1 && dataRows.length == 1) || (!pastedText.includes("\t") && !pastedText.includes("\n"))) {
+            console.log('Просто вставка текста в ячейку', pastedText);
+            return;
+        }
+        event.preventDefault();
+        $('#form_action').val('add');
         var emptyRowsIndex = dataRows.map((row, index) => row.every(cell => cell === '') ? index : -1).filter(index => index !== -1);
         var textTable = dataRows.filter((row, index) => !emptyRowsIndex.includes(index));
         console.log('Матрица:', textTable);
@@ -57,7 +75,7 @@ django.jQuery(document).ready(function ($) {
         }
 
         // Найти данные справа от начальной ячейки вставки
-        const existingRowData = [];
+        let existingRowData = [];
         let existingImage = null;
         $(this).closest('tr').find('td').each(function(index) {
             const input = $(this).find('input, textarea, select');
@@ -76,20 +94,27 @@ django.jQuery(document).ready(function ($) {
             files = files.map(() => existingImage);
         }
 
-        console.log('Существующие данные:', existingRowData);
+        console.log('Существующие данные:', String(existingRowData));
 
-        // Расширяем каждую строку textTable данными справа
+        // Заменяем в каждой строке textTable часть данных существующими данными справа
         textTable = textTable.map(row => {
-            return row.map((cell, index) => {
-                // Если есть данные в existingRowData, используем их вместо cell
-                return existingRowData[index] ? existingRowData[index] : cell;
-            });
+          // Для каждой строки `row` в textTable копируем данные из шаблона existingRowData
+          return row.map((cell, colIndex) => {
+            // Если в шаблоне есть данные для этого столбца, и они не пустые, используем их
+            return existingRowData[colIndex] && existingRowData[colIndex] !== ""
+              ? existingRowData[colIndex]
+              : cell; // Иначе оставляем существующие данные из textTable
+          }).concat(existingRowData.slice(row.length)); // Добавляем недостающие данные из шаблона
         });
+
+        console.log('textTable данные:', String(textTable));
 
         // Заполняем формы
         await Promise.all(textTable.map(async (row, i) => {
             await populateForm(startRowIndex + i, row, startColIndex, files[i]);
         }));
+        // Обновляем автозаполнение
+        initializeAutoCompleteFields();
     });
 
     async function fetchFile(url, fileName = 'downloaded_file') {
@@ -190,6 +215,10 @@ django.jQuery(document).ready(function ($) {
 
             if (field.length) {
                 if (field.attr('type') === 'text' || field.is('textarea')) {
+                    // Обработка частного случая вставки для таблицы проектов
+                    if (fieldNames[startColIndex + colIndex] === 'detail_code'){
+                        value = `АРХ${parseInt(value.replace('АРХ', '')) + 1 + rowIndex}`;
+                    }
                     field.val(value);
                 } else if (field.is('select')) {
                     var optionToSelect = field.find('option').filter(function () {

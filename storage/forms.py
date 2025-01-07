@@ -31,6 +31,10 @@ def trigram_search(query, queryset, search_field):
     return None, None
 
 
+rel_models_sizes = {'CustomUser': 'width:140px;', 'Projects': 'width:70px;', 'Products': 'width:220px;',
+                    'ProductRequest': 'width:220px;', 'Suppliers': 'width:180px;'}
+
+
 class BaseTableForm(forms.ModelForm):
     related_fields = {}
     model_name = None
@@ -39,15 +43,20 @@ class BaseTableForm(forms.ModelForm):
         self.unique_fields = kwargs.pop('unique_fields', [])
         self.auto_fields = kwargs.pop('auto_fields', [])
         self.required_fields = kwargs.pop('required_fields', [])
+        self.hidden_fields = self.get_hidden_fields(kwargs.pop('request', None))
         super().__init__(*args, **kwargs)
 
         print(f"BaseTableForm. Инициализация формы. Instance: {self.instance}, PK: {self.instance.pk if self.instance else 'None'}")
+        print("Скрытые поля для пользователя", self.hidden_fields)
+
         # Объединение полей модели для автозаполнения
         if self.related_fields:
             self.auto_fields = list(set(self.auto_fields + [field for field in list(self.related_fields.keys())]))
-        # print('Все поля автозаполнения:', self.auto_fields)
 
         for field_name in self.auto_fields:
+            if field_name in self.hidden_fields:
+                continue
+
             field = self.fields.get(field_name)
 
             # Обработка связанных полей
@@ -80,6 +89,10 @@ class BaseTableForm(forms.ModelForm):
                         'required': False,
                     })
                 )
+                # Установка ширины связанных полей
+                if rel_model_name in rel_models_sizes:
+                    self.fields[name_field_name].help_text = rel_models_sizes[rel_model_name]
+
                 # Если форма создаётся для редактирования
                 if self.instance.pk:
                     related_object = getattr(self.instance, field_name, None)
@@ -101,24 +114,38 @@ class BaseTableForm(forms.ModelForm):
                     'required': False,
                 })
 
-        # Переупорядочиваем поля в соответствии с атрибутом fields
+        # Переупорядочиваем поля в соответствии с атрибутом fields и правилами доступа к полям
         new_order = []
-        # print("Meta fields:", getattr(self._meta, 'fields', None))
+        print("Meta fields:", getattr(self._meta, 'fields', None))
 
         for field_name in self._meta.fields:
-            if field_name in self.related_fields:
+            if field_name in self.related_fields and field_name not in self.hidden_fields:
                 # Заменяем связанное поле на его новые поля
                 id_field_name = f"{field_name}_id"
                 name_field_name = f"{field_name}_name"
                 new_order.extend([name_field_name, id_field_name])
-            else:
+            elif field_name not in self.hidden_fields:
                 new_order.append(field_name)
 
         # Создаём новый OrderedDict с полями в нужном порядке
         self.fields = OrderedDict((f, self.fields[f]) for f in new_order if f in self.fields)
 
-        # Отладочная информация
-        # print("Поля формы после переименования:", list(self.fields.keys()))
+    def get_hidden_fields(self, request):
+        hidden_fields = []
+        if request:
+            user = request.user
+            user_groups = set(user.groups.values_list('name', flat=True))
+            model_name = self._meta.model._meta.model_name
+
+            access_controls = ModelAccessControl.objects.filter(model_name__model=model_name)
+
+            for access_control in access_controls:
+                access_groups = set(access_control.groups.values_list('name', flat=True))
+                print('группы с доступом', access_groups)
+                if user_groups.isdisjoint(access_groups):
+                    fields_to_disable = json.loads(access_control.fields_to_disable) if isinstance(access_control.fields_to_disable, str) else access_control.fields_to_disable
+                    hidden_fields.extend(fields_to_disable)
+        return hidden_fields
 
     def clean(self):
         cleaned_data = super().clean()

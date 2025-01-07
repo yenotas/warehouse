@@ -140,6 +140,64 @@ django.jQuery(document).ready(function($) {
         });
     }
 
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const activeElement = document.activeElement;
+            if (activeElement.tagName === 'INPUT' && activeElement.type === 'text') {
+                activeElement.value = '';
+                if ($(activeElement).hasClass('auto_complete')) {
+                    initializeAutoCompleteFields();
+                    $(activeElement).blur();
+                    setTimeout(function() { activeElement.focus(); }, 20);
+                }
+            }
+        }
+         if (e.ctrlKey && e.key === 'Delete') {
+            e.preventDefault();
+            removeFocusedRow();
+         }
+    });
+
+    // Функция для удаления строки формы из formset
+    function removeFocusedRow() {
+        var focusedElement = $(':focus'); // Получаем элемент, на котором сейчас фокус
+        var formRow = focusedElement.closest('tbody tr'); // Находим ближайшую строку
+
+        if (formRow.length) {
+            // Найти первое поле в строке для извлечения номера формы
+            var firstField = formRow.find('input, select, textarea').first();
+            var fieldName = firstField.attr('name') || '';
+            var match = fieldName.match(/form-(\d+)-/);
+
+            if (match) {
+                var formNumber = match[1];
+                var checkboxName = `form-${formNumber}-DELETE`;
+                var checkboxId = `id_${checkboxName}`;
+
+                var deleteCheckbox = formRow.find('input[type="checkbox"][name$="-DELETE"]');
+
+                // Если чекбокса нет, создаем его и добавляем в строку
+                if (!deleteCheckbox.length) {
+                    deleteCheckbox = $('<input>', {
+                        type: 'checkbox',
+                        name: checkboxName,
+                        id: checkboxId,
+                        value: 'on',
+                    });
+                    formRow.append(deleteCheckbox);
+                }
+                deleteCheckbox.click();
+                deleteCheckbox.checked = true;
+                deleteCheckbox.prop('checked', true);
+                deleteCheckbox.trigger('change');
+                formRow.addClass('hidden');
+                console.log('Row marked for deletion. checked =', deleteCheckbox.checked);
+                return
+            }
+        }
+        console.log('No focused form row found.');
+    }
+
     // Инициализация автозаполнения при загрузке страницы
     initializeAutoCompleteFields();
 });

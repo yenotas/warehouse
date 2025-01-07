@@ -93,23 +93,6 @@ window.initErrorHandling = function () {
         }
 
 
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                const activeElement = document.activeElement;
-                if (activeElement.tagName === 'INPUT' && activeElement.type === 'text') {
-                    activeElement.value = '';
-                    if ($(activeElement).hasClass('auto_complete')) {
-                        $(activeElement).blur();
-                        setTimeout(function() { activeElement.focus(); }, 10)
-                    }
-                }
-            }
-            // if (e.ctrlKey && e.key === 'Delete') {
-            //    e.preventDefault();
-            //    removeFocusedRow();
-            // }
-        });
-
         const $password_sha = $('#id_password');
         if ($password_sha.length) {
             const $firstP = $password_sha.find('p').first();
@@ -246,37 +229,6 @@ window.initErrorHandling = function () {
             errorField.html(''); // Очистка ошибок
             cell.css('border-bottom', ''); // Сброс подсветки ячейки
         });
-
-
-        // Функция для удаления строки формы из formset
-        function removeFocusedRow() {
-            var focusedElement = $(':focus');
-            var formRow = focusedElement.closest('tr'); // Замените 'tr' на класс строки формы, если у вас другой
-
-            if (formRow.length) {
-                // Установим DELETE поле в True
-                formRow.find('input[type="checkbox"][name$="-DELETE"]').prop('checked', true);
-
-                // Добавим класс скрытия для визуального удаления строки
-                formRow.addClass('hidden'); // Убедитесь, что CSS класс 'hidden' скрывает элемент
-
-                console.log('Row marked for deletion.');
-
-                // Установить фокус на следующей строке, если существует
-                var nextRow = formRow.next('tr');
-                if (nextRow.length) {
-                    nextRow.find('input, select').first().focus();
-                } else {
-                    // Если следующей строки нет, установить фокус на предыдущей строке
-                    var prevRow = formRow.prev('tr');
-                    if (prevRow.length) {
-                        prevRow.find('input, select').first().focus();
-                    }
-                }
-            } else {
-                console.log('No focused form row found.');
-            }
-        }
     });
 };
 

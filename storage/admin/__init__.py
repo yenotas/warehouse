@@ -17,17 +17,6 @@ admin_site.register(Group, RestrictedGroupAdmin)
 admin_site.register(Permission, RestrictedPermissionAdmin)
 admin_site.register(ModelAccessControl, ModelAccessControlAdmin)
 admin_site.register(CustomUser, CustomUserAdmin)
-from django.contrib.auth.models import Group
-
-
-# class CustomGroupAdmin(ManageAdmins):
-#     class Meta:
-#         verbose_name = "Группу"
-#         verbose_name_plural = "Группы"
-#
-#
-# admin_site.unregister(Group)
-# admin_site.register(Group, CustomGroupAdmin)
 
 
 class SuppliersAdmin(TableModelAdmin):

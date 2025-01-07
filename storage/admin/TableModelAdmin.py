@@ -4,6 +4,7 @@ from django import forms
 from django.apps import apps
 from django.contrib import admin
 from django.contrib.postgres.search import TrigramSimilarity
+from django.core.cache import cache
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import InMemoryUploadedFile
@@ -15,7 +16,7 @@ from django.urls import reverse
 from django.utils.html import escape
 import json
 
-from storage.mixins import AccessControlMixin
+from storage.forms import BaseTableForm
 from storage.models import CustomUser
 
 
@@ -101,30 +102,14 @@ def handle_related_field_error(form, field_name, error):
                 raise forms.ValidationError(f"Пользователь {user_name} не найден.")
 
 
-class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
+FORMSET_CACHE = {}
+
+
+class TableModelAdmin(admin.ModelAdmin):
     change_list_template = 'admin/table_view.html'
     add_form_template = 'admin/table_add.html'
     change_form_template = 'admin/table_change.html'
     ordering = ['-id']
-
-    def reget_search_results(self, request, queryset, search_term):
-        """
-        Переопределяем стандартный поиск в админке.
-        """
-        if search_term:  # Если есть поисковый запрос
-            # Ищем совпадения по каждому полю в `search_fields` и объединяем их в общий queryset
-            querysets = []
-            for field in self.search_fields:
-                filtered_queryset = queryset.annotate(
-                    similarity=TrigramSimilarity(field, search_term)
-                ).filter(similarity__gt=0.3).order_by('-similarity')
-                querysets.append(filtered_queryset)
-
-            # Объединяем результаты поиска
-            queryset = querysets[0].union(*querysets[1:]) if querysets else queryset
-
-        # Возвращаем изменённый queryset и флаг наличия фильтрации
-        return queryset, bool(search_term)
 
     def _process_related_fields(self, formset):
         for form in formset:
@@ -141,58 +126,96 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
                     form.cleaned_data.pop(id_field, None)
                     form.cleaned_data.pop(f"{field_name}_name", None)
 
-    def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        return qs.distinct()
-
-    def get_formset_class(self, request, extra=0):
-        print('get_formset_class', request, extra)
-        return modelformset_factory(
-            self.model,
-            form=self.get_form(request),
-            extra=extra
-        )
+    def get_formset_class(self, request=None, obj=None):
+        model = self.model
+        if model not in FORMSET_CACHE:
+            FORMSET_CACHE[model] = modelformset_factory(
+                model,
+                form=self.get_form(request=request, obj=obj),
+                extra=1,
+                can_delete=True
+            )
+        return FORMSET_CACHE[model]
 
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
-        formset_class = self.get_formset_class(request, extra=1)
-        formset = formset_class(request.POST or None, request.FILES or None, queryset=self.model.objects.none())
+        request = request or None
+        action = request.POST.get('form_action', '')
+        print('changelist_view тип формы', action)
 
         if request.method == 'POST':
-
-            action = request.POST.get('form_action', '')
-            print('changelist_view тип формы', action)
             if 'edit' in action:
                 object_id = action.replace('edit_', '')
                 extra_context['form_action'] = action
                 return self.change_view(request, object_id, '', extra_context)
-
-            if formset.is_valid():
-                clear_temp_files(request)
-                self._process_related_fields(formset)
-                # Добавление новой записи
-                new_objects = formset.save(commit=False)
-                for new_object in new_objects:
-                    self.save_model(request, new_object, formset, change=False)
-                count = len(new_objects)
-                msg = 'Записи добавлены.' if count > 1 else '\"%(object)s\" добавлен.' % {'object': new_objects[0]}
-                self.message_user(request, msg, messages.SUCCESS)
-                return redirect(request.path)
-            else:
-                save_files_to_session(request, formset)
-
-        extra_context['formset'] = formset
-        form_fields = list(formset.forms[0].fields.keys()) if formset.forms else []
-        extra_context['form_fields_json'] = json.dumps(form_fields)
-        extra_context['title'] = ""
-        extra_context['button_name'] = "Добавить"
-        extra_context['preview_files'] = get_temp_files(request)
-        extra_context['model_name'] = self.model._meta.model_name
-        extra_context['app_label'] = self.model._meta.app_label
+            elif 'add' in action:
+                return self.add_view(request, '', extra_context)
+        else:
+            formset_class = self.get_formset_class(request)
+            formset = formset_class(request.POST or None, request.FILES or None, queryset=self.model.objects.none())
+            extra_context['formset'] = formset
+            form_fields = list(formset.forms[0].fields.keys()) if formset.forms else []
+            extra_context['form_fields_json'] = json.dumps(form_fields)
+            extra_context['title'] = ""
+            extra_context['button_name'] = "Добавить"
+            extra_context['preview_files'] = get_temp_files(request)
+            extra_context['model_name'] = self.model._meta.model_name
+            extra_context['app_label'] = self.model._meta.app_label
         return super().changelist_view(request, extra_context=extra_context)
 
     def add_view(self, request, form_url='', extra_context=None):
-        return self.changelist_view(request, extra_context)
+        extra_context = extra_context or {}
+        is_popup = '_popup' in request.GET or '_popup' in request.POST
+        formset_class = self.get_formset_class(request)
+        cl = self.get_changelist_instance(request)
+        cl_queryset = cl.get_queryset(request)
+
+        if request.method == 'POST':
+            formset = formset_class(request.POST, request.FILES, queryset=self.model.objects.none())
+            print('formset.errors', formset.errors)
+
+            if formset.is_valid():
+                # Создаем новые объекты, но не сохраняем их сразу
+                clear_temp_files(request)
+                self._process_related_fields(formset)
+                new_objects = formset.save(commit=False)
+                # Сохраняем каждый объект
+                for new_object in new_objects:
+                    new_object.save()  # Сохранение объекта в базе
+
+                # Отправляем сообщение об успешном добавлении
+                count = len(new_objects)
+                if is_popup:
+                    return self.response_add(request, new_objects[-1])
+                else:
+                    msg = 'Записи добавлены.' if count > 1 else '\"%(object)s\" добавлен.' % {'object': new_objects[0]}
+                    self.message_user(request, msg, messages.SUCCESS)
+                    return redirect(
+                        'admin:%s_%s_changelist' % (self.model._meta.app_label, self.model._meta.model_name))
+
+            else:
+                # Сохраняем файлы в сессию
+                print('no valid set!')
+                save_files_to_session(request, formset)
+                extra_context['formset'] = formset
+        else:
+            # Создаем пустой formset для добавления новых записей
+            formset = formset_class(queryset=self.model.objects.none())
+            extra_context['formset'] = formset
+
+        extra_context['is_popup'] = is_popup
+        extra_context['title'] = ""
+        extra_context['button_name'] = "Добавить"
+        form_fields = list(formset.forms[0].fields.keys()) if formset.forms else []
+        extra_context['form_fields_json'] = json.dumps(form_fields)
+        extra_context['cl'] = cl  # ChangeList объект
+        extra_context['changelist_queryset'] = cl_queryset  # Данные для таблицы
+
+        # Передаем управление стандартному add_view
+        # return super().add_view(request, form_url, extra_context)
+        return super().add_view(request,
+                                'admin:%s_%s_changelist' % (self.model._meta.app_label, self.model._meta.model_name),
+                                extra_context=extra_context)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
         extra_context = extra_context or {}
@@ -208,20 +231,24 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
             instance = None
             print(f"Запись с ID {object_id} не найдена.")
 
-        formset_class = self.get_formset_class(request, extra=0)
+        formset_class = self.get_formset_class(request)
 
         if request.method == 'POST':
             form_action = request.POST.get('form_action', '')
             print('Тип формы:', form_action)
 
-            # Привязываем форму к существующей записи
-            # formset = formset_class(request.POST, request.FILES, queryset=self.model.objects.filter(pk=object_id))
             formset = formset_class(request.POST, request.FILES, queryset=instance)
             print('Форма привязана к существующей записи:', formset.is_bound)
             for i, form in enumerate(formset.forms):
                 if hasattr(form.instance, 'request_date'):
                     form.instance.request_date = instance.request_date
-                    print('установка даты для формы', i, '-->', instance.request_date)
+                    print('установка request_date для формы', i, '-->', instance.request_date)
+                if hasattr(form.instance, 'order_date'):
+                    form.instance.order_date = instance.order_date
+                    print('установка order_date для формы', i, '-->', instance.order_date)
+                if hasattr(form.instance, 'creation_date'):
+                    form.instance.creation_date = instance.creation_date
+                    print('установка creation_date для формы', i, '-->', instance.creation_date)
 
             if formset.is_valid():
                 print('Форма валидна')
@@ -245,8 +272,8 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
                 else:
                     msg = 'Запись обновлена.'
                     self.message_user(request, msg, messages.SUCCESS)
-                    # return redirect(request.path)
-                    return HttpResponseRedirect(self.get_success_url(updated_object))
+                    return redirect(request.path)
+
             else:
                 print('Формсет не валиден:', formset.errors)
                 save_files_to_session(request, formset)
@@ -261,7 +288,7 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
         if not is_popup:
             extra_context['title'] = ""
         extra_context['button_name'] = "Сохранить"
-        print('formset', list(formset.forms))
+        print('FORM SET:', list(formset.forms))
         form_fields = list(formset.forms[0].fields.keys()) if formset.forms else []
         extra_context['form_fields_json'] = json.dumps(form_fields)
 
@@ -272,6 +299,25 @@ class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
 
         return response
 
-    def get_success_url(self, obj):
-        opts = obj._meta
-        return reverse('admin:%s_%s_changelist' % (opts.app_label, opts.model_name))
+
+    # def get_form(self, request=None, obj=None): # request теперь опциональный
+    #     # Возвращаем *класс* формы, а не экземпляр
+    #     return self.form
+    # def reget_search_results(self, request, queryset, search_term):
+    #     """
+    #     Переопределяем стандартный поиск в админке.
+    #     """
+    #     if search_term:  # Если есть поисковый запрос
+    #         # Ищем совпадения по каждому полю в `search_fields` и объединяем их в общий queryset
+    #         querysets = []
+    #         for field in self.search_fields:
+    #             filtered_queryset = queryset.annotate(
+    #                 similarity=TrigramSimilarity(field, search_term)
+    #             ).filter(similarity__gt=0.3).order_by('-similarity')
+    #             querysets.append(filtered_queryset)
+    #
+    #         # Объединяем результаты поиска
+    #         queryset = querysets[0].union(*querysets[1:]) if querysets else queryset
+    #
+    #     # Возвращаем изменённый queryset и флаг наличия фильтрации
+    #     return queryset, bool(search_term)

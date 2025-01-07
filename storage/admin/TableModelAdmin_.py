@@ -12,8 +12,6 @@ from django.shortcuts import redirect
 from django.contrib import messages
 from django.utils.html import escape
 import json
-
-from storage.mixins import AccessControlMixin
 from storage.models import CustomUser
 
 
@@ -99,7 +97,7 @@ def handle_related_field_error(form, field_name, error):
                 raise forms.ValidationError(f"Пользователь {user_name} не найден.")
 
 
-class TableModelAdmin(AccessControlMixin, admin.ModelAdmin):
+class TableModelAdmin(admin.ModelAdmin):
     change_list_template = 'admin/table_view.html'
     add_form_template = 'admin/table_add.html'
     change_form_template = 'admin/table_change.html'

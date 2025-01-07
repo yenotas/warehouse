@@ -8,9 +8,13 @@
         <table class="table-rows-form">
             <thead>
                 <tr>
-                    {% for field in formset.forms.0.visible_fields  %}
-                    <th>{{ field.label }}</th>
-                    {% endfor %}
+                {% for field in formset.forms.0.visible_fields  %}
+                    {% if "Удалить" in field.label %}
+                    <th class="hidden"></th>
+                    {% else %}
+                    <th {% if field.help_text %} style="{{ field.help_text }}" {% endif %}>{{ field.label }}</th>
+                    {% endif %}
+                {% endfor %}
                 </tr>
             </thead>
             <tbody>

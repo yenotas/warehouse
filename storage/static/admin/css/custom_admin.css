@@ -73,11 +73,17 @@ ul li {
     min-height: 28px;
     padding: 5px 6px;
     margin-top: 0;
-    min-width: 320px;
 }
 
 .rel_field a{
     margin-top: 0;
+}
+
+input[type="checkbox"][name$="-DELETE"] {
+    display: none;
+}
+th:contains("Удалить") {
+    display: none;
 }
 
 thead th, tfoot td {
@@ -134,6 +140,8 @@ header, nav {
     table-layout: fixed;
 }
 
+
+
 /* Заголовки и ячейки */
 .table-rows-form th,
 .table-rows-form td {
@@ -144,6 +152,16 @@ header, nav {
     padding: 0;
     margin: 0;
     text-align: left;
+}
+
+ #result_list th, #result_list td {
+    word-break: break-word; /* Перенос текста на уровень символов */
+    overflow-wrap: anywhere; /* Перенос текста при необходимости */
+    max-width: 200px;
+ }
+
+ #result_list .nowrap {
+    white-space: normal !important;
 }
 
 .error-field {display: none;}
@@ -219,6 +237,7 @@ select[multiple] {
     position: absolute;
     top: 0;
     height: 30px;
+    font-size: 0.7rem;
     width: -webkit-fill-available;
     }
 
@@ -281,7 +300,6 @@ ul.errorlist li {
 
 .table-rows-form input,
 .table-rows-form select{
-    min-width: 70px; /* Минимальная ширина столбца */
     width: 100%;  /* Макс ширина по минимальному содержимому */
     height: 50px;
     box-sizing: border-box;
@@ -481,7 +499,7 @@ ul.errorlist li {
 }
 .ui-menu .ui-menu-item-wrapper {
 	position: relative;
-	padding: 6px 1em 6px .4em;
+	padding: 6px 1em 6px 1em;
 }
 .ui-menu .ui-menu-divider {
 	margin: 6px 0;
