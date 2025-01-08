@@ -37,6 +37,7 @@ rel_models_sizes = {'CustomUser': 'width:140px;', 'Projects': 'width:70px;', 'Pr
 
 class BaseTableForm(forms.ModelForm):
     related_fields = {}
+    hidden_fields = []
     model_name = None
 
     def __init__(self, *args, **kwargs):
@@ -45,12 +46,13 @@ class BaseTableForm(forms.ModelForm):
         self.required_fields = kwargs.pop('required_fields', [])
         self.model_name = self._meta.model._meta.model_name.lower()
         self.request = kwargs.pop('request', None)
+
         super().__init__(*args, **kwargs)
         print(f"BaseTableForm. Инициализация формы {self.model_name}. Instance: {self.instance}, PK: {self.instance.pk if self.instance else 'None'}")
+        print('BaseTableForm: Request:', self.request)
 
-        self.hidden_fields = self.get_hidden_fields()
-        print('Request:', self.request)
-        print("Скрытые поля для пользователя", self.hidden_fields)
+        self.hidden_fields = self.get_hidden_fields(self.model_name)
+        print("BaseTableForm: Скрытые поля для пользователя", self.hidden_fields)
 
         # Объединение полей модели для автозаполнения
         if self.related_fields:
@@ -58,6 +60,7 @@ class BaseTableForm(forms.ModelForm):
 
         for field_name in self.auto_fields:
             if field_name in self.hidden_fields:
+                print('hidden_fields - не учитываем поле', field_name)
                 continue
 
             field = self.fields.get(field_name)
@@ -131,14 +134,14 @@ class BaseTableForm(forms.ModelForm):
 
         # Создаём новый OrderedDict с полями в нужном порядке
         self.fields = OrderedDict((f, self.fields[f]) for f in new_order if f in self.fields)
+        print("Итоговая сборка fields:", self.fields)
 
-    def get_hidden_fields(self):
-        hidden_fields = []
+    def get_hidden_fields(self, model_name):
+        fields = []
         if self.request:
             user = self.request.user
             user_groups = set(user.groups.values_list('name', flat=True))
             print('Пользователь', user, 'группы', user_groups)
-            model_name = self._meta.model._meta.model_name
 
             access_controls = ModelAccessControl.objects.filter(model_name__model=model_name)
 
@@ -147,8 +150,9 @@ class BaseTableForm(forms.ModelForm):
                 print('группы с доступом', access_groups)
                 if user_groups.isdisjoint(access_groups):
                     fields_to_disable = json.loads(access_control.fields_to_disable) if isinstance(access_control.fields_to_disable, str) else access_control.fields_to_disable
-                    hidden_fields.extend(fields_to_disable)
-        return hidden_fields
+                    fields.extend(fields_to_disable)
+
+        return fields
 
     def clean(self):
         cleaned_data = super().clean()
@@ -184,10 +188,7 @@ class BaseTableForm(forms.ModelForm):
 
             # Проверка заполнения
             if self.required_fields:
-                print('required_fields:', self.required_fields)
-                model_class = self._meta.model
                 filter_args = {}
-
                 if field_name in self.required_fields:
                     print('required_field', field_name)
                     field_value = cleaned_data.get(field_name)
@@ -196,7 +197,7 @@ class BaseTableForm(forms.ModelForm):
                         filter_args[field_name] = ''
                         self.add_error(field_name, f"- Обязательное поле | ")
 
-            print('required_fields resume:', filter_args)
+                print('required_fields resume:', filter_args)
 
         if self.auto_fields:
             # Обработка связанных полей
@@ -268,14 +269,11 @@ class BaseTableForm(forms.ModelForm):
 
 
 class ProductsForm(BaseTableForm):
-
     related_fields = {'supplier': {'model': 'Suppliers', 'field': 'name'}}
-
     class Meta:
         model = Products
         fields = ['name', 'product_sku', 'packaging_unit', 'supplier', 'product_url', 'product_image']
         exclude = ['id', 'near_products', 'supplier_old', 'categories']
-
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request', None)
         print('ProductsForm Request:', self.request)
@@ -283,6 +281,7 @@ class ProductsForm(BaseTableForm):
             *args,
             auto_fields=['name', 'supplier'],
             required_fields=['name'],
+            request=self.request,
             **kwargs
         )
         self.fields['product_image'].widget.attrs.update({'class': 'product_image'})

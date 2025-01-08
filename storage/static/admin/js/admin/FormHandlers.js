@@ -47,7 +47,25 @@ window.initErrorHandling = function () {
                             $(imagePreview).show();
                             $(removeButton).show();
                             $(bg).hide();
+
+                            const fileName = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
+
+                            // Преобразуем URL изображения в файл и внедряем его в инпут
+                            fetch(imageUrl)
+                                .then(response => response.blob())
+                                .then(blob => {
+                                    const file = new File([blob], fileName, { type: blob.type });
+                                    const fileInput = $(this).closest('td').find('input[type="file"]')[0];
+
+                                    // Создаем DataTransfer для обновления инпута
+                                    const dataTransfer = new DataTransfer();
+                                    dataTransfer.items.add(file);
+                                    fileInput.files = dataTransfer.files;
+                                })
+                                .catch(error => console.error('Ошибка при загрузке изображения:', error));
+
                         }
+
                     }
                 });
                 let idField = form.find('input[name="id"]');

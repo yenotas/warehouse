@@ -18,6 +18,23 @@ import json
 
 from storage.forms import BaseTableForm
 from storage.models import CustomUser
+from django.forms.models import BaseModelFormSet
+from django.core.cache import cache
+from functools import lru_cache
+from django.core.cache import cache
+
+
+class CustomBaseModelFormSet(BaseModelFormSet):
+    # Не работает
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request', None)
+        super().__init__(*args, **kwargs)
+
+    def _construct_forms(self):
+        self.forms = []
+        for i in range(self.total_form_count()):
+            print('\nCustomBaseModelFormSet ФОРМА', i, self.request)
+            self.forms.append(self._construct_form(i, request=self.request))
 
 
 def save_files_to_session(request, formset):
@@ -35,6 +52,7 @@ def save_files_to_session(request, formset):
                 }
                 print(f"Сохранен файл {file.name} в сессию")
     request.session['saved_files'] = temp_files
+
 
 def get_temp_files(request):
     temp_files = request.session.get('saved_files', {})
@@ -57,6 +75,7 @@ def get_temp_files(request):
             except FileNotFoundError:
                 print(f"Файл {file_data['path']} не найден")
     return file_previews
+
 
 def clear_temp_files(request):
     print("очистка файлов")
@@ -102,14 +121,41 @@ def handle_related_field_error(form, field_name, error):
                 raise forms.ValidationError(f"Пользователь {user_name} не найден.")
 
 
-FORMSET_CACHE = {}
-
-
 class TableModelAdmin(admin.ModelAdmin):
     change_list_template = 'admin/table_view.html'
     add_form_template = 'admin/table_add.html'
     change_form_template = 'admin/table_change.html'
     ordering = ['-id']
+
+    @lru_cache(maxsize=None)
+    def get_formset_class(self, request=None, obj=None, **kwargs):
+        model = self.model
+        formset_name = model.__name__ + '_formset'
+        print(f'\nЗапрос formset_class {formset_name}')
+        form = cache.get(formset_name, None)
+
+        if not form:
+            form = modelformset_factory(
+                model,
+                form=self.get_form_with_request(request, obj, **kwargs),
+                extra=1,
+                can_delete=True
+            )
+            cache.set(formset_name, form, timeout=60 * 60)
+        else:
+            print(f'ПОВТОРНЫЙ запрос формсета!\n')
+
+        return form
+
+    def get_form_with_request(self, request, obj=None, **kwargs):
+        # Прихватываем request для каждой формы сета
+        form_class = super().get_form(request, obj, **kwargs)
+        class FormWithRequest(form_class):
+            def __init__(form_self, *args, **kwargs):
+                kwargs['request'] = request
+                super().__init__(*args, **kwargs)
+
+        return FormWithRequest
 
     def _process_related_fields(self, formset):
         for form in formset:
@@ -126,43 +172,27 @@ class TableModelAdmin(admin.ModelAdmin):
                     form.cleaned_data.pop(id_field, None)
                     form.cleaned_data.pop(f"{field_name}_name", None)
 
-    def get_formset_class(self, request=None, obj=None):
-        print('\n\nЗапрос formset_class!')
-        print('request:', request)
-        model = self.model
-        if model not in FORMSET_CACHE:
-            FORMSET_CACHE[model] = modelformset_factory(
-                model,
-                form=self.get_form(request=request, obj=obj),
-                extra=1,
-                can_delete=True
-            )
-        return FORMSET_CACHE[model]
-
-    def get_form(self, request, obj=None, **kwargs):
-        form = super().get_form(request, obj, **kwargs)
-        form.request = request
-        print(f'\n\nЗапрос TableModelAdmin.get_form {form._meta.model.__name__}!')
-        print('request:', form.request)
-        return form
-
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
         request = request or None
         action = request.POST.get('form_action', '')
-        print('changelist_view тип формы', action)
+        print('changelist_view тип формы', action or 'view')
+        print('changelist_view request:', request or 'None')
 
         if request.method == 'POST':
             if 'edit' in action:
                 object_id = action.replace('edit_', '')
                 extra_context['form_action'] = action
+                print('\nПоказываю change_view')
                 return self.change_view(request, object_id, '', extra_context)
-            elif 'add' in action:
+            else:
+                print('\nПоказываю add_view')
                 return self.add_view(request, '', extra_context)
         else:
             formset_class = self.get_formset_class(request)
             print('\nchangelist_view formset_class', formset_class)
-            formset = formset_class(request.POST or None, request.FILES or None, queryset=self.model.objects.none())
+
+            formset = formset_class(queryset=self.model.objects.none())
             extra_context['formset'] = formset
             form_fields = list(formset.forms[0].fields.keys()) if formset.forms else []
             extra_context['form_fields_json'] = json.dumps(form_fields)
@@ -263,7 +293,7 @@ class TableModelAdmin(admin.ModelAdmin):
                     print('установка creation_date для формы', i, '-->', instance.creation_date)
 
             if formset.is_valid():
-                print('Форма валидна')
+                print('Форма валидна, файлы:', request.FILES)
                 self._process_related_fields(formset)
                 updated_object = formset.save(commit=False)[0]
                 updated_object.pk = object_id
@@ -311,25 +341,3 @@ class TableModelAdmin(admin.ModelAdmin):
 
         return response
 
-
-    # def get_form(self, request=None, obj=None): # request теперь опциональный
-    #     # Возвращаем *класс* формы, а не экземпляр
-    #     return self.form
-    # def reget_search_results(self, request, queryset, search_term):
-    #     """
-    #     Переопределяем стандартный поиск в админке.
-    #     """
-    #     if search_term:  # Если есть поисковый запрос
-    #         # Ищем совпадения по каждому полю в `search_fields` и объединяем их в общий queryset
-    #         querysets = []
-    #         for field in self.search_fields:
-    #             filtered_queryset = queryset.annotate(
-    #                 similarity=TrigramSimilarity(field, search_term)
-    #             ).filter(similarity__gt=0.3).order_by('-similarity')
-    #             querysets.append(filtered_queryset)
-    #
-    #         # Объединяем результаты поиска
-    #         queryset = querysets[0].union(*querysets[1:]) if querysets else queryset
-    #
-    #     # Возвращаем изменённый queryset и флаг наличия фильтрации
-    #     return queryset, bool(search_term)

@@ -1,18 +1,17 @@
 from django.contrib.auth.models import Group, Permission
-
+from .__CustomAdminSite import CustomAdminSite
 from .ManageAdmins import ManageAdmins
 from .CustomUserAdmin import CustomUserAdmin
+from .TableModelAdmin import TableModelAdmin
 from .PivotTableAdmin import PivotTableAdmin
-from .__CustomAdminSite import admin_site
-
 from .ModelAccessControlAdmin import RestrictedGroupAdmin, RestrictedPermissionAdmin, ModelAccessControlAdmin
 
 from storage.forms import CategoriesForm, DepartmentsForm, StorageCellsForm, ProjectsForm, \
     ProductRequestForm, OrdersForm, ProductMoviesForm, SuppliersForm, ProductsForm
 from storage.models import Suppliers, Categories, Departments, StorageCells, Projects, Products, ProductRequest, \
     Orders, ProductMovies, PivotTable, CustomUser, ModelAccessControl
-from storage.admin.TableModelAdmin import TableModelAdmin
 
+admin_site = CustomAdminSite(name='myadmin')
 admin_site.register(Group, RestrictedGroupAdmin)
 admin_site.register(Permission, RestrictedPermissionAdmin)
 admin_site.register(ModelAccessControl, ModelAccessControlAdmin)

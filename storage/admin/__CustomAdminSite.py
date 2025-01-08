@@ -17,7 +17,7 @@ class CustomAdminSite(admin.AdminSite):
             "Товары": ["Products", "Suppliers"],  # "Categories",
             "Организация": ['Projects', 'Departments', 'CustomUser', 'Group', 'ModelAccessControl'],
         }
-        # Если `app_label` задан, возвращаем список моделей только для текущего приложения
+
         if app_label:
             for app in app_list:
                 if app['app_label'] == app_label:
@@ -31,7 +31,6 @@ class CustomAdminSite(admin.AdminSite):
                     if model['object_name'] in models:
                         grouped_models.append(model)
 
-            # Сортируем модели в строгом соответствии с порядком в custom_structure
             grouped_models = sorted(
                 grouped_models,
                 key=lambda m: models.index(m['object_name'])
@@ -50,6 +49,4 @@ class CustomAdminSite(admin.AdminSite):
             context['user_last_name'] = request.user.last_name
         return context
 
-
-admin_site = CustomAdminSite(name='myadmin')
 
