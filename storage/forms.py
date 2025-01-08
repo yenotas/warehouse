@@ -43,10 +43,13 @@ class BaseTableForm(forms.ModelForm):
         self.unique_fields = kwargs.pop('unique_fields', [])
         self.auto_fields = kwargs.pop('auto_fields', [])
         self.required_fields = kwargs.pop('required_fields', [])
-        self.hidden_fields = self.get_hidden_fields(kwargs.pop('request', None))
+        self.model_name = self._meta.model._meta.model_name.lower()
+        self.request = kwargs.pop('request', None)
         super().__init__(*args, **kwargs)
+        print(f"BaseTableForm. Инициализация формы {self.model_name}. Instance: {self.instance}, PK: {self.instance.pk if self.instance else 'None'}")
 
-        print(f"BaseTableForm. Инициализация формы. Instance: {self.instance}, PK: {self.instance.pk if self.instance else 'None'}")
+        self.hidden_fields = self.get_hidden_fields()
+        print('Request:', self.request)
         print("Скрытые поля для пользователя", self.hidden_fields)
 
         # Объединение полей модели для автозаполнения
@@ -106,7 +109,6 @@ class BaseTableForm(forms.ModelForm):
 
             # Обработка несвязанных полей
             else:
-                self.model_name = self._meta.model._meta.model_name.lower()
                 field.widget.attrs.update({
                     'data-field-name': field_name.lower(),
                     'data-model-name': self.model_name.lower(),
@@ -130,11 +132,12 @@ class BaseTableForm(forms.ModelForm):
         # Создаём новый OrderedDict с полями в нужном порядке
         self.fields = OrderedDict((f, self.fields[f]) for f in new_order if f in self.fields)
 
-    def get_hidden_fields(self, request):
+    def get_hidden_fields(self):
         hidden_fields = []
-        if request:
-            user = request.user
+        if self.request:
+            user = self.request.user
             user_groups = set(user.groups.values_list('name', flat=True))
+            print('Пользователь', user, 'группы', user_groups)
             model_name = self._meta.model._meta.model_name
 
             access_controls = ModelAccessControl.objects.filter(model_name__model=model_name)
@@ -149,32 +152,42 @@ class BaseTableForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        print(f"Метод clean. Instance: {self.instance}, PK: {self.instance.pk if self.instance else 'None'}")
-        # Проверка уникальности - временно отменяю: непонятные глюк множественного перечитывания instance.
-        # if self.unique_fields and not self.instance.pk:
-        #     print('instance', self.instance)
-        #     model_class = self._meta.model
-        #     filter_args = {}
-        #
-        #     for field_name in self.fields:
-        #         if field_name in self.unique_fields:
-        #             print('unique_field', field_name)
-        #             field_value = cleaned_data.get(field_name)
-        #             filter_args[field_name] = field_value
-        #
-        #             # Проверка уникальности с учетом редактирования
-        #             existing_record = model_class.objects.filter(**filter_args).exclude(pk=self.instance.pk).first()
-        #             if existing_record:
-        #                 print("Запись уже существует", self.instance.pk, existing_record.pk, existing_record)
-        #                 self.add_error(field_name, f"{field_value} - Такая запись уже существует! | ")
+        print(f"Метод clean.", self.fields, f"\nInstance: {self.instance}, PK: {self.instance.pk if self.instance else 'None'}\n\n")
+        model_class = self._meta.model
 
-        # Проверка заполнения
-        if self.required_fields:
-            print('required_fields:', self.required_fields)
-            model_class = self._meta.model
-            filter_args = {}
+        for field_name in self.fields:
 
-            for field_name in self.fields:
+            # Проверка уникальности
+            if self.unique_fields:
+                print('Проверка уникальности', model_class, self.instance)
+                filter_args = {}
+
+                if field_name in self.unique_fields:
+                    print('unique_field', field_name)
+                    field_value = cleaned_data.get(field_name)
+                    filter_args[field_name] = field_value
+                    self.instance.pk = self.instance.pk or ''
+
+                    # Проверка уникальности с учетом редактирования
+                    existing = None
+                    if self.instance.pk:
+                        existing_records = model_class.objects.filter(**filter_args)
+                        for record in existing_records:
+                            if record.pk == self.instance.pk:
+                                existing = record.pk
+                                print(field_name, f"{field_value} - При редактировании нашлась запись ", record.pk)
+                                break
+
+                    if not existing and model_class.objects.filter(**filter_args).first():
+                        print(field_name, f"При добавлении нашлась схожая запись: {field_value}")
+                        self.add_error(field_name, f"{field_value} - Такая запись уже существует! | ")
+
+            # Проверка заполнения
+            if self.required_fields:
+                print('required_fields:', self.required_fields)
+                model_class = self._meta.model
+                filter_args = {}
+
                 if field_name in self.required_fields:
                     print('required_field', field_name)
                     field_value = cleaned_data.get(field_name)
@@ -247,7 +260,7 @@ class BaseTableForm(forms.ModelForm):
                             cleaned_data[name_field] = rel_text
                         elif rel_text != '':
                             self.add_error(name_field,f"Откройте форму добавления "
-                                                      f"{related_model._meta.verbose_name} (двойной клик на ячейку) | ")
+                                                      f"{related_model._meta.verbose_name} (дв. клик на ячейку) | ")
                             continue
             print('Обход связанных полей успешно завершен!')
 
@@ -265,6 +278,7 @@ class ProductsForm(BaseTableForm):
 
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request', None)
+        print('ProductsForm Request:', self.request)
         super().__init__(
             *args,
             auto_fields=['name', 'supplier'],

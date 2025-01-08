@@ -53,6 +53,7 @@ class AutocompleteView(View):
             ]
             return JsonResponse(results, safe=False)
 
+        # Обработка для модели пользователей - каких показывать, учитывая принадлежность к группам
         if model_name == "customuser":
             print('filter custom user:', data_filter)
             if data_filter:

@@ -38,8 +38,10 @@ django.jQuery(document).ready(function ($) {
 
         var dataRows = rows.map(row => row.trim().split('\t'));
 
-        if ((rows.length == 1 && dataRows.length == 1) || (!pastedText.includes("\t") && !pastedText.includes("\n"))) {
+        if ((rows.length == 1 && dataRows.length == 1 && dataRows[0].length <= 1) || (!pastedText.includes("\t") && !pastedText.includes("\n"))) {
             console.log('Просто вставка текста в ячейку', pastedText);
+            console.log('Rows', rows[0]);
+            console.log('dataRows', dataRows);
             return;
         }
         event.preventDefault();

@@ -154,6 +154,10 @@ header, nav {
     text-align: left;
 }
 
+#submit_btn:hover {
+    background: #71a4d1;
+}
+
  #result_list th, #result_list td {
     word-break: break-word; /* Перенос текста на уровень символов */
     overflow-wrap: anywhere; /* Перенос текста при необходимости */

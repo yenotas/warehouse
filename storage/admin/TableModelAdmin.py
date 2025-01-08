@@ -127,6 +127,8 @@ class TableModelAdmin(admin.ModelAdmin):
                     form.cleaned_data.pop(f"{field_name}_name", None)
 
     def get_formset_class(self, request=None, obj=None):
+        print('\n\nЗапрос formset_class!')
+        print('request:', request)
         model = self.model
         if model not in FORMSET_CACHE:
             FORMSET_CACHE[model] = modelformset_factory(
@@ -136,6 +138,13 @@ class TableModelAdmin(admin.ModelAdmin):
                 can_delete=True
             )
         return FORMSET_CACHE[model]
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        form.request = request
+        print(f'\n\nЗапрос TableModelAdmin.get_form {form._meta.model.__name__}!')
+        print('request:', form.request)
+        return form
 
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
@@ -152,6 +161,7 @@ class TableModelAdmin(admin.ModelAdmin):
                 return self.add_view(request, '', extra_context)
         else:
             formset_class = self.get_formset_class(request)
+            print('\nchangelist_view formset_class', formset_class)
             formset = formset_class(request.POST or None, request.FILES or None, queryset=self.model.objects.none())
             extra_context['formset'] = formset
             form_fields = list(formset.forms[0].fields.keys()) if formset.forms else []
@@ -167,6 +177,7 @@ class TableModelAdmin(admin.ModelAdmin):
         extra_context = extra_context or {}
         is_popup = '_popup' in request.GET or '_popup' in request.POST
         formset_class = self.get_formset_class(request)
+        print('\nadd_view formset_class', formset_class)
         cl = self.get_changelist_instance(request)
         cl_queryset = cl.get_queryset(request)
 
@@ -232,6 +243,7 @@ class TableModelAdmin(admin.ModelAdmin):
             print(f"Запись с ID {object_id} не найдена.")
 
         formset_class = self.get_formset_class(request)
+        print('\nchange_view formset_class', formset_class)
 
         if request.method == 'POST':
             form_action = request.POST.get('form_action', '')
