@@ -168,6 +168,57 @@ header, nav {
     white-space: normal !important;
 }
 
+img.img-preview {
+    max-height: 50px;
+    height: auto;
+    width: auto;
+    display: block; /* Чтобы избежать переполнения */
+    margin: 0 auto; /* Центрирование изображения, если нужно */
+}
+
+.viewlink, .inlineviewlink {
+    padding-left: 16px;
+    background: url(../img/icon-viewlink.svg) 0 3px no-repeat;
+}
+.hidelink {
+    padding-left: 16px;
+    background: url(../img/icon-hidelink.svg) 0 3px no-repeat;
+}
+.hidelinked{
+    padding-left: 16px;
+    background: url(../img/icon-viewlink.svg) 0 0 no-repeat;
+}
+.viewlinked{
+    padding-left: 16px;
+    background: url(../img/icon-hidelink.svg) 0 0 no-repeat;
+}
+#related-table {
+    width: 100%;
+    padding: 0 0 40px 0;
+}
+
+.thead th {
+    font-size: 0.7rem;
+}
+
+#table_head {
+    background: #71a4d1;
+    font-size: 1rem;
+    width: fit-content;
+    padding: 3px 15px 5px 15px;
+    margin-left: 4px;
+    margin-bottom: 1px;
+    color: #fff;
+}
+
+#related-table table{
+    width: 100%;
+    padding: 10px !important;
+    margin: -10px;
+    border-collapse: separate;
+    border: #71a4d1 solid 2px;
+}
+
 .error-field {display: none;}
 
 select[multiple] {

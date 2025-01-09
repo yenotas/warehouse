@@ -84,7 +84,7 @@ class ProjectsAdmin(TableModelAdmin):
     tabled_add = True
     list_display = ['id', 'creation_date', 'name', 'detail_full_name', 'manager', 'engineer', 'project_code',
                     'detail_name', 'detail_code']
-    search_fields = ['name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name', 'detail_code']
+    search_fields = ['name', 'detail_full_name', 'project_code', 'detail_name', 'detail_code']
     ordering = ['-id']
     list_filter = ['creation_date', 'name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name',
                    'detail_code']
@@ -112,8 +112,8 @@ class ProductRequestAdmin(TableModelAdmin):
     form = ProductRequestForm
     tabled_add = True
     list_display = ['id', 'request_date', 'product_link', 'request_about', 'request_quantity', 'project_link',
-                    'responsible', 'delivery_location', 'delivery_address', 'deadline_delivery_date']
-    search_fields = ['product__name', 'project__project_code']
+                    'responsible', 'delivery_location', 'delivery_address', 'deadline_delivery_date', 'manager']
+    search_fields = ['product_link__name']
     ordering = ['-id']
     list_filter = ['request_date', 'product_link', 'project_link', 'manager']
 

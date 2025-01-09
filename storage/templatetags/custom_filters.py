@@ -3,18 +3,9 @@ from django import template
 register = template.Library()
 
 
-@register.filter(name='ends_with')
-def ends_with(value, suffix):
-    """Проверяет, оканчивается ли строка на указанный суффикс."""
-    return value.endswith(suffix)
-
-
-@register.filter(name='replace_suffix')
-def replace_suffix(value, old_suffix, new_suffix):
-    """Заменяет суффикс в строке."""
-    if value.endswith(old_suffix):
-        return value[:-len(old_suffix)] + new_suffix
-    return value
+@register.filter(name='attr')
+def attr(obj, field_name):
+    return getattr(obj, field_name, '')
 
 
 @register.filter(name='test_filter')

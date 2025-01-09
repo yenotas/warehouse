@@ -1,3 +1,80 @@
+django.jQuery(document).ready(function ($) {
+    // Проверяем наличие formFields
+    if (typeof formFields === 'undefined' || !Array.isArray(formFields)) {
+        console.warn("formFields не определены!");
+        return;
+    } else {
+        console.log("formFields:", formFields);
+    }
+
+    const $tableHeaders = $('.table-rows-form thead tr th');
+    const $firstRow = $('.table-rows-form tbody tr').first();
+    var relatedFieldIndices = []; // Массив индексов связанных полей
+    var activeLink = null; // Хранение текущей активной ссылки
+
+    // Вычисляем индексы связанных полей
+    var idx = 0;
+    $.each(formFields, function (index, field) {
+        if (field.endsWith('_name') && formFields.includes(field.replace('_name', '_id'))) {
+            relatedFieldIndices.push(idx); // Сохраняем индекс связанного поля
+        }
+        if (!field.endsWith('_id')) {
+            idx++;
+        }
+    });
+
+    if (!relatedFieldIndices.length) { return; }
+
+    // Обрабатываем <th>, основываясь на вычисленных индексах
+    $tableHeaders.each(function (thIndex) {
+        if (relatedFieldIndices.includes(thIndex)) {
+            const fieldName = formFields[thIndex]; // Имя текущего поля
+            const $div = $firstRow.find('td').eq(thIndex).find('.related-widget-wrapper');
+            const relatedModel = $div.data('model-ref');
+            console.log('MODEL', relatedModel);
+
+            // Создаем ссылку
+            const $link = $('<a>')
+                .attr('href', '#')
+                .text($(this).text())
+                .addClass('viewlinked') // Класс для стиля
+                .data('relatedModel', relatedModel) // Сохраняем имя связанной модели
+                .data('current', 'false'); // Указывает, активна ли таблица связанной модели
+
+            $(this).empty().append($link); // Очистить содержимое <th> и вставить ссылку в заголовок
+
+            // Добавляем обработчик для переключения таблицы
+            $link.on('click', function (event) {
+                event.preventDefault();
+
+                var $relatedTable = $('#related-table'); // Таблица связанной модели
+
+                // Если уже активен другой линк, деактивируем его
+                if (activeLink && activeLink[0] !== $link[0]) {
+                    activeLink.removeClass('hidelinked').addClass('viewlinked').data('current', 'false');
+                    $relatedTable.hide().empty();
+                }
+
+                // Текущая ссылка: включение/выключение
+                if ($link.data('current') === 'false') {
+                    // Показать таблицу связанной модели
+                    $.get(`/${appLabel}/${relatedModel}/related_table`, function (html) {
+                        $relatedTable.html(html).show();
+                        $link.removeClass('viewlinked').addClass('hidelinked').data('current', 'true');
+                        activeLink = $link; // Обновляем текущую активную ссылку
+                    });
+                } else {
+                    // Скрыть таблицу связанной модели
+                    $relatedTable.hide().empty();
+                    $link.removeClass('hidelinked').addClass('viewlinked').data('current', 'false');
+                    activeLink = null; // Сбрасываем текущую активную ссылку
+                }
+            });
+        }
+    });
+});
+
+
 window.initErrorHandling = function () {
     console.log('Инициализация обработки ошибок и хелпер');
 
@@ -98,18 +175,18 @@ window.initErrorHandling = function () {
                 const th = $(this);
                 const link = th.find('a');
                 const url = link.attr('href');
+
                 link.attr('href', '#');
                 if (link.length) {
                     th.css('cursor', 'pointer');
                     th.addClass('custom_list_apps');
                     th.on('click', function() {
-                        console.log(url);
+                        console.log('URL:', url);
                         loadRecordData(url);
                     });
                 }
             });
         }
-
 
         const $password_sha = $('#id_password');
         if ($password_sha.length) {

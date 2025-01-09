@@ -158,13 +158,12 @@ class BaseTableForm(forms.ModelForm):
         cleaned_data = super().clean()
         print(f"Метод clean.", self.fields, f"\nInstance: {self.instance}, PK: {self.instance.pk if self.instance else 'None'}\n\n")
         model_class = self._meta.model
-
+        filter_args = {}
         for field_name in self.fields:
 
             # Проверка уникальности
             if self.unique_fields:
                 print('Проверка уникальности', model_class, self.instance)
-                filter_args = {}
 
                 if field_name in self.unique_fields:
                     print('unique_field', field_name)
@@ -188,7 +187,6 @@ class BaseTableForm(forms.ModelForm):
 
             # Проверка заполнения
             if self.required_fields:
-                filter_args = {}
                 if field_name in self.required_fields:
                     print('required_field', field_name)
                     field_value = cleaned_data.get(field_name)
@@ -333,6 +331,7 @@ class ProjectsForm(BaseTableForm):
         self.request = kwargs.pop('request', None)
         super().__init__(*args,
                          unique_fields=['detail_code'],
+                         request=self.request,
                          required_fields=['name', 'detail_full_name', 'manager', 'engineer', 'project_code',
                                           'detail_name', 'detail_code'],
                          auto_fields=['manager', 'engineer', 'name', 'project_code', 'detail_name', 'detail_name',
@@ -378,6 +377,7 @@ class OrdersForm(BaseTableForm):
         super().__init__(
             *args,
             auto_fields=['manager', 'product_request'],
+            request=self.request,
             **kwargs
         )
         # self.fields['product_request'] = forms.CharField(widget=forms.HiddenInput(), required=False)
@@ -400,6 +400,7 @@ class ProductMoviesForm(BaseTableForm):
         super().__init__(
             *args,
             auto_fields=['product_link', 'new_cell'],
+            request=self.request,
             **kwargs
         )
 
@@ -423,6 +424,7 @@ class ProductRequestForm(BaseTableForm):
         super().__init__(
             *args,
             auto_fields=['product_link', 'project_link', 'responsible', 'manager'],
+            request=self.request,
             **kwargs
         )
         self.fields['project_link'] = forms.CharField(widget=forms.HiddenInput(), required=False)
@@ -468,10 +470,11 @@ class SuppliersForm(BaseTableForm):
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request', None)
         super().__init__(*args,
-                          unique_fields=['name'],
-                          auto_fields=['name'],
-                          required_fields=['name'],
-                          **kwargs)
+                         unique_fields=['name'],
+                         auto_fields=['name'],
+                         required_fields=['name'],
+                         request=self.request,
+                         **kwargs)
 
 
 class DepartmentsForm(BaseTableForm):
@@ -482,9 +485,10 @@ class DepartmentsForm(BaseTableForm):
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request', None)
         super().__init__(*args,
-                          unique_fields=['name'],
-                          auto_fields=['name'],
-                          **kwargs)
+                         unique_fields=['name'],
+                         auto_fields=['name'],
+                         request=self.request,
+                         **kwargs)
         self.fields['name'].widget.attrs.update({'required': 'required'})
 
 
@@ -496,9 +500,10 @@ class CategoriesForm(BaseTableForm):
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request', None)
         super().__init__(*args,
-                          unique_fields=['name'],
-                          auto_fields=['name'],
-                          **kwargs)
+                         unique_fields=['name'],
+                         auto_fields=['name'],
+                         request=self.request,
+                         **kwargs)
 
 
 class CustomUserChangeForm(UserChangeForm, BaseTableForm):
@@ -508,8 +513,9 @@ class CustomUserChangeForm(UserChangeForm, BaseTableForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args,
-                          auto_fields=['position_name'],
-                          **kwargs)
+                         auto_fields=['position_name'],
+                         request=self.request,
+                         **kwargs)
 
     def clean_groups(self):
         groups = self.cleaned_data.get('groups')
@@ -542,8 +548,9 @@ class CustomUserCreationForm(UserCreationForm, BaseTableForm):
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request', None)
         super().__init__(*args,
-                          auto_fields=['position_name'],
-                          **kwargs)
+                         auto_fields=['position_name'],
+                         request=self.request,
+                         **kwargs)
 
 
 class StorageCellsForm(BaseTableForm):
@@ -555,9 +562,10 @@ class StorageCellsForm(BaseTableForm):
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request', None)
         super().__init__(*args,
-                          unique_fields=['name'],
-                          auto_fields=['name', 'info'],
-                          **kwargs)
+                         unique_fields=['name'],
+                         auto_fields=['name', 'info'],
+                         request=self.request,
+                         **kwargs)
 
 
 class ModelAccessControlForm(forms.ModelForm):
@@ -583,7 +591,8 @@ class ModelAccessControlForm(forms.ModelForm):
         fields = ['model_name', 'groups', 'fields_to_disable']
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        self.request = kwargs.pop('request', None)
+        super().__init__(*args, request=self.request, **kwargs)
         model_choices = [
             ('', 'Выберите модель'),
             *[(ct.id, ct.model_class()._meta.verbose_name_plural)

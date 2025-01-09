@@ -7,14 +7,85 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count
 from django.http import JsonResponse, HttpResponseRedirect
 from django.contrib.contenttypes.models import ContentType
+from django.template.response import TemplateResponse
 from django.views.decorators.csrf import csrf_exempt
 
+from .admin import admin_site
 from .models import Products, Orders, Projects, StorageCells, Suppliers, Categories, ModelAccessControl, CustomUser, \
     PivotTable, ProductMovies, Departments
 
 from django.views import View
 from django.http import JsonResponse
 from django.apps import apps
+
+from django.views import View
+from django.shortcuts import render
+
+from django.contrib.admin.views.main import ChangeList
+from django.apps import apps
+
+
+class RelTable(View):
+    admin_site = admin_site
+
+    def get_changelist_instance(self, request, app_label, model_name):
+        model = apps.get_model(app_label, model_name)
+        admin_class = self.admin_site._registry.get(model)
+
+        list_display = admin_class.get_list_display(request)
+        verbose_names = []
+        methods = {}
+
+        for field in list_display:
+            if hasattr(model, field):
+                verbose_names.append(model._meta.get_field(field).verbose_name)
+            elif hasattr(admin_class, field):
+                method = getattr(admin_class, field)
+                verbose_names.append(getattr(method, 'short_description', field))
+                methods[field] = method  # Добавляем метод в словарь
+            else:
+                verbose_names.append(field)
+
+        cl = ChangeList(
+            request,
+            model,
+            list_display=list_display,
+            list_display_links=admin_class.get_list_display_links(request, list_display),
+            list_filter=admin_class.get_list_filter(request),
+            date_hierarchy=admin_class.date_hierarchy,
+            search_fields=admin_class.get_search_fields(request),
+            list_select_related=admin_class.get_list_select_related(request),
+            list_per_page=admin_class.list_per_page,
+            list_max_show_all=admin_class.list_max_show_all,
+            list_editable=admin_class.list_editable,
+            sortable_by=admin_class.sortable_by,
+            search_help_text=admin_class.search_help_text,
+            model_admin=admin_class
+        )
+
+        cl.queryset = admin_class.get_queryset(request)
+
+        return cl, verbose_names, methods
+
+    def get(self, request, *args, **kwargs):
+        app_label = kwargs.get('app_label')
+        model_name = kwargs.get('model_name')
+
+        cl, verbose_names, methods = self.get_changelist_instance(request, app_label, model_name)
+        cl_queryset = cl.queryset
+
+        model = cl.model
+        table_head = model._meta.verbose_name_plural
+
+        context = {
+            **self.admin_site.each_context(request),
+            "cl": cl,
+            "result_list": cl_queryset,
+            "table_head": table_head,
+            "verbose_names": verbose_names,
+            "methods": methods,
+        }
+        return TemplateResponse(request, 'admin/rel_table.html', context)
 
 
 class AutocompleteView(View):

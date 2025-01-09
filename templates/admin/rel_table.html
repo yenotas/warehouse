@@ -1,0 +1,22 @@
+{% load custom_filters %}
+{% block content %}
+<div id="table_head">{{ table_head }}</div>
+<table>
+    <thead>
+        <tr>
+            {% for verbose_name in verbose_names %}
+                <th>{{ verbose_name }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for obj in result_list %}
+            <tr>
+                {% for field in cl.list_display %}
+                    <td>{{ obj|attr:field }}</td>
+                {% endfor %}
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

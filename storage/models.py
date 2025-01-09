@@ -89,9 +89,10 @@ class Products(models.Model):
     def product_image_tag(self):
         if self.product_image:
             return format_html(
-                '<a href="{}"><img src="{}" width="50" height="50" /></a>',
-                reverse('myadmin:storage_products_change', args=[self.pk]),
-                self.product_image.url
+                '<a href="#" onclick="window.open(\'{}\', \'ImageView\', \'width=500,height=500,toolbar=no,location=no,menubar=no,scrollbars=no,resizable=yes\'); return false;">'
+                '<img src="{}" class="img-preview" /></a>',
+                self.product_image.url,  # Ссылка на изображение
+                self.product_image.url  # Миниатюра изображения
             )
         return ""
 

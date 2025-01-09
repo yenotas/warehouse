@@ -9,9 +9,10 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.forms import modelformset_factory, BaseModelFormSet
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import redirect
 from django.contrib import messages
+from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils.html import escape
 import json
@@ -175,9 +176,9 @@ class TableModelAdmin(admin.ModelAdmin):
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
         request = request or None
-        action = request.POST.get('form_action', '')
-        print('changelist_view тип формы', action or 'view')
-        print('changelist_view request:', request or 'None')
+        action = request.POST.get('form_action', None) or request.POST.get('action', '')
+        print('\n\nchangelist_view тип формы', action or 'view')
+        print('changelist_view request:', request or 'None', '\n\n')
 
         if request.method == 'POST':
             if 'edit' in action:
@@ -185,7 +186,7 @@ class TableModelAdmin(admin.ModelAdmin):
                 extra_context['form_action'] = action
                 print('\nПоказываю change_view')
                 return self.change_view(request, object_id, '', extra_context)
-            else:
+            elif action == 'add':
                 print('\nПоказываю add_view')
                 return self.add_view(request, '', extra_context)
         else:
@@ -208,8 +209,6 @@ class TableModelAdmin(admin.ModelAdmin):
         is_popup = '_popup' in request.GET or '_popup' in request.POST
         formset_class = self.get_formset_class(request)
         print('\nadd_view formset_class', formset_class)
-        cl = self.get_changelist_instance(request)
-        cl_queryset = cl.get_queryset(request)
 
         if request.method == 'POST':
             formset = formset_class(request.POST, request.FILES, queryset=self.model.objects.none())
@@ -222,6 +221,9 @@ class TableModelAdmin(admin.ModelAdmin):
                 new_objects = formset.save(commit=False)
                 # Сохраняем каждый объект
                 for new_object in new_objects:
+                    print('new_objects', new_object.id)
+                    if new_object.id == '':
+                        new_object.id = None
                     new_object.save()  # Сохранение объекта в базе
 
                 # Отправляем сообщение об успешном добавлении
@@ -249,11 +251,7 @@ class TableModelAdmin(admin.ModelAdmin):
         extra_context['button_name'] = "Добавить"
         form_fields = list(formset.forms[0].fields.keys()) if formset.forms else []
         extra_context['form_fields_json'] = json.dumps(form_fields)
-        extra_context['cl'] = cl  # ChangeList объект
-        extra_context['changelist_queryset'] = cl_queryset  # Данные для таблицы
 
-        # Передаем управление стандартному add_view
-        # return super().add_view(request, form_url, extra_context)
         return super().add_view(request,
                                 'admin:%s_%s_changelist' % (self.model._meta.app_label, self.model._meta.model_name),
                                 extra_context=extra_context)
