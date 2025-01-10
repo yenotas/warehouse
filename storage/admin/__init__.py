@@ -1,4 +1,6 @@
 from django.contrib.auth.models import Group, Permission
+from django.utils.html import format_html
+
 from .__CustomAdminSite import CustomAdminSite
 from .ManageAdmins import ManageAdmins
 from .CustomUserAdmin import CustomUserAdmin
@@ -33,8 +35,7 @@ admin_site.register(Suppliers, SuppliersAdmin)
 class ProductsAdmin(TableModelAdmin):
     form = ProductsForm
     # change_form_template = 'admin/table_view.html'
-
-    list_display = ['id', 'name', 'product_sku', 'packaging_unit', 'supplier', 'product_url', 'product_image_tag']
+    list_display = ['id', 'name', 'product_sku', 'packaging_unit', 'supplier', 'product_url', 'get_product_image_tag']
     # 'display_categories' пока не выводим
     search_fields = ['name', 'product_sku']  # 'categories' пока не выводим
     ordering = ['-id']
@@ -42,8 +43,19 @@ class ProductsAdmin(TableModelAdmin):
 
     def display_categories(self, obj):
         return ", ".join([category.name for category in obj.categories.all()])
-
     display_categories.short_description = "Категории / признаки"
+
+    def get_product_image_tag(self, obj):
+        print(f"Calling product_image_tag for {obj}")
+        if obj.product_image:
+            return format_html(
+                '<a href="#" onclick="window.open(\'{}\', \'ImageView\', \'width=500,height=500,toolbar=no,location=no,menubar=no,scrollbars=no,resizable=yes\'); return false;">'
+                '<img src="{}" class="img-preview" /></a>',
+                obj.product_image.url,
+                obj.product_image.url
+            )
+        return "—"
+    get_product_image_tag.short_description = 'Фото товара'
 
 
 admin_site.register(Products, ProductsAdmin)

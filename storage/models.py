@@ -94,7 +94,7 @@ class Products(models.Model):
                 self.product_image.url,  # Ссылка на изображение
                 self.product_image.url  # Миниатюра изображения
             )
-        return ""
+        return "-"
 
     product_image_tag.short_description = 'Фото товара'
 

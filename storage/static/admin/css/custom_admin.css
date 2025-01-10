@@ -20,7 +20,7 @@
 }
 
 body, input, textarea, select, .form-row p, label, form .button {
-    font-size: 1rem !important;
+    font-size: 1rem;
 }
 
 body.popup {
@@ -89,6 +89,7 @@ th:contains("Удалить") {
 thead th, tfoot td {
     border: 1px solid var(--hairline-color);
     text-transform: none;
+    font-size: 0.7rem;
 }
 
 input.default {
@@ -195,10 +196,6 @@ img.img-preview {
 #related-table {
     width: 100%;
     padding: 0 0 40px 0;
-}
-
-.thead th {
-    font-size: 0.7rem;
 }
 
 #table_head {

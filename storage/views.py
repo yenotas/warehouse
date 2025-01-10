@@ -64,6 +64,14 @@ class RelTable(View):
         )
 
         cl.queryset = admin_class.get_queryset(request)
+        for obj in cl.queryset:
+            for field in cl.list_display:
+                value = getattr(admin_class, field, None) or getattr(obj, field, None)
+                print(f"Field: {field}, Value: {value}")
+                if callable(value):
+                    print(f'{value} = метод', value(obj))
+                    value = value(obj)
+                setattr(obj, field, value)
 
         return cl, verbose_names, methods
 

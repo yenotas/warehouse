@@ -13,7 +13,27 @@
         {% for obj in result_list %}
             <tr>
                 {% for field in cl.list_display %}
-                    <td>{{ obj|attr:field }}</td>
+                    <td>
+                    {% if obj|has_attr:field %}
+                        {% with value=obj|get_attr:field %}
+                            {% if value|callable %}
+                                {{ value|call_with_arg:obj }}
+                            {% else %}
+                                {{ value|safe }}
+                            {% endif %}
+                        {% endwith %}
+                    {% elif cl.model_admin|has_attr:field %}
+                        {% with method=cl.model_admin|get_attr:field %}
+                            {% if method %}
+                                {{ method|call_with_arg:obj }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        {% endwith %}
+                    {% else %}
+                        —
+                    {% endif %}
+                    </td>
                 {% endfor %}
             </tr>
         {% endfor %}
