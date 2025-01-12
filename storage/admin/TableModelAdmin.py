@@ -197,6 +197,8 @@ class TableModelAdmin(admin.ModelAdmin):
             extra_context['formset'] = formset
             form_fields = list(formset.forms[0].fields.keys()) if formset.forms else []
             extra_context['form_fields_json'] = json.dumps(form_fields)
+            print('\n\nqueryset:\n', self.model.objects.none())
+            print('\n\nformset:\n', formset)
             extra_context['title'] = ""
             extra_context['button_name'] = "Добавить"
             extra_context['preview_files'] = get_temp_files(request)

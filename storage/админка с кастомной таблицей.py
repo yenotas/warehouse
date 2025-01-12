@@ -218,8 +218,8 @@ class SuppliersAdmin(AccessControlMixin, admin.ModelAdmin):
 class ProductAdmin(AccessControlMixin, admin.ModelAdmin):
     form = ProductsForm
 
-    list_display = ('name', 'product_sku', 'product_link', 'product_image', 'category', 'supplier')
-    fields = ('name', 'product_sku', 'product_link', 'product_image', 'category', 'supplier', 'packaging_unit',
+    list_display = ('name', 'product_sku', 'product', 'product_image', 'category', 'supplier')
+    fields = ('name', 'product_sku', 'product', 'product_image', 'category', 'supplier', 'packaging_unit',
               'quantity_in_package',)
     search_fields = ['category__name', 'name', 'supplier__name', 'product_sku']
     ordering = ('category__name', 'name', 'supplier__name')
@@ -235,12 +235,12 @@ class ProductAdmin(AccessControlMixin, admin.ModelAdmin):
 class ProjectsAdmin(AccessControlMixin, admin.ModelAdmin):
     form = ProjectsForm
     list_display = (
-    'id', 'creation_date', 'name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name', 'detail_code')
+    'id', 'creation_date', 'name', 'detail_fullname', 'manager', 'engineer', 'project_code', 'detail', 'detail_code')
     fields = (
-    'name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name', 'detail_code')
-    search_fields = ['name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name', 'detail_code']
-    ordering = ('name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name', 'detail_code')
-    list_filter = ('name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name', 'detail_code')
+    'name', 'detail_fullname', 'manager', 'engineer', 'project_code', 'detail', 'detail_code')
+    search_fields = ['name', 'detail_fullname', 'manager', 'engineer', 'project_code', 'detail', 'detail_code']
+    ordering = ('name', 'detail_fullname', 'manager', 'engineer', 'project_code', 'detail', 'detail_code')
+    list_filter = ('name', 'detail_fullname', 'manager', 'engineer', 'project_code', 'detail', 'detail_code')
 
     def get_actions(self, request):
         return []
@@ -311,8 +311,8 @@ class PivotTableAdmin(AccessControlMixin, admin.ModelAdmin):
     change_list_template = "admin/storage/pivot_table.html"
     form = PivotTableForm
     list_display = (
-        'id', 'product_name', 'product_link', 'request_about', 'packaging_unit', 'request_quantity',
-        'project_code', 'detail_name', 'detail_code', 'product_image_tag', 'request_date',
+        'id', 'product_name', 'product', 'request_about', 'packaging_unit', 'request_quantity',
+        'project_code', 'detail', 'detail_code', 'product_image_tag', 'request_date',
         'responsible', 'delivery_location', 'deadline_delivery_date', 'waiting_date', 'has_on_storage',
         'order_complete', 'supplier', 'invoice_number', 'delivery_status', 'not_delivered_pcs',
         'document_flow', 'documents', 'accounted_in_1c', 'supply_date', 'supply_quantity', 'storage_cell',
@@ -351,11 +351,11 @@ class PivotTableAdmin(AccessControlMixin, admin.ModelAdmin):
             readonly_fields += ['product_name', 'request_quantity', 'project_code', 'delivery_location', 'deadline_delivery_date']
         return readonly_fields
 
-    def product_link_display(self, obj):
-        if obj.product_link:
-            return format_html('<a href="{}" target="_blank">{}</a>', obj.product_link, obj.product_link)
+    def product_display(self, obj):
+        if obj.product:
+            return format_html('<a href="{}" target="_blank">{}</a>', obj.product, obj.product)
         return '-'
-    product_link_display.short_description = 'Ссылка на сайт'
+    product_display.short_description = 'Ссылка на сайт'
 
     def save_model(self, request, obj, form, change):
         # Логика создания связанных объектов, если они не существуют

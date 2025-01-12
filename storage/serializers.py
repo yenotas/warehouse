@@ -4,7 +4,7 @@ from .models import Products, ProductRequest, Orders, Projects, ProductMovies, S
 
 class PivotTableSerializer(serializers.Serializer):
     product_name = serializers.CharField(source='name')
-    product_link = serializers.URLField(source='product_link')
+    product = serializers.URLField(source='product')
     request_about = serializers.CharField(source='productrequest_set__request_about')
     packaging_unit = serializers.CharField(source='packaging_unit')
     project_code = serializers.CharField(source='projects__project_code')

@@ -3,7 +3,6 @@ from collections import OrderedDict
 from django.contrib.admin.widgets import AdminDateWidget
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from django.db.models import ForeignKey, ManyToManyField, F
-from django.forms import CharField
 
 from .models import *
 from django.contrib.contenttypes.models import ContentType
@@ -11,8 +10,6 @@ from django import forms
 from django.apps import apps
 from django.core.exceptions import ValidationError
 from django.db.models.functions import Concat
-from django.db.models import QuerySet
-
 
 from django.db.models import Value, TextField
 from django.contrib.postgres.search import TrigramSimilarity
@@ -31,13 +28,13 @@ def trigram_search(query, queryset, search_field):
     return None, None
 
 
+# Словарь размеров для связанных полей по моделям
 rel_models_sizes = {'CustomUser': 'width:140px;', 'Projects': 'width:70px;', 'Products': 'width:220px;',
                     'ProductRequest': 'width:220px;', 'Suppliers': 'width:180px;'}
 
 
 class BaseTableForm(forms.ModelForm):
     related_fields = {}
-    hidden_fields = []
     model_name = None
 
     def __init__(self, *args, **kwargs):
@@ -46,13 +43,13 @@ class BaseTableForm(forms.ModelForm):
         self.required_fields = kwargs.pop('required_fields', [])
         self.model_name = self._meta.model._meta.model_name.lower()
         self.request = kwargs.pop('request', None)
-
+        self.hidden_fields = kwargs.pop('hidden_fields', [])
         super().__init__(*args, **kwargs)
         print(f"BaseTableForm. Инициализация формы {self.model_name}. Instance: {self.instance}, PK: {self.instance.pk if self.instance else 'None'}")
         print('BaseTableForm: Request:', self.request)
-
-        self.hidden_fields = self.get_hidden_fields(self.model_name)
         print("BaseTableForm: Скрытые поля для пользователя", self.hidden_fields)
+        self.hidden_fields.extend(self.get_hidden_fields(self.model_name))
+        print("BaseTableForm: Дополненные скрытые поля для пользователя", self.hidden_fields)
 
         # Объединение полей модели для автозаполнения
         if self.related_fields:
@@ -95,6 +92,16 @@ class BaseTableForm(forms.ModelForm):
                         'required': False,
                     })
                 )
+                # Проверка на наличие значения и присвоение значения из *_old
+                print('\n\nПроверка на наличие значения и присвоение значения из *_old')
+                print(field_name, self.instance)
+                print('getattr', getattr(self.instance, field_name, None))
+                print('hasattr', hasattr(self.instance, f"{field_name}_old"))
+                if (self.instance and getattr(self.instance, field_name, None) and
+                    hasattr(self.instance, f"{field_name}_old")):
+                    old_value = getattr(self.instance, f"{field_name}_old")
+                    self.fields[name_field_name].initial = old_value
+
                 # Установка ширины связанных полей
                 if rel_model_name in rel_models_sizes:
                     self.fields[name_field_name].help_text = rel_models_sizes[rel_model_name]
@@ -235,7 +242,7 @@ class BaseTableForm(forms.ModelForm):
                         search_field = 'full_name'
                     elif rel_model_name == 'ProductRequest':
                         queryset = related_model.objects.annotate(
-                            product=F('product_link__name')
+                            product=F('product__name')
                         ).all()
                         search_field = 'product'
                     else:
@@ -284,36 +291,6 @@ class ProductsForm(BaseTableForm):
         )
         self.fields['product_image'].widget.attrs.update({'class': 'product_image'})
 
-        # Если есть экземпляр объекта, передаем ID поставщика в атрибуты виджета
-        # if self.instance and self.instance.pk:
-        #     supplier_id = self.instance.suppliers__id
-        #     if supplier_id:
-        #         field = self.fields['supplier']
-        #         field.widget.attrs['data-initial-id'] = supplier_id
-        # if self.request:
-        #     data = self.request.session.get('initial_data')
-        #     print('Data loaded from session:', data)  # Отладочный вывод
-        #     if data:
-        #         data = self.request.session.get('initial_data')
-        #         if data:
-        #             initial_fields = data.get('fields', {})
-        #             m2m_fields = data.get('m2m', {})
-        #             # Устанавливаем начальные значения для полей
-        #             for field_name, value in initial_fields.items():
-        #                 if field_name == 'name':
-        #                     continue  # Пропускаем поле 'name'
-        #                 field = self.fields.get(field_name)
-        #                 if field:
-        #                     field.initial = value
-        #             # Устанавливаем начальные значения для ManyToMany полей
-        #             for field_name, value in m2m_fields.items():
-        #                 field = self.fields.get(field_name)
-        #                 if field:
-        #                     field.initial = value
-        #                     print(field, value)
-        #             # Удаляем данные из сессии после использования
-        #             del self.request.session['initial_data']
-
 
 class ProjectsForm(BaseTableForm):
 
@@ -332,10 +309,10 @@ class ProjectsForm(BaseTableForm):
         super().__init__(*args,
                          unique_fields=['detail_code'],
                          request=self.request,
-                         required_fields=['name', 'detail_full_name', 'manager', 'engineer', 'project_code',
-                                          'detail_name', 'detail_code'],
-                         auto_fields=['manager', 'engineer', 'name', 'project_code', 'detail_name', 'detail_name',
-                                      'detail_full_name'],
+                         required_fields=['name', 'detail_fullname', 'manager', 'engineer', 'project_code',
+                                          'detail', 'detail_code'],
+                         auto_fields=['manager', 'engineer', 'name', 'project_code', 'detail', 'detail',
+                                      'detail_fullname'],
                          **kwargs)
 
         prefix = 'АРХ'
@@ -351,26 +328,18 @@ class ProjectsForm(BaseTableForm):
 
         self.fields['detail_code'].initial = new_detail_code
 
-    # def clean_detail_code(self):
-    #     detail_code = self.cleaned_data.get('name')
-    #     if Projects.objects.filter(detail_code=detail_code).exists():
-    #         raise forms.ValidationError('Проект с таким кодом уже существует.')
-    #     if detail_code == '':
-    #         raise forms.ValidationError('Поле должно быть заполнено!')
-    #     return detail_code
-
 
 class OrdersForm(BaseTableForm):
 
     related_fields = {
         'manager': {'model': 'CustomUser', 'filter': 'Менеджеры'},
-        'product_request': {'model': 'ProductRequest', 'field': 'product_link'}
+        'product_request': {'model': 'ProductRequest', 'field': 'product'}
     }
 
     class Meta:
         model = Orders
         fields = '__all__'
-        exclude = ['order_date', 'manager_old', 'product_request_old', 'order_accepted']
+        exclude = ['order_date', 'manager_old', 'product_request_old']
 
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request', None)
@@ -380,13 +349,12 @@ class OrdersForm(BaseTableForm):
             request=self.request,
             **kwargs
         )
-        # self.fields['product_request'] = forms.CharField(widget=forms.HiddenInput(), required=False)
 
 
 class ProductMoviesForm(BaseTableForm):
 
     related_fields = {
-        'product_link': {'model': 'Products', 'field': 'name'},
+        'product': {'model': 'Products', 'field': 'name'},
         'new_cell': {'model': 'StorageCells', 'field': 'name'}
     }
 
@@ -399,7 +367,7 @@ class ProductMoviesForm(BaseTableForm):
         self.request = kwargs.pop('request', None)
         super().__init__(
             *args,
-            auto_fields=['product_link', 'new_cell'],
+            auto_fields=['product', 'new_cell'],
             request=self.request,
             **kwargs
         )
@@ -408,10 +376,9 @@ class ProductMoviesForm(BaseTableForm):
 class ProductRequestForm(BaseTableForm):
 
     related_fields = {
-        'product_link': {'model': 'Products', 'field': 'name'},
-        'project_link': {'model': 'Projects', 'field': 'detail_code'},
+        'product': {'model': 'Products', 'field': 'name'},
+        'project': {'model': 'Projects', 'field': 'detail_code'},
         'responsible': {'model': 'CustomUser', 'filter': 'ПДО'},
-        'manager': {'model': 'CustomUser', 'filter': 'ПДО'}
         }
 
     class Meta:
@@ -423,17 +390,18 @@ class ProductRequestForm(BaseTableForm):
         self.request = kwargs.pop('request', None)
         super().__init__(
             *args,
-            auto_fields=['product_link', 'project_link', 'responsible', 'manager'],
+            auto_fields=['product', 'project', 'responsible'],
+            hidden_fields=['buyer'],
             request=self.request,
             **kwargs
         )
-        self.fields['project_link'] = forms.CharField(widget=forms.HiddenInput(), required=False)
-        self.fields['product_link'] = forms.CharField(widget=forms.HiddenInput(), required=False)
-        try:
-            product = self.instance.product_link
-        except Products.DoesNotExist:
-            product = None
-        self.fields['product_link'].initial = product
+        self.fields['project'] = forms.CharField(widget=forms.HiddenInput(), required=False)
+        self.fields['product'] = forms.CharField(widget=forms.HiddenInput(), required=False)
+        # try:
+        #     product = self.instance.product
+        # except Products.DoesNotExist:
+        #     product = None
+        # self.fields['product'].initial = product
         # self.fields['responsible'].initial = self.request.user
 
 
@@ -640,7 +608,7 @@ class PivotTableForm(BaseTableForm):
     class Meta:
         model = PivotTable
         fields = [
-            'product_link',
+            'product',
             'request_about',
             'responsible',
             'invoice_number',
@@ -663,7 +631,7 @@ class PivotTableForm(BaseTableForm):
         if self.instance:
             # Инициализируем поля значениями из связанных моделей
             if self.instance.product_request and self.instance.product_request.product:
-                self.fields['product_link'].initial = self.instance.product_request.product
+                self.fields['product'].initial = self.instance.product_request.product
             if self.instance.product_request:
                 self.fields['request_about'].initial = self.request_about or self.instance.product_request.request_about
                 self.fields['responsible'].initial = self.responsible or self.instance.product_request.responsible
@@ -678,11 +646,11 @@ class PivotTableForm(BaseTableForm):
     def save(self, commit=True):
         instance = super(PivotTableForm, self).save(commit=False)
         # Обработка создания product_request
-        if not instance.product_request and self.cleaned_data.get('product_link'):
-            product_link = self.cleaned_data['product_link']
+        if not instance.product_request and self.cleaned_data.get('product'):
+            product = self.cleaned_data['product']
             responsible = self.cleaned_data.get('responsible')
             product_request = ProductRequest.objects.create(
-                product_link=product_link,
+                product=product,
                 responsible=responsible,
                 request_about=self.cleaned_data.get('request_about'),
             )

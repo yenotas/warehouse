@@ -117,16 +117,16 @@ class AutocompleteView(View):
             return JsonResponse([], safe=False)
 
         # Обработка для модели ProductRequest
-        if model_name == "productrequest" and field_name == "product_link":
+        if model_name == "productrequest" and field_name == "product":
             qs = model.objects.filter(
-                product_link__name__icontains=term  # Фильтрация по связанному полю product.name
+                product__name__icontains=term  # Фильтрация по связанному полю product.name
             )
 
             results = [
                 {
                     'id': obj.id,
-                    'label': obj.product_link.name,
-                    'value': obj.product_link.name
+                    'label': obj.product.name,
+                    'value': obj.product.name
                 }
                 for obj in qs
             ]

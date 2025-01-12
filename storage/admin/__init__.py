@@ -94,11 +94,11 @@ admin_site.register(StorageCells, StorageCellsAdmin)
 class ProjectsAdmin(TableModelAdmin):
     form = ProjectsForm
     tabled_add = True
-    list_display = ['id', 'creation_date', 'name', 'detail_full_name', 'manager', 'engineer', 'project_code',
-                    'detail_name', 'detail_code']
-    search_fields = ['name', 'detail_full_name', 'project_code', 'detail_name', 'detail_code']
+    list_display = ['id', 'creation_date', 'name', 'detail_fullname', 'manager', 'engineer', 'project_code',
+                    'detail', 'detail_code']
+    search_fields = ['name', 'detail_fullname', 'project_code', 'detail', 'detail_code']
     ordering = ['-id']
-    list_filter = ['creation_date', 'name', 'detail_full_name', 'manager', 'engineer', 'project_code', 'detail_name',
+    list_filter = ['creation_date', 'name', 'detail_fullname', 'manager', 'engineer', 'project_code', 'detail',
                    'detail_code']
 
     def save_model(self, request, obj, form, change):
@@ -123,20 +123,22 @@ admin_site.register(Projects, ProjectsAdmin)
 class ProductRequestAdmin(TableModelAdmin):
     form = ProductRequestForm
     tabled_add = True
-    list_display = ['id', 'request_date', 'product_link', 'request_about', 'request_quantity', 'project_link',
-                    'responsible', 'delivery_location', 'delivery_address', 'deadline_delivery_date', 'manager']
-    search_fields = ['product_link__name']
+    list_display = ['id', 'request_date', 'product', 'request_about', 'request_quantity', 'project',
+                    'responsible', 'delivery_location', 'delivery_address', 'deadline_delivery_date', 'buyer']
+    search_fields = ['product__name']
     ordering = ['-id']
-    list_filter = ['request_date', 'product_link', 'project_link', 'manager']
+    list_filter = ['request_date', 'product', 'project', 'buyer']
 
     def save_model(self, request, obj, form, change):
-        if not change and not obj.responsible:
-            obj.responsible = request.user
+        if not obj.responsible and request.user.has_perm('storage.change_responsible'):
+            obj.responsible = request.user or None
+        else:
+            obj.responsible = None
         super().save_model(request, obj, form, change)
 
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
-        if obj is None and request.user.has_perm('storage.change_responsible'):
+        if not obj and request.user.has_perm('storage.change_responsible'):
             form.base_fields['responsible'].initial = request.user
 
         return form
@@ -156,17 +158,19 @@ class OrdersAdmin(TableModelAdmin):
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == 'manager':
-            kwargs['queryset'] = CustomUser.objects.exclude(groups__name__in=['Инженеры']).distinct()
+            kwargs['queryset'] = CustomUser.objects.exclude(groups__name__in=['ПДО']).distinct()
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def save_model(self, request, obj, form, change):
-        if not change and not obj.manager:  # Только при создании нового объекта
-            obj.manager = request.user
+        if not obj.manager and request.user.has_perm('storage.change_responsible'):  # Только при создании нового объекта
+            obj.manager = request.user or None
+        else:
+            obj.responsible = None
         super().save_model(request, obj, form, change)
 
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
-        if not obj:  # Только при создании нового объекта
+        if not obj and request.user.has_perm('storage.change_responsible'):  # Только при создании нового объекта
             form.base_fields['manager'].initial = request.user
         return form
 
@@ -177,11 +181,11 @@ admin_site.register(Orders, OrdersAdmin)
 class ProductMoviesAdmin(TableModelAdmin):
     form = ProductMoviesForm
     tabled_add = True
-    list_display = ['id', 'record_date', 'product_link', 'process_type', 'return_to_supplier_reason', 'movie_quantity', 'new_cell',
+    list_display = ['id', 'record_date', 'product', 'process_type', 'return_to_supplier_reason', 'movie_quantity', 'new_cell',
                     'reason']
-    search_fields = ['product_link', 'process_type', 'new_cell']
-    list_filter = ['product_link', 'process_type', 'new_cell']
-    ordering = ['id', 'product_link', 'process_type', 'new_cell']
+    search_fields = ['product', 'process_type', 'new_cell']
+    list_filter = ['product', 'process_type', 'new_cell']
+    ordering = ['id', 'product', 'process_type', 'new_cell']
 
     class Media:
         js = ('admin/js/admin/ChangeProductMovies.js',)
