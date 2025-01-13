@@ -1,3 +1,4 @@
+{% load custom_filters %}
 {% load i18n %}
 {% if result_hidden_fields %}
 <div class="hiddenfields">{# DIV for HTML validation #}
@@ -24,11 +25,15 @@
 </tr>
 </thead>
 <tbody>
-{% for result in results %}
+{% for result in cl.queryset %}
 {% if result.form and result.form.non_field_errors %}
     <tr><td colspan="{{ result|length }}">{{ result.form.non_field_errors }}</td></tr>
 {% endif %}
-<tr>{% for item in result %}{{ item }}{% endfor %}</tr>
+    <tr>
+        {% for field in cl.list_display_text %}
+        <td>{{ result|get_attr:field }}</td>
+        {% endfor %}
+    </tr>
 {% endfor %}
 </tbody>
 </table>
