@@ -50,3 +50,5 @@ class CustomAdminSite(admin.AdminSite):
         return context
 
 
+admin_site = CustomAdminSite(name='myadmin')
+

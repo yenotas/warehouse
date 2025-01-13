@@ -1,0 +1,21 @@
+{% block content %}
+<div id="table_head">{{ table_head }}</div>
+<table>
+    <thead>
+        <tr>
+            {% for header in cl.list_display_text %}
+            <th>{{ header|slice:8 }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for obj in cl.queryset %}
+        <tr>
+            {% for field in cl.list_display_text %}
+            <td>{{ obj|get_attr:field }}</td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

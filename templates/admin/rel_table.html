@@ -12,7 +12,7 @@
     <tbody>
         {% for obj in result_list %}
             <tr>
-                {% for field in cl.list_display %}
+                {% for field in cl.list_display_text %}
                     <td>
                     {% if obj|has_attr:field %}
                         {% with value=obj|get_attr:field %}

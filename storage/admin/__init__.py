@@ -1,7 +1,7 @@
 from django.contrib.auth.models import Group, Permission
 from django.utils.html import format_html
 
-from .__CustomAdminSite import CustomAdminSite
+from .__CustomAdminSite import admin_site
 from .ManageAdmins import ManageAdmins
 from .CustomUserAdmin import CustomUserAdmin
 from .TableModelAdmin import TableModelAdmin
@@ -13,7 +13,6 @@ from storage.forms import CategoriesForm, DepartmentsForm, StorageCellsForm, Pro
 from storage.models import Suppliers, Categories, Departments, StorageCells, Projects, Products, ProductRequest, \
     Orders, ProductMovies, PivotTable, CustomUser, ModelAccessControl
 
-admin_site = CustomAdminSite(name='myadmin')
 admin_site.register(Group, RestrictedGroupAdmin)
 admin_site.register(Permission, RestrictedPermissionAdmin)
 admin_site.register(ModelAccessControl, ModelAccessControlAdmin)
@@ -128,6 +127,7 @@ class ProductRequestAdmin(TableModelAdmin):
     search_fields = ['product__name']
     ordering = ['-id']
     list_filter = ['request_date', 'product', 'project', 'buyer']
+    readonly_fields = ('request_date',)
 
     def save_model(self, request, obj, form, change):
         if not obj.responsible and request.user.has_perm('storage.change_responsible'):
@@ -142,6 +142,8 @@ class ProductRequestAdmin(TableModelAdmin):
             form.base_fields['responsible'].initial = request.user
 
         return form
+
+
 
 
 admin_site.register(ProductRequest, ProductRequestAdmin)

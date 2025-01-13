@@ -18,8 +18,9 @@ from django.utils.html import escape
 import json
 
 from storage.forms import BaseTableForm
+from storage.mixins import get_changelist_instance
 from storage.models import CustomUser
-from django.forms.models import BaseModelFormSet
+from django.forms.models import BaseModelFormSet, BaseInlineFormSet
 from django.core.cache import cache
 from functools import lru_cache
 from django.core.cache import cache
@@ -123,10 +124,14 @@ def handle_related_field_error(form, field_name, error):
 
 
 class TableModelAdmin(admin.ModelAdmin):
+
     change_list_template = 'admin/table_view.html'
     add_form_template = 'admin/table_add.html'
     change_form_template = 'admin/table_change.html'
     ordering = ['-id']
+    extra = 1  # Обязательно определить extra
+    can_delete = True  # Обязательно определить can_delete
+    form = None
 
     @lru_cache(maxsize=None)
     def get_formset_class(self, request=None, obj=None, **kwargs):
@@ -139,8 +144,8 @@ class TableModelAdmin(admin.ModelAdmin):
             form = modelformset_factory(
                 model,
                 form=self.get_form_with_request(request, obj, **kwargs),
-                extra=1,
-                can_delete=True
+                extra=self.extra,
+                can_delete=self.can_delete
             )
             cache.set(formset_name, form, timeout=60 * 60)
         else:
@@ -149,6 +154,11 @@ class TableModelAdmin(admin.ModelAdmin):
         return form
 
     def get_form_with_request(self, request, obj=None, **kwargs):
+        if not hasattr(self, 'counter'):
+            self.counter = 0
+        self.counter += 1
+
+        print('\n\nВызов get_form_with_request', self.counter, '\n\n')
         # Прихватываем request для каждой формы сета
         form_class = super().get_form(request, obj, **kwargs)
         class FormWithRequest(form_class):
@@ -177,7 +187,7 @@ class TableModelAdmin(admin.ModelAdmin):
         extra_context = extra_context or {}
         request = request or None
         action = request.POST.get('form_action', None) or request.POST.get('action', '')
-        print('\n\nchangelist_view тип формы', action or 'view')
+        print('\n\nTableModelAdmin changelist_view тип формы', action or 'view')
         print('changelist_view request:', request or 'None', '\n\n')
 
         if request.method == 'POST':
@@ -190,20 +200,27 @@ class TableModelAdmin(admin.ModelAdmin):
                 print('\nПоказываю add_view')
                 return self.add_view(request, '', extra_context)
         else:
+            queryset = self.model.objects.none()
             formset_class = self.get_formset_class(request)
-            print('\nchangelist_view formset_class', formset_class)
+            formset = formset_class(queryset=queryset)
 
-            formset = formset_class(queryset=self.model.objects.none())
             extra_context['formset'] = formset
             form_fields = list(formset.forms[0].fields.keys()) if formset.forms else []
             extra_context['form_fields_json'] = json.dumps(form_fields)
-            print('\n\nqueryset:\n', self.model.objects.none())
-            print('\n\nformset:\n', formset)
             extra_context['title'] = ""
             extra_context['button_name'] = "Добавить"
             extra_context['preview_files'] = get_temp_files(request)
             extra_context['model_name'] = self.model._meta.model_name
             extra_context['app_label'] = self.model._meta.app_label
+            cl, verbose_names, methods = get_changelist_instance(request, self.model)
+            # cl.list_display_text = ["action_checkbox"] + cl.list_display_text
+            extra_context.update({
+                'cl': cl,
+                'verbose_names': verbose_names,
+                'methods': methods,
+            })
+            print('\n\nПРИМЕНЁН get_changelist_instance')
+            print('TableModelAdmin extra_context:', extra_context, '\n\n')
         return super().changelist_view(request, extra_context=extra_context)
 
     def add_view(self, request, form_url='', extra_context=None):

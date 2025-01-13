@@ -164,12 +164,8 @@ class ProductRequest(models.Model):
         verbose_name_plural = "Заявки на закуп"
 
     def __str__(self):
-        try:
-            product = self.product
-        except Products.DoesNotExist:
-            print('self.product НЕ ДОСТУПЕН')
-            product = self.product_old or None
-        print('\nProductRequest product', product)
+        product = self.product or self.product_old or None
+        print(f'\nProductRequest id = {self.id}: значение = {self.product} / старое = {self.product_old}')
         if product:
             return f"№{self.id} / {product}"
         else:

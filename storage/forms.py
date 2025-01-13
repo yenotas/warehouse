@@ -2,17 +2,20 @@ import json
 from collections import OrderedDict
 from django.contrib.admin.widgets import AdminDateWidget
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
-from django.db.models import ForeignKey, ManyToManyField, F
+from django.contrib.auth.models import Group
+from django.db.models import F
 
-from .models import *
 from django.contrib.contenttypes.models import ContentType
 from django import forms
 from django.apps import apps
 from django.core.exceptions import ValidationError
 from django.db.models.functions import Concat
 
-from django.db.models import Value, TextField
+from django.db.models import Value
 from django.contrib.postgres.search import TrigramSimilarity
+
+from storage.models import ModelAccessControl, Products, Projects, Orders, ProductMovies, ProductRequest, Suppliers, \
+    Departments, Categories, CustomUser, StorageCells, PivotTable
 
 
 def trigram_search(query, queryset, search_field):
@@ -93,11 +96,7 @@ class BaseTableForm(forms.ModelForm):
                     })
                 )
                 # Проверка на наличие значения и присвоение значения из *_old
-                print('\n\nПроверка на наличие значения и присвоение значения из *_old')
-                print(field_name, self.instance)
-                print('getattr', getattr(self.instance, field_name, None))
-                print('hasattr', hasattr(self.instance, f"{field_name}_old"))
-                if (self.instance and getattr(self.instance, field_name, None) and
+                if (self.instance and not getattr(self.instance, field_name, None) and
                     hasattr(self.instance, f"{field_name}_old")):
                     old_value = getattr(self.instance, f"{field_name}_old")
                     self.fields[name_field_name].initial = old_value
@@ -141,7 +140,6 @@ class BaseTableForm(forms.ModelForm):
 
         # Создаём новый OrderedDict с полями в нужном порядке
         self.fields = OrderedDict((f, self.fields[f]) for f in new_order if f in self.fields)
-        print("Итоговая сборка fields:", self.fields)
 
     def get_hidden_fields(self, model_name):
         fields = []
@@ -395,39 +393,9 @@ class ProductRequestForm(BaseTableForm):
             request=self.request,
             **kwargs
         )
-        self.fields['project'] = forms.CharField(widget=forms.HiddenInput(), required=False)
-        self.fields['product'] = forms.CharField(widget=forms.HiddenInput(), required=False)
-        # try:
-        #     product = self.instance.product
-        # except Products.DoesNotExist:
-        #     product = None
-        # self.fields['product'].initial = product
+        # self.fields['project'] = forms.CharField(widget=forms.HiddenInput(), required=False)
+        # self.fields['product'] = forms.CharField(widget=forms.HiddenInput(), required=False)
         # self.fields['responsible'].initial = self.request.user
-
-
-        # if self.request:
-        #     data = self.request.session.get('initial_data')
-        #     print('Data loaded from session:', data)  # Отладочный вывод
-        #     if data:
-        #         data = self.request.session.get('initial_data')
-        #         if data:
-        #             initial_fields = data.get('fields', {})
-        #             m2m_fields = data.get('m2m', {})
-        #             # Устанавливаем начальные значения для полей
-        #             for field_name, value in initial_fields.items():
-        #                 if field_name == 'name':
-        #                     continue  # Пропускаем поле 'name'
-        #                 field = self.fields.get(field_name)
-        #                 if field:
-        #                     field.initial = value
-        #             # Устанавливаем начальные значения для ManyToMany полей
-        #             for field_name, value in m2m_fields.items():
-        #                 field = self.fields.get(field_name)
-        #                 if field:
-        #                     field.initial = value
-        #                     print(field, value)
-        #             # Удаляем данные из сессии после использования
-        #             del self.request.session['initial_data']
 
 
 class SuppliersForm(BaseTableForm):
