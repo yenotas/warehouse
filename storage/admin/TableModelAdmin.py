@@ -185,6 +185,7 @@ class TableModelAdmin(admin.ModelAdmin):
 
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
+        extra_context['table_view'] = True
         request = request or None
         action = request.POST.get('form_action', None) or request.POST.get('action', '')
         print('\n\nTableModelAdmin changelist_view тип формы', action or 'view')
@@ -213,7 +214,6 @@ class TableModelAdmin(admin.ModelAdmin):
             extra_context['model_name'] = self.model._meta.model_name
             extra_context['app_label'] = self.model._meta.app_label
             cl, verbose_names, methods = get_changelist_instance(request, self.model)
-            # cl.list_display_text = ["action_checkbox"] + cl.list_display_text
             extra_context.update({
                 'cl': cl,
                 'verbose_names': verbose_names,

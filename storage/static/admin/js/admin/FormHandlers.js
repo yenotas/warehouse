@@ -82,7 +82,7 @@ window.initErrorHandling = function () {
 
         // Функция загрузки данных записи в форму
         function loadRecordData(link) {
-            const obj_id = link.split('/')[3];
+            const obj_id = link.split('/')[0];
             console.log('ID', obj_id);
             $.get(link, function(data) {
                 // Парсинг и установка значений полей формы
@@ -167,7 +167,7 @@ window.initErrorHandling = function () {
             });
         }
 
-        // Открытие строки для редактирования в форме
+        // Передача строки для редактирования в форме
         const appTable = $('#result_list');
         if (appTable.length) {
             var headers = appTable.find('th');

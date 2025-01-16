@@ -5,16 +5,22 @@
 {% for item in result_hidden_fields %}{{ item }}{% endfor %}
 </div>
 {% endif %}
-{% if results %}
+{% if result_headers %}
 <div class="results">
 <table id="result_list">
 <thead>
 <tr>
+    {% if cl.list_display_text %}
+    <th scope="col" class="action-checkbox-column">
+    <div class="text"><span><input type="checkbox" id="action-toggle" aria-label="Выбрать всё на этой странице"></span></div>
+    <div class="clear"></div>
+    </th>
+    {% endif %}
 {% for header in result_headers %}
 <th scope="col"{{ header.class_attrib }}>
    {% if header.sortable and header.sort_priority > 0 %}
        <div class="sortoptions">
-         <a class="sortremove" href="{{ header.url_remove }}" title="{% translate "Remove from sorting" %}"></a>
+         <a class="sortremove" href="{{ header.url_remove }}" title='{% translate "Remove from sorting" %}'></a>
          {% if num_sorted_fields > 1 %}<span class="sortpriority" title="{% blocktranslate with priority_number=header.sort_priority %}Sorting priority: {{ priority_number }}{% endblocktranslate %}">{{ header.sort_priority }}</span>{% endif %}
          <a href="{{ header.url_toggle }}" class="toggle {{ header.ascending|yesno:'ascending,descending' }}" title="{% translate "Toggle sorting" %}"></a>
        </div>
@@ -24,18 +30,36 @@
 </th>{% endfor %}
 </tr>
 </thead>
-<tbody>
-{% for result in cl.queryset %}
-{% if result.form and result.form.non_field_errors %}
-    <tr><td colspan="{{ result|length }}">{{ result.form.non_field_errors }}</td></tr>
+
+{% if not cl.list_display_text %}
+    <tbody>
+    {% for result in results %}
+    {% if result.form and result.form.non_field_errors %}
+        <tr><td colspan="{{ result|length }}">{{ result.form.non_field_errors }}</td></tr>
+    {% endif %}
+        <tr>{% for item in result %}{{ item }}{% endfor %}</tr>
+    {% endfor %}
+    </tbody>
+{% else %}
+    {% for result in cl.queryset %}
+    {% if result.form and result.form.non_field_errors %}
+        <tr><td colspan="{{ result|length }}">{{ result.form.non_field_errors }}</td></tr>
+    {% endif %}
+        <tr>
+            <td class="action-checkbox">
+                <input type="checkbox" name="_selected_action" value="{{ result.pk }}"
+                       class="action-select" aria-label="Выбрать">
+            </td>
+            {% for field in cl.list_display_text %}
+            {% if field == 'display_id' %}<th>{{ result|get_attr:field|safe }}</th>
+            {% else %}<td>{{ result|get_attr:field|safe }}</td>
+            {% endif %}
+            {% endfor %}
+        </tr>
+    {% endfor %}
+    </tbody>
 {% endif %}
-    <tr>
-        {% for field in cl.list_display_text %}
-        <td>{{ result|get_attr:field }}</td>
-        {% endfor %}
-    </tr>
-{% endfor %}
-</tbody>
 </table>
 </div>
+
 {% endif %}

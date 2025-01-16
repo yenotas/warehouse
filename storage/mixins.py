@@ -71,6 +71,8 @@ def get_changelist_instance(request, model):
             if not value:
                 value = check_old_value(obj, field)
             text_field = f"display_{field}"
+            if field == "id":
+                value = f'<a href="{obj.pk}/change/">{obj.pk}</a>'
             setattr(obj, text_field, str(value) if value is not None else "—")
             print(f'НОВЫЙ queryset {text_field}: {getattr(obj, text_field)}')
 

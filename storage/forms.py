@@ -99,6 +99,7 @@ class BaseTableForm(forms.ModelForm):
                 if (self.instance and not getattr(self.instance, field_name, None) and
                     hasattr(self.instance, f"{field_name}_old")):
                     old_value = getattr(self.instance, f"{field_name}_old")
+                    print(f'\n\nПрисваиваю старое значение {field_name} = {old_value}\n\n')
                     self.fields[name_field_name].initial = old_value
 
                 # Установка ширины связанных полей
@@ -240,9 +241,9 @@ class BaseTableForm(forms.ModelForm):
                         search_field = 'full_name'
                     elif rel_model_name == 'ProductRequest':
                         queryset = related_model.objects.annotate(
-                            product=F('product__name')
+                            product_req=F('product__name')
                         ).all()
-                        search_field = 'product'
+                        search_field = 'product_req'
                     else:
                         queryset = related_model.objects.all()
                         search_field = rel_field_name
@@ -376,7 +377,7 @@ class ProductRequestForm(BaseTableForm):
     related_fields = {
         'product': {'model': 'Products', 'field': 'name'},
         'project': {'model': 'Projects', 'field': 'detail_code'},
-        'responsible': {'model': 'CustomUser', 'filter': 'ПДО'},
+        'responsible': {'model': 'CustomUser', 'filter': ['ПДО', 'Менежеры'], },
         }
 
     class Meta:
@@ -395,7 +396,7 @@ class ProductRequestForm(BaseTableForm):
         )
         # self.fields['project'] = forms.CharField(widget=forms.HiddenInput(), required=False)
         # self.fields['product'] = forms.CharField(widget=forms.HiddenInput(), required=False)
-        # self.fields['responsible'].initial = self.request.user
+        # self.fields['responsible_display'].initial = self.request.user
 
 
 class SuppliersForm(BaseTableForm):

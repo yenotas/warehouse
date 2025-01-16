@@ -1,11 +1,6 @@
 import logging
 
-from django.contrib import messages
-# from dal import autocomplete
 from django.contrib.auth.decorators import login_required, permission_required
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Count
-from django.http import JsonResponse, HttpResponseRedirect
 from django.contrib.contenttypes.models import ContentType
 from django.template.response import TemplateResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -14,15 +9,8 @@ from .admin import admin_site
 from .mixins import get_changelist_instance
 from .models import Products, Orders, Projects, StorageCells, Suppliers, Categories, ModelAccessControl, CustomUser, \
     PivotTable, ProductMovies, Departments
-
-from django.views import View
 from django.http import JsonResponse
-from django.apps import apps
-
 from django.views import View
-from django.shortcuts import render
-
-from django.contrib.admin.views.main import ChangeList
 from django.apps import apps
 
 
@@ -56,6 +44,9 @@ class AutocompleteView(View):
         model_name = request.GET.get('model', '')
         field_name = request.GET.get('field', '')
         data_filter = request.GET.get('data_filter', '')
+        if data_filter:
+            if not isinstance(data_filter, list):
+                data_filter = [data_filter]
         filter_field = request.GET.get('filter_field', '')
         app_label = 'storage'
 
@@ -89,8 +80,9 @@ class AutocompleteView(View):
         # Обработка для модели пользователей - каких показывать, учитывая принадлежность к группам
         if model_name == "customuser":
             print('filter custom user:', data_filter)
+
             if data_filter:
-                qs = model.objects.filter(groups__name=data_filter).distinct()
+                qs = model.objects.filter(groups__name__in=data_filter).distinct()
             else:
                 qs = model.objects.all().distinct()
             results = [

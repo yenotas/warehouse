@@ -189,21 +189,22 @@ class Orders(models.Model):
     manager = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True,
                                 verbose_name="Закупщик")
     manager_old = models.CharField(max_length=255, blank=True, null=True)
-    accounted_in_1c = models.BooleanField(blank=True, help_text="width:60px;", null=True, default="", verbose_name="Учтено в 1С")
+    accounted_in_1c = models.BooleanField(blank=True, help_text="width:70px;", null=True, default="", verbose_name="Учтено в 1С")
     invoice_number = models.CharField(max_length=100, help_text="width:90px;", blank=True, null=True, verbose_name="Номер счета")
     delivery_status = models.CharField(max_length=50, help_text="width:90px;", blank=True, null=True, verbose_name="Статус заказа", choices=[(None, ''),
         ('Ожидаем', 'Ожидаем'), ('Доставлено', 'Доставлено'), ('Склад', 'Склад'), ('Неполная', 'Неполная'),
         ('Частичный возврат', 'Частичный возврат'), ('Полный возврат', 'Полный возврат'), ('Отмена', 'Отмена'),
     ])
-    documents = models.CharField(max_length=50, help_text="width:90px;", verbose_name="Документы", blank=True, null=True, choices=[
+    documents = models.CharField(max_length=50, help_text="width:70px;", verbose_name="Документы", blank=True, null=True, choices=[
         (None, ''),
         ('Нет', 'Нет'), ('УПД/СФ', 'УПД/СФ'), ('TTH/TH/AKT', 'TTH/TH/AKT'), ('ИП', 'ИП')
     ])
-    document_flow = models.CharField(max_length=50, help_text="width:90px;", verbose_name="Документооборот", blank=True, null=True, choices=[
+    document_flow = models.CharField(max_length=50, help_text="width:110px;", verbose_name="Документооборот", blank=True, null=True, choices=[
         (None, ''), ('Нет', 'Нет'), ('ИП', 'ИП'), ('ЭДО', 'ЭДО'), ('Бумага', 'Бумага')
     ])
-    waiting_date = models.DateField(blank=True, null=True, help_text="width:90px;", verbose_name="Ожидаемая дата поставки")
-    order_accepted = models.BooleanField(blank=True, help_text="width:60px;", null=True, default="", verbose_name="Заказ оформлен")
+    waiting_date = models.DateField(blank=True, null=True, help_text="width:100px;", verbose_name="Ожидаемая дата поставки")
+    order_accepted = models.BooleanField(blank=True, help_text="width:80px;", null=True, default="", verbose_name="Заказ оформлен")
+
 
     class Meta:
         verbose_name = "заказ по заявке"
@@ -342,13 +343,13 @@ class PivotTable(models.Model):
     def save(self, *args, **kwargs):
         # Синхронизируем данные с ProductRequest
         if self.product_request:
-            self.product_name = self.product_request.product
+            self.product = self.product_request.product or self.product_request.products.name
             self.request_about = self.request_about or self.product_request.request_about
             self.responsible = self.responsible or self.product_request.responsible
             self.request_quantity = self.product_request.request_quantity
-            self.project_code = self.product_request.project.project_code if self.product_request.project else None
-            self.detail = self.product_request.project.detail if self.product_request.project else None
-            self.detail_code = self.product_request.project.detail_code if self.product_request.project else None
+            self.project_code = self.product_request.projects.project_code if self.product_request.projects else None
+            self.detail = self.product_request.projects.detail if self.product_request.project else None
+            self.detail_code = self.product_request.projects.detail_code if self.product_request.projects else None
             self.delivery_location = self.product_request.delivery_location
             self.deadline_delivery_date = self.product_request.deadline_delivery_date
             self.buer = self.product_request.buyer
@@ -356,6 +357,7 @@ class PivotTable(models.Model):
 
         # Синхронизируем данные с Orders
         if self.order:
+            self.product_request = self.product_request or self.order.product_request
             self.invoice_number = self.invoice_number or self.order.invoice_number
             self.waiting_date = self.waiting_date or self.order.waiting_date
             self.delivery_status = self.delivery_status or self.order.delivery_status
