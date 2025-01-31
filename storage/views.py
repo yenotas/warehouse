@@ -50,7 +50,7 @@ class AutocompleteView(View):
         filter_field = request.GET.get('filter_field', '')
         app_label = 'storage'
 
-        print('AutocompleteView', model_name, field_name, term)
+        print('AutocompleteView', model_name, field_name, term, 'filter', data_filter)
 
         if not model_name and not (field_name or data_filter):
             return JsonResponse([], safe=False)

@@ -46,6 +46,7 @@ django.jQuery(document).ready(function($) {
             var fieldName = fieldElement.data('field-name');
             var modelName = fieldElement.data('model-name');
             var dataFilter = fieldElement.data('filter');
+            console.log(dataFilter);
             var filterField = fieldElement.data('filter_field');
             var isRelField = fieldElement.hasClass('rel_field');
             var hiddenFieldName = null;

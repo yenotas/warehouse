@@ -13,9 +13,8 @@ DATABASES = {
 
 SERV = os.getenv('SERV')
 
-ALLOWED_HOSTS = [SERV, 'localhost', '127.0.0.1']
-
 INTERNAL_IPS = [
     '127.0.0.1',
     SERV,
 ]
+

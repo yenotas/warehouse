@@ -90,8 +90,8 @@ class BaseTableForm(forms.ModelForm):
                         'class': 'auto_complete rel_field',
                         'data-field-name': rel_field_name.lower(),
                         'data-model-name': rel_model_name.lower(),
-                        'data-filter': rel_filter,
-                        'data-filter-field': rel_filter_field,
+                        'data-filter': rel_filter or '',
+                        'data-filter-field': rel_filter_field or '',
                         'required': False,
                     })
                 )
@@ -377,7 +377,7 @@ class ProductRequestForm(BaseTableForm):
     related_fields = {
         'product': {'model': 'Products', 'field': 'name'},
         'project': {'model': 'Projects', 'field': 'detail_code'},
-        'responsible': {'model': 'CustomUser', 'filter': ['ПДО', 'Менежеры'], },
+        'responsible': {'model': 'CustomUser'},
         }
 
     class Meta:

@@ -115,7 +115,6 @@ class ProjectsAdmin(TableModelAdmin):
 
         super().save_model(request, obj, form, change)
 
-
 admin_site.register(Projects, ProjectsAdmin)
 
 

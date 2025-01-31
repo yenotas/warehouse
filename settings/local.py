@@ -13,11 +13,19 @@ DATABASES = {
 
 print('DATABASE', DATABASES['default'])
 
-INTERNAL_IPS = [
-    "127.0.0.1",
-]
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', os.getenv('ALLOWED_HOSTS')]
+print('ALLOWED_HOSTS', ALLOWED_HOSTS)
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+CORS_ALLOWED_ORIGINS = [
+    "https://localhost:8001",
+    "https://127.0.0.1:8001",
+    'https://' + os.getenv('ALLOWED_HOSTS')
+]
+CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
+
+print('CORS_ALLOWED_ORIGINS', CORS_ALLOWED_ORIGINS)
+
+INTERNAL_IPS = ALLOWED_HOSTS
 
 CACHES = {
     'default': {
@@ -25,10 +33,6 @@ CACHES = {
     }
 }
 CORS_ORIGIN_ALLOW_ALL = True
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8001",
-    "http://127.0.0.1:8001",
-]
 
 # LOGGING = {
 #     'version': 1,
