@@ -77,7 +77,7 @@ class Products(models.Model):
     supplier_old = models.CharField(max_length=255, blank=True, null=True)
     categories = models.ManyToManyField(Categories, blank=True, verbose_name="Категория / признак")
     near_products = models.ManyToManyField('self', blank=True, verbose_name="Аналоги")
-    product_image = models.ImageField(upload_to="images/%Y/%m/%d/", help_text="width:90px;", editable=True, null=True, blank=True,
+    product_image = models.ImageField(upload_to="images/%Y/%m/%d/", help_text="width:120px;", editable=True, null=True, blank=True,
                                       verbose_name="Фото / скриншот")
 
     class Meta:
@@ -251,6 +251,13 @@ class ProductMovies(models.Model):
 
     def __str__(self):
         return str(self.id) or "1"
+
+    def save(self, *args, **kwargs):
+        if self.product:
+            self.product_old = str(self.product)
+        if self.new_cell:
+            self.new_cell_old = str(self.new_cell)
+        super().save(*args, **kwargs)
 
 
 class StorageCells(models.Model):

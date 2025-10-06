@@ -7,7 +7,7 @@ from storage.views import (
     get_product_data,
     get_model_fields,
     get_saved_fields,
-    AutocompleteView, RelTable,
+    AutocompleteView, RelTable, InsertRec,
     # add_multiple_categories_view
 )
 from django.conf import settings
@@ -17,7 +17,8 @@ urlpatterns = [
     # path('get-model-fields/', get_model_fields, name='get_model_fields'),
     # path('get-product-data/<int:product_id>/', get_product_data, name='get_product_data'),
     path('autocomplete/', AutocompleteView.as_view(), name='autocomplete'),
-    path('<app_label>/<model_name>/related_table/', RelTable.as_view(), name='related_table'),
+    # path('<app_label>/<model_name>/insert/<rel_model>/<id>', InsertRec.as_view(), name='insert_by_id'),
+    path('<app_label>/<model_name>/<field_name>/related_table/', RelTable.as_view(), name='related_table'),
     # path('get-saved-fields/', get_saved_fields, name='get-saved-fields'),
     # path('users-autocomplete/', UserAutocomplete.as_view(), name='users-autocomplete'),
     # path('create-supplier/', create_supplier, name='create_supplier'),

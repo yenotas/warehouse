@@ -31,7 +31,8 @@ django.jQuery(document).ready(function ($) {
             const fieldName = formFields[thIndex]; // Имя текущего поля
             const $div = $firstRow.find('td').eq(thIndex).find('.related-widget-wrapper');
             const relatedModel = $div.data('model-ref');
-            console.log('MODEL', relatedModel);
+            const relatedField = $div.find('input[type="text"]').data('field-name');
+            console.log('MODEL', relatedModel, 'relatedField', relatedField);
 
             // Создаем ссылку
             const $link = $('<a>')
@@ -39,6 +40,7 @@ django.jQuery(document).ready(function ($) {
                 .text($(this).text())
                 .addClass('viewlinked') // Класс для стиля
                 .data('relatedModel', relatedModel) // Сохраняем имя связанной модели
+                .data('relatedField', relatedField) // Сохраняем имя связанного поля
                 .data('current', 'false'); // Указывает, активна ли таблица связанной модели
 
             $(this).empty().append($link); // Очистить содержимое <th> и вставить ссылку в заголовок
@@ -58,10 +60,15 @@ django.jQuery(document).ready(function ($) {
                 // Текущая ссылка: включение/выключение
                 if ($link.data('current') === 'false') {
                     // Показать таблицу связанной модели
-                    $.get(`/${appLabel}/${relatedModel}/related_table`, function (html) {
+                    $.get(`/${appLabel}/${relatedModel}/${relatedField}/related_table`, function (html) {
                         $relatedTable.html(html).show();
                         $link.removeClass('viewlinked').addClass('hidelinked').data('current', 'true');
                         activeLink = $link; // Обновляем текущую активную ссылку
+                        // Передача значения из связанной таблицы в связанное поле формы
+                        const bind_model = $link.data('model-name');
+                        const bind_field = $link.data('field-name');
+                        const bind_id = $link.data('rel-id');
+                        console.log('модель открыта из столбца формы:', thIndex, 'модель / поле:', bind_model, bind_field, 'id', bind_id);
                     });
                 } else {
                     // Скрыть таблицу связанной модели
@@ -82,6 +89,7 @@ window.initErrorHandling = function () {
 
         // Функция загрузки данных записи в форму
         function loadRecordData(link) {
+            resetForm();
             const obj_id = link.split('/')[0];
             console.log('ID', obj_id);
             $.get(link, function(data) {
@@ -97,6 +105,7 @@ window.initErrorHandling = function () {
                 // Обрабатываем input, select и textarea
                 tr.find('input, select, textarea').each(function() {
                     const name = $(this).attr('name');
+                    if (!name) return;
                     const field = $(`[name="${name}"]`);
                     const element = doc.querySelector(`[name="${name}"]`);
                     console.log('Найденный элемент:', element, element ? element.value : null);
@@ -113,9 +122,9 @@ window.initErrorHandling = function () {
                         var imgContainer = $(element).closest('td').find('.image_preview_container');
                         var imagePreview = imgContainer.find('img')[0];
                         const imageUrl = imagePreview.src;
-                        console.log('URL элемент:', imageUrl);
+                        console.log('product_image элемент:', imageUrl);
 
-                        if (imageUrl) {
+                        if (imageUrl.includes('/media/images/')) {
                             imgContainer = $(this).closest('td').find('.image_preview_container');
                             imagePreview = imgContainer.find('img')[0];
                             imagePreview.src = imageUrl;

@@ -203,17 +203,19 @@ class TableModelAdmin(admin.ModelAdmin):
         else:
             queryset = self.model.objects.none()
             formset_class = self.get_formset_class(request)
-            formset = formset_class(queryset=queryset)
+            formset = formset_class(queryset=self.model.objects.none())
+            # formset = formset_class(queryset=queryset)
+            print('TableModelAdmin formset:', formset)
 
             extra_context['formset'] = formset
-            form_fields = list(formset.forms[0].fields.keys()) if formset.forms else []
+            form_fields = list(formset.forms[0].fields.keys()) if hasattr(formset, 'forms') else []
             extra_context['form_fields_json'] = json.dumps(form_fields)
             extra_context['title'] = ""
             extra_context['button_name'] = "Добавить"
             extra_context['preview_files'] = get_temp_files(request)
             extra_context['model_name'] = self.model._meta.model_name
             extra_context['app_label'] = self.model._meta.app_label
-            cl, verbose_names, methods = get_changelist_instance(request, self.model)
+            cl, verbose_names, methods = get_changelist_instance(request, self.model, '')
             extra_context.update({
                 'cl': cl,
                 'verbose_names': verbose_names,
@@ -222,58 +224,6 @@ class TableModelAdmin(admin.ModelAdmin):
             print('\n\nПРИМЕНЁН get_changelist_instance')
             print('TableModelAdmin extra_context:', extra_context, '\n\n')
         return super().changelist_view(request, extra_context=extra_context)
-
-    def add_view(self, request, form_url='', extra_context=None):
-        extra_context = extra_context or {}
-        is_popup = '_popup' in request.GET or '_popup' in request.POST
-        formset_class = self.get_formset_class(request)
-        print('\nadd_view formset_class', formset_class)
-
-        if request.method == 'POST':
-            formset = formset_class(request.POST, request.FILES, queryset=self.model.objects.none())
-            print('formset.errors', formset.errors)
-
-            if formset.is_valid():
-                # Создаем новые объекты, но не сохраняем их сразу
-                clear_temp_files(request)
-                self._process_related_fields(formset)
-                new_objects = formset.save(commit=False)
-                # Сохраняем каждый объект
-                for new_object in new_objects:
-                    print('new_objects', new_object.id)
-                    if new_object.id == '':
-                        new_object.id = None
-                    new_object.save()  # Сохранение объекта в базе
-
-                # Отправляем сообщение об успешном добавлении
-                count = len(new_objects)
-                if is_popup:
-                    return self.response_add(request, new_objects[-1])
-                else:
-                    msg = 'Записи добавлены.' if count > 1 else '\"%(object)s\" добавлен.' % {'object': new_objects[0]}
-                    self.message_user(request, msg, messages.SUCCESS)
-                    return redirect(
-                        'admin:%s_%s_changelist' % (self.model._meta.app_label, self.model._meta.model_name))
-
-            else:
-                # Сохраняем файлы в сессию
-                print('no valid set!')
-                save_files_to_session(request, formset)
-                extra_context['formset'] = formset
-        else:
-            # Создаем пустой formset для добавления новых записей
-            formset = formset_class(queryset=self.model.objects.none())
-            extra_context['formset'] = formset
-
-        extra_context['is_popup'] = is_popup
-        extra_context['title'] = ""
-        extra_context['button_name'] = "Добавить"
-        form_fields = list(formset.forms[0].fields.keys()) if formset.forms else []
-        extra_context['form_fields_json'] = json.dumps(form_fields)
-
-        return super().add_view(request,
-                                'admin:%s_%s_changelist' % (self.model._meta.app_label, self.model._meta.model_name),
-                                extra_context=extra_context)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
         extra_context = extra_context or {}
@@ -339,8 +289,23 @@ class TableModelAdmin(admin.ModelAdmin):
                 extra_context['formset'] = formset
         else:
             # Привязываем форму к существующей записи для GET-запроса
+            instance = self.model.objects.get(pk=object_id)
             formset = formset_class(queryset=self.model.objects.filter(pk=object_id))
-            extra_context['formset'] = formset
+
+            # ***Добавляем логику заполнения полей данными из *_old и связанными объектами***
+            for form in formset.forms:
+                if hasattr(form, 'related_fields'):
+                    for field_name, field_info in form.related_fields.items():
+                        if hasattr(instance, f"{field_name}_old") and getattr(instance, f"{field_name}_old"):
+                            form.fields[f"{field_name}_name"].initial = getattr(instance, f"{field_name}_old")
+                        related_object = getattr(instance, field_name, None)
+                        if related_object:
+                            form.fields[f"{field_name}_id"].initial = related_object.id
+                            form.fields[f"{field_name}_name"].initial = getattr(related_object,
+                                                                                field_info.get('field', "__str__"),
+                                                                                "")
+
+        extra_context['formset'] = formset
 
         extra_context['is_popup'] = is_popup
         extra_context['subtitle'] = ""
@@ -358,3 +323,54 @@ class TableModelAdmin(admin.ModelAdmin):
 
         return response
 
+    def add_view(self, request, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        is_popup = '_popup' in request.GET or '_popup' in request.POST
+        formset_class = self.get_formset_class(request)
+        print('\nadd_view formset_class', formset_class)
+
+        if request.method == 'POST':
+            formset = formset_class(request.POST, request.FILES, queryset=self.model.objects.none())
+            print('formset.errors', formset.errors)
+
+            if formset.is_valid():
+                # Создаем новые объекты, но не сохраняем их сразу
+                clear_temp_files(request)
+                self._process_related_fields(formset)
+                new_objects = formset.save(commit=False)
+                # Сохраняем каждый объект
+                for new_object in new_objects:
+                    print('new_objects', new_object.id)
+                    if new_object.id == '':
+                        new_object.id = None
+                    new_object.save()  # Сохранение объекта в базе
+
+                # Отправляем сообщение об успешном добавлении
+                count = len(new_objects)
+                if is_popup:
+                    return self.response_add(request, new_objects[-1])
+                else:
+                    msg = 'Записи добавлены.' if count > 1 else '\"%(object)s\" добавлен.' % {'object': new_objects[0]}
+                    self.message_user(request, msg, messages.SUCCESS)
+                    return redirect(
+                        'admin:%s_%s_changelist' % (self.model._meta.app_label, self.model._meta.model_name))
+
+            else:
+                # Сохраняем файлы в сессию
+                print('no valid set!')
+                save_files_to_session(request, formset)
+                extra_context['formset'] = formset
+        else:
+            # Создаем пустой formset для добавления новых записей
+            formset = formset_class(queryset=self.model.objects.none())
+            extra_context['formset'] = formset
+
+        extra_context['is_popup'] = is_popup
+        extra_context['title'] = ""
+        extra_context['button_name'] = "Добавить"
+        form_fields = list(formset.forms[0].fields.keys()) if formset.forms else []
+        extra_context['form_fields_json'] = json.dumps(form_fields)
+
+        return super().add_view(request,
+                                'admin:%s_%s_changelist' % (self.model._meta.app_label, self.model._meta.model_name),
+                                extra_context=extra_context)

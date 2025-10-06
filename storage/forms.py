@@ -41,14 +41,19 @@ class BaseTableForm(forms.ModelForm):
     model_name = None
 
     def __init__(self, *args, **kwargs):
+
         self.unique_fields = kwargs.pop('unique_fields', [])
         self.auto_fields = kwargs.pop('auto_fields', [])
         self.required_fields = kwargs.pop('required_fields', [])
         self.model_name = self._meta.model._meta.model_name.lower()
         self.request = kwargs.pop('request', None)
         self.hidden_fields = kwargs.pop('hidden_fields', [])
+
         super().__init__(*args, **kwargs)
-        print(f"BaseTableForm. Инициализация формы {self.model_name}. Instance: {self.instance}, PK: {self.instance.pk if self.instance else 'None'}")
+        # print("BaseTableForm.__init__ called! \n self.instance:", self.instance)
+
+        print(
+            f"BaseTableForm. Инициализация формы {self.model_name}. Instance: {self.instance}, PK: {self.instance.pk if self.instance else 'None'}")
         print('BaseTableForm: Request:', self.request)
         print("BaseTableForm: Скрытые поля для пользователя", self.hidden_fields)
         self.hidden_fields.extend(self.get_hidden_fields(self.model_name))
@@ -95,23 +100,10 @@ class BaseTableForm(forms.ModelForm):
                         'required': False,
                     })
                 )
-                # Проверка на наличие значения и присвоение значения из *_old
-                if (self.instance and not getattr(self.instance, field_name, None) and
-                    hasattr(self.instance, f"{field_name}_old")):
-                    old_value = getattr(self.instance, f"{field_name}_old")
-                    print(f'\n\nПрисваиваю старое значение {field_name} = {old_value}\n\n')
-                    self.fields[name_field_name].initial = old_value
-
                 # Установка ширины связанных полей
                 if rel_model_name in rel_models_sizes:
                     self.fields[name_field_name].help_text = rel_models_sizes[rel_model_name]
 
-                # Если форма создаётся для редактирования
-                if self.instance.pk:
-                    related_object = getattr(self.instance, field_name, None)
-                    if related_object:
-                        self.fields[id_field_name].initial = related_object.id
-                        self.fields[name_field_name].initial = getattr(related_object, rel_field_name, "")
                 # Убираем исходное связанное поле
                 if field_name in self.fields:
                     del self.fields[field_name]
@@ -141,6 +133,7 @@ class BaseTableForm(forms.ModelForm):
 
         # Создаём новый OrderedDict с полями в нужном порядке
         self.fields = OrderedDict((f, self.fields[f]) for f in new_order if f in self.fields)
+        print('\n\nВСЕ ПОЛЯ:\n', self.fields)
 
     def get_hidden_fields(self, model_name):
         fields = []
@@ -155,14 +148,16 @@ class BaseTableForm(forms.ModelForm):
                 access_groups = set(access_control.groups.values_list('name', flat=True))
                 print('группы с доступом', access_groups)
                 if user_groups.isdisjoint(access_groups):
-                    fields_to_disable = json.loads(access_control.fields_to_disable) if isinstance(access_control.fields_to_disable, str) else access_control.fields_to_disable
+                    fields_to_disable = json.loads(access_control.fields_to_disable) if isinstance(
+                        access_control.fields_to_disable, str) else access_control.fields_to_disable
                     fields.extend(fields_to_disable)
 
         return fields
 
     def clean(self):
         cleaned_data = super().clean()
-        print(f"Метод clean.", self.fields, f"\nInstance: {self.instance}, PK: {self.instance.pk if self.instance else 'None'}\n\n")
+        print(f"Метод clean.", self.fields,
+              f"\nInstance: {self.instance}, PK: {self.instance.pk if self.instance else 'None'}\n\n")
         model_class = self._meta.model
         filter_args = {}
         for field_name in self.fields:
@@ -225,6 +220,22 @@ class BaseTableForm(forms.ModelForm):
                 if not rel_text and rel_field not in self.required_fields:
                     continue
 
+                if self.instance is not None:  # ***Проверяем, существует ли instance***
+                    # Проверка на наличие значения и присвоение значения из *_old
+                    print('Проверка на наличие значения и присвоение значения из *_old', rel_field, 'self.instance',
+                          self.instance)
+                    if not getattr(self.instance, rel_field, None) and hasattr(self.instance, f"{rel_field}_old"):
+                        old_value = getattr(self.instance, f"{rel_field}_old")
+                        print(f'\n\nПрисваиваю старое значение {rel_field} = {old_value}\n\n')
+                        cleaned_data[name_field] = old_value  # Присваиваем значение полю name_field
+
+                    # Если форма создаётся для редактирования
+                    if self.instance.pk:
+                        related_object = getattr(self.instance, rel_field, None)
+                        if related_object:
+                            cleaned_data[id_field] = related_object.id
+                            cleaned_data[name_field] = getattr(related_object, rel_field_name, "")
+
                 print(f"Модель {rel_model_name}, поле {name_field}, ищем {rel_text}, id = {rel_id}")
 
                 if rel_id:
@@ -239,7 +250,7 @@ class BaseTableForm(forms.ModelForm):
                             full_name=Concat('first_name', Value(' '), 'last_name')
                         ).all()
                         search_field = 'full_name'
-                    elif rel_model_name == 'ProductRequest':
+                    elif rel_model_name in ['ProductRequest', 'ProductMovies']:
                         queryset = related_model.objects.annotate(
                             product_req=F('product__name')
                         ).all()
@@ -264,8 +275,8 @@ class BaseTableForm(forms.ModelForm):
                             cleaned_data[id_field] = related_object.id
                             cleaned_data[name_field] = rel_text
                         elif rel_text != '':
-                            self.add_error(name_field,f"Откройте форму добавления "
-                                                      f"{related_model._meta.verbose_name} (дв. клик на ячейку) | ")
+                            self.add_error(name_field, f"Откройте форму добавления "
+                                                       f"{related_model._meta.verbose_name} (дв. клик на ячейку) | ")
                             continue
             print('Обход связанных полей успешно завершен!')
 
@@ -274,10 +285,12 @@ class BaseTableForm(forms.ModelForm):
 
 class ProductsForm(BaseTableForm):
     related_fields = {'supplier': {'model': 'Suppliers', 'field': 'name'}}
+
     class Meta:
         model = Products
         fields = ['name', 'product_sku', 'packaging_unit', 'supplier', 'product_url', 'product_image']
         exclude = ['id', 'near_products', 'supplier_old', 'categories']
+
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop('request', None)
         print('ProductsForm Request:', self.request)
@@ -292,7 +305,6 @@ class ProductsForm(BaseTableForm):
 
 
 class ProjectsForm(BaseTableForm):
-
     related_fields = {
         'manager': {'model': 'CustomUser', 'filter': 'Менеджеры'},
         'engineer': {'model': 'CustomUser', 'filter': 'Инженеры'},
@@ -329,7 +341,6 @@ class ProjectsForm(BaseTableForm):
 
 
 class OrdersForm(BaseTableForm):
-
     related_fields = {
         'manager': {'model': 'CustomUser', 'filter': 'Менеджеры'},
         'product_request': {'model': 'ProductRequest', 'field': 'product'}
@@ -351,7 +362,6 @@ class OrdersForm(BaseTableForm):
 
 
 class ProductMoviesForm(BaseTableForm):
-
     related_fields = {
         'product': {'model': 'Products', 'field': 'name'},
         'new_cell': {'model': 'StorageCells', 'field': 'name'}
@@ -373,12 +383,11 @@ class ProductMoviesForm(BaseTableForm):
 
 
 class ProductRequestForm(BaseTableForm):
-
     related_fields = {
         'product': {'model': 'Products', 'field': 'name'},
         'project': {'model': 'Projects', 'field': 'detail_code'},
         'responsible': {'model': 'CustomUser'},
-        }
+    }
 
     class Meta:
         model = ProductRequest
@@ -477,7 +486,6 @@ class CustomUserChangeForm(UserChangeForm, BaseTableForm):
 
 
 class CustomUserCreationForm(UserCreationForm, BaseTableForm):
-
     class Meta:
         model = CustomUser
         fields = ('username', 'first_name', 'last_name', 'email', 'department', 'position_name', 'tel', 'tg')
@@ -573,7 +581,6 @@ class ModelAccessControlForm(forms.ModelForm):
 
 
 class PivotTableForm(BaseTableForm):
-
     class Meta:
         model = PivotTable
         fields = [
@@ -610,7 +617,8 @@ class PivotTableForm(BaseTableForm):
                 self.fields['delivery_status'].initial = self.delivery_status or self.instance.order.delivery_status
                 self.fields['document_flow'].initial = self.document_flow or self.instance.order.document_flow
                 self.fields['documents'].initial = self.documents or self.instance.order.documents
-                self.fields['accounted_in_1c'].initial = self.accounted_in_1c if self.accounted_in_1c is not None else self.instance.order.accounted_in_1c
+                self.fields[
+                    'accounted_in_1c'].initial = self.accounted_in_1c if self.accounted_in_1c is not None else self.instance.order.accounted_in_1c
 
     def save(self, commit=True):
         instance = super(PivotTableForm, self).save(commit=False)
@@ -642,5 +650,3 @@ class PivotTableForm(BaseTableForm):
         if commit:
             instance.save()
         return instance
-
-

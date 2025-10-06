@@ -1,7 +1,7 @@
 {% load custom_filters %}
 {% block content %}
-<div id="table_head">{{ table_head }}</div>
-<table>
+<div id="table_head" class="hidelinked">{{ table_head }}</div>
+<table id="related-preview" data-model-name="{{ model_name }}"  data-field-name="{{ field_name }}">
     <thead>
         <tr>
             {% for verbose_name in verbose_names %}

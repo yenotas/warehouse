@@ -19,10 +19,11 @@ def check_old_value(obj, field):
     return None
 
 
-def get_changelist_instance(request, model):
+def get_changelist_instance(request, model, field_name=''):
     verbose_names = []
+    model_name = model._meta.model_name
     methods = {}
-    print('\n\nget_changelist_instance\n\n')
+    print('\nПревью модели:', model_name, '\n\n')
     admin_class = admin_site._registry.get(model)
     if not admin_class:
         raise ValueError(f"Admin class for {model} not found.")
@@ -72,7 +73,10 @@ def get_changelist_instance(request, model):
                 value = check_old_value(obj, field)
             text_field = f"display_{field}"
             if field == "id":
-                value = f'<a href="{obj.pk}/change/">{obj.pk}</a>'
+                if field_name:
+                    value = f'<a href="#" data-rel-id="{obj.pk}" data-model-name="{model_name}" data-field-name="{field_name}">{obj.pk}</a>'
+                else:
+                    value = f'<a href="{obj.pk}/change/">{obj.pk}</a>'
             setattr(obj, text_field, str(value) if value is not None else "—")
             print(f'НОВЫЙ queryset {text_field}: {getattr(obj, text_field)}')
 

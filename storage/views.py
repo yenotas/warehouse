@@ -14,14 +14,26 @@ from django.views import View
 from django.apps import apps
 
 
+class InsertRec(View):
+    admin_site = admin_site
+
+    def get(self, request, *args, **kwargs):
+        app_label = kwargs.get('app_label')
+        model_name = kwargs.get('model_name')
+        rel_model = kwargs.get('rel_model')
+        rel_id = kwargs.get('id')
+        print('InsertRec Выбрал', model_name, rel_model, rel_id)
+
+
 class RelTable(View):
     admin_site = admin_site
 
     def get(self, request, *args, **kwargs):
         app_label = kwargs.get('app_label')
         model_name = kwargs.get('model_name')
+        field_name = kwargs.get('field_name')
         model = apps.get_model(app_label, model_name)
-        cl, verbose_names, methods = get_changelist_instance(request, model)
+        cl, verbose_names, methods = get_changelist_instance(request, model, field_name)
 
         model = cl.model
         table_head = model._meta.verbose_name_plural
@@ -34,6 +46,8 @@ class RelTable(View):
             "table_head": table_head,
             "verbose_names": verbose_names,
             "methods": methods,
+            "field_name": field_name,
+            "model_name": model_name,
         }
         return TemplateResponse(request, 'admin/rel_table.html', context)
 
